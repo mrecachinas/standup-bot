@@ -3,8 +3,8 @@ class CreateStandup < ActiveRecord::Migration[8.0]
     create_table :standups do |t|
       t.string :name, null: false
       t.string :slack_channel, null: false
-      t.text :intro, null: false
-      t.text :outro, null: false
+      t.text :intro, null: false, default: "Good morning! Time for standup. When you're ready, please answer the following"
+      t.text :outro, null: false, default: "Thanks for your answers! Have a great day!"
       t.json :questions, null: false, default: []
 
       # Schedule configuration

@@ -3,6 +3,7 @@ class CreateStandupParticipants < ActiveRecord::Migration[8.0]
     create_table :standup_participants do |t|
       t.references :standup, null: false, foreign_key: true
       t.string :slack_id, null: false
+      t.string :slack_name, null: false
       t.boolean :active, null: false, default: true
       t.timestamps
     end
