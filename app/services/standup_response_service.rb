@@ -1,6 +1,6 @@
 class StandupResponseService
   def self.slack_client
-    @slack_client ||= SlackClient.new
+    SlackClient.instance
   end
 
   def self.record_answer(standup_response, text)
@@ -28,18 +28,9 @@ class StandupResponseService
     }
     Rails.logger.debug "Answer recorded for question: '#{standup.questions[current_question_idx].truncate(30)}'"
 
-    # Check if all questions have been answered
-    if standup_response.answers.size >= standup.questions.size
-      # All questions answered, mark as complete
-      Rails.logger.info "All questions have been answered, completing standup response"
-      complete_standup_response(standup_response)
-    else
-      # Send the next question
-      Rails.logger.info "Sending next question #{standup_response.answers.size + 1}/#{standup.questions.size}"
-      send_next_question(standup_response)
-    end
+    # Process the updated standup response
+    process_answer_update(standup_response)
 
-    standup_response.save!
     Rails.logger.info "Standup response #{standup_response.id} saved successfully"
   end
 
@@ -62,18 +53,9 @@ class StandupResponseService
     }
     Rails.logger.debug "Question marked as skipped: '#{standup.questions[current_question_idx].truncate(30)}'"
 
-    # Check if all questions have been answered
-    if standup_response.answers.size >= standup.questions.size
-      # All questions answered, mark as complete
-      Rails.logger.info "All questions have been answered (with skips), completing standup response"
-      complete_standup_response(standup_response)
-    else
-      # Send the next question
-      Rails.logger.info "Sending next question #{standup_response.answers.size + 1}/#{standup.questions.size}"
-      send_next_question(standup_response)
-    end
+    # Process the updated standup response
+    process_answer_update(standup_response)
 
-    standup_response.save!
     Rails.logger.info "Standup response #{standup_response.id} saved successfully after skip"
   end
 
@@ -82,6 +64,24 @@ class StandupResponseService
     complete_standup_response(standup_response)
     standup_response.save!
     Rails.logger.info "Standup response #{standup_response.id} completed"
+  end
+
+  # Helper method to process answer updates and determine next steps
+  def self.process_answer_update(standup_response)
+    standup = standup_response.standup
+
+    # Check if all questions have been answered
+    if standup_response.answers.size >= standup.questions.size
+      # All questions answered, mark as complete
+      Rails.logger.info "All questions have been answered, completing standup response"
+      complete_standup_response(standup_response)
+    else
+      # Send the next question
+      Rails.logger.info "Sending next question #{standup_response.answers.size + 1}/#{standup.questions.size}"
+      send_next_question(standup_response)
+    end
+
+    standup_response.save!
   end
 
   private
@@ -122,7 +122,7 @@ class StandupResponseService
     # Format the question with a counter
     question_number = current_question_idx + 1
     total_questions = standup.questions.size
-    formatted_question = "*Question #{question_number}/#{total_questions}:* #{next_question}\n\n_Type your answer or 'skip' to skip this question._"
+    formatted_question = StandupFormatter.format_question(next_question, question_number, total_questions)
     Rails.logger.debug "Formatted question #{question_number}/#{total_questions}"
 
     # Send the next question

@@ -4,7 +4,7 @@ class ApplicationJob < ActiveJob::Base
 
   # Provide a memoized slack client for all job classes
   def self.slack_client
-    @slack_client ||= SlackClient.new
+    SlackClient.instance
   end
 
   # Allow instance methods to access the class method

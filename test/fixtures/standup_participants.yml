@@ -1,0 +1,39 @@
+# Participant for daily standup
+one:
+  standup: daily
+  slack_id: U123456
+  slack_name: "John Doe"
+  active: true
+
+# Another participant for daily standup
+two:
+  standup: daily
+  slack_id: U234567
+  slack_name: "Jane Smith"
+  active: true
+
+# Participant for weekly standup
+three:
+  standup: weekly
+  slack_id: U345678
+  slack_name: "Alice Johnson"
+  active: true
+
+# Inactive participant
+inactive:
+  standup: daily
+  slack_id: U456789
+  slack_name: "Bob Brown"
+  active: false
+
+inactive_daily:
+  standup: daily
+  slack_id: "U12345"
+  slack_name: "Test User 1"
+  active: false
+
+inactive_weekly:
+  standup: weekly
+  slack_id: "U12345"
+  slack_name: "Test User 1"
+  active: false

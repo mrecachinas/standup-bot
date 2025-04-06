@@ -1,3 +1,5 @@
+require "json"
+
 class Standup < ApplicationRecord
   has_many :standup_participants, dependent: :destroy
   has_many :standup_responses, dependent: :destroy
@@ -8,13 +10,9 @@ class Standup < ApplicationRecord
   validates :schedule_type, inclusion: { in: %w[daily weekdays weekly biweekly monthly custom] }
   validates :respect_timezone, inclusion: { in: [ true, false ] }
 
-  # Store questions as an array in JSON
-  serialize :questions, Array
-
   # For custom schedules, store as array of weekday numbers (0=Sunday, 6=Saturday)
   # For weekly, store day of week (0-6)
   # For biweekly/monthly, store day of month (1-31)
-  serialize :schedule_days, Array
 
   # Default scope to only show active standups
   default_scope { where(active: true) }
@@ -44,7 +42,15 @@ class Standup < ApplicationRecord
     when "weekly"
       # The configured day of week at the configured time
       day_of_week = schedule_days.first || 1 # Default to Monday (1)
-      next_time = now.beginning_of_week + day_of_week.days
+
+      # In Ruby/Rails, wday is: 0=Sunday, 1=Monday, ..., 6=Saturday
+      # But beginning_of_week starts with Monday, so we need to adjust
+      next_time = if day_of_week == 0  # Sunday
+        now.beginning_of_week - 1.day  # Sunday is 1 day before beginning of week (Monday)
+      else
+        now.beginning_of_week + (day_of_week - 1).days  # Adjust for Monday=1 offset
+      end
+
       next_time = next_time.change(hour: default_hour, min: default_minute)
 
       # If this week's occurrence has passed, go to next week
@@ -55,5 +61,22 @@ class Standup < ApplicationRecord
     when "biweekly"
       # Every other week on the configured day
     end
+  end
+
+  private
+
+  # Advances the given time to the next weekday (Monday-Friday)
+  def advance_to_next_weekday(time)
+    new_time = time.dup
+
+    # Add days until we reach a weekday
+    loop do
+      new_time += 1.day
+      # Check if it's a weekday (Monday = 1, Friday = 5)
+      break if (1..5).include?(new_time.wday)
+    end
+
+    # Set the time to the configured hour and minute
+    new_time.change(hour: default_hour, min: default_minute)
   end
 end

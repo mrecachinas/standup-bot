@@ -1,6 +1,8 @@
 class SlackEventsController < ApplicationController
-  skip_before_action :verify_authenticity_token
   before_action :verify_slack_request, except: [ :install ]
+
+  def install
+  end
 
   def events
     # Handle URL verification challenge from Slack
@@ -10,22 +12,14 @@ class SlackEventsController < ApplicationController
       return
     end
 
-    Rails.logger.info "Received Slack event: #{params[:event][:type]} from user: #{params[:event][:user]} in channel: #{params[:event][:channel]}"
+    event_type = event_params[:type]
+
+    Rails.logger.info "Received Slack event: #{event_type} from user: #{params[:event][:user]} in channel: #{params[:event][:channel]}"
 
     # Process the event asynchronously
     SlackEventProcessorJob.perform_later(event_params.to_h)
 
     # Acknowledge receipt right away (Slack expects a quick response)
-    head :ok
-  end
-
-  def interactions
-    # Process interactive components (buttons, modals, etc.)
-    payload = JSON.parse(params[:payload])
-    Rails.logger.info "Received Slack interaction: #{payload['type']} from user: #{payload['user']['id']}"
-
-    SlackInteractionProcessorJob.perform_later(payload)
-
     head :ok
   end
 

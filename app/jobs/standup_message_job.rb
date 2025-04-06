@@ -9,12 +9,16 @@ class StandupMessageJob < ApplicationJob
 
     # Format intro with the first question
     first_question = standup.questions.first
+    formatted_question = StandupFormatter.format_question(
+      first_question,
+      1,
+      standup.questions.size
+    )
+
     message_text = [
       standup.intro,
       "",
-      "*Question 1/#{standup.questions.size}:* #{first_question}",
-      "",
-      "_Type your answer or 'skip' to skip this question._"
+      formatted_question
     ].join("\n")
 
     # Use the inherited slack_client

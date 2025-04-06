@@ -1,0 +1,53 @@
+# Fixture for daily standup
+daily:
+  name: Daily Standup
+  slack_channel: daily-standup
+  questions:
+    - What did you do yesterday?
+    - What are you doing today?
+    - Any blockers?
+  schedule_type: daily
+  default_hour: 9
+  default_minute: 0
+  respect_timezone: true
+  active: true
+
+# Fixture for weekdays standup
+weekdays:
+  name: Weekdays Standup
+  slack_channel: weekday-standup
+  questions:
+    - Current priorities?
+    - Any updates?
+  schedule_type: weekdays
+  default_hour: 10
+  default_minute: 30
+  respect_timezone: false
+  active: true
+
+# Fixture for weekly standup
+weekly:
+  name: Weekly Planning
+  slack_channel: weekly-planning
+  questions:
+    - Goals for this week?
+    - Wins from last week?
+  schedule_type: weekly
+  schedule_days:
+    - 1 # Monday
+  default_hour: 13
+  default_minute: 0
+  respect_timezone: true
+  active: true
+
+# Fixture for inactive standup
+inactive:
+  name: Archived Standup
+  slack_channel: archived-standup
+  questions:
+    - Some question
+  schedule_type: daily
+  default_hour: 9
+  default_minute: 0
+  respect_timezone: false
+  active: false

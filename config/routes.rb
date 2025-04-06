@@ -7,6 +7,7 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
-  post "/slack/events", to: "slack_events#events"
-  post "slack/interactions", to: "slack_events#interactions"
+  post "/slack/install", to: "slack_events#install", as: :install
+  post "/slack/events", to: "slack_events#events", as: :events
+  post "slack/interactions", to: "slack_events#interactions", as: :interactions
 end

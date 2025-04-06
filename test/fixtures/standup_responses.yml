@@ -1,0 +1,62 @@
+# Basic response
+one:
+  standup: daily
+  slack_id: U123456
+  status: pending
+  answers: []
+  created_at: 2025-04-06 10:00:00
+
+# Pending response for scopes testing
+pending:
+  standup: daily
+  slack_id: U234567
+  status: pending
+  answers: []
+  created_at: 2025-04-06 11:00:00
+
+# Completed response for scopes testing
+completed:
+  standup: daily
+  slack_id: U123456
+  status: completed
+  answers:
+    - question: What did you do yesterday?
+      answer: Fixed bugs
+      timestamp: 2025-04-06 09:00:00
+    - question: What are you doing today?
+      answer: Adding features
+      timestamp: 2025-04-06 09:05:00
+    - question: Any blockers?
+      answer: None
+      timestamp: 2025-04-06 09:10:00
+  created_at: 2025-04-06 10:30:00
+
+# Response created today for scopes testing
+today:
+  standup: weekly
+  slack_id: U345678
+  status: completed
+  answers:
+    - question: Goals for this week?
+      answer: Complete project X
+      timestamp: 2025-04-06 08:00:00
+  created_at: 2025-04-06 03:00:00
+
+# Response created yesterday for scopes testing
+yesterday:
+  standup: weekly
+  slack_id: U345678
+  status: completed
+  answers:
+    - question: Wins from last week?
+      answer: Launched feature Y
+      timestamp: 2025-04-05 08:00:00
+  created_at: 2025-04-05 10:00:00
+
+# Skipped response
+skipped:
+  standup: daily
+  slack_id: U456789
+  status: skipped
+  answers: []
+  created_at: 2025-04-06 07:00:00

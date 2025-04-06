@@ -1,0 +1,115 @@
+require "test_helper"
+require "timecop"
+
+class StandupTest < ActiveSupport::TestCase
+  def setup
+    @daily_standup = standups(:daily)
+    @weekdays_standup = standups(:weekdays)
+    @weekly_standup = standups(:weekly)
+  end
+
+  test "should be valid with required attributes" do
+    standup = Standup.new(
+      name: "Test Standup",
+      slack_channel: "test-channel",
+      questions: [ "How are you?" ],
+      schedule_type: "daily",
+      respect_timezone: true,
+      default_hour: 9,
+      default_minute: 0,
+      active: true
+    )
+    assert standup.valid?
+  end
+
+  test "should not be valid without name" do
+    @daily_standup.name = nil
+    assert_not @daily_standup.valid?
+    assert_includes @daily_standup.errors[:name], "can't be blank"
+  end
+
+  test "should not be valid without slack_channel" do
+    @daily_standup.slack_channel = nil
+    assert_not @daily_standup.valid?
+    assert_includes @daily_standup.errors[:slack_channel], "can't be blank"
+  end
+
+  test "should not be valid without questions" do
+    @daily_standup.questions = nil
+    assert_not @daily_standup.valid?
+    assert_includes @daily_standup.errors[:questions], "can't be blank"
+  end
+
+  test "should not be valid with invalid schedule_type" do
+    Timecop.freeze(Time.new(2025, 4, 6)) do
+      @daily_standup.schedule_type = "invalid"
+      assert_not @daily_standup.valid?
+      assert_includes @daily_standup.errors[:schedule_type], "is not included in the list"
+    end
+  end
+
+  test "should calculate next occurrence for daily standup" do
+    # Use Timecop to freeze time at 8am UTC
+    Timecop.freeze(Time.new(2025, 4, 6, 8, 0, 0, "+00:00")) do
+      timezone = ActiveSupport::TimeZone["UTC"]
+
+      # Daily standup at 9:00
+      @daily_standup.default_hour = 9
+      @daily_standup.default_minute = 0
+
+      expected_time = Time.new(2025, 4, 6, 9, 0, 0, "+00:00")
+      assert_equal expected_time, @daily_standup.next_occurrence_in_timezone(timezone)
+    end
+
+    # Use Timecop to freeze time at 10am (after scheduled time)
+    Timecop.freeze(Time.new(2025, 4, 6, 10, 0, 0, "+00:00")) do
+      timezone = ActiveSupport::TimeZone["UTC"]
+
+      @daily_standup.default_hour = 9
+      @daily_standup.default_minute = 0
+
+      expected_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
+      assert_equal expected_time, @daily_standup.next_occurrence_in_timezone(timezone)
+    end
+  end
+
+  test "should calculate next occurrence for weekdays standup" do
+    # Use Timecop to freeze time on Friday after scheduled time
+    Timecop.freeze(Time.new(2025, 4, 4, 10, 0, 0, "+00:00")) do
+      timezone = ActiveSupport::TimeZone["UTC"]
+
+      @weekdays_standup.default_hour = 9
+      @weekdays_standup.default_minute = 0
+
+      # Since it's after scheduled time on Friday, next occurrence should be Monday
+      expected_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
+      assert_equal expected_time, @weekdays_standup.next_occurrence_in_timezone(timezone)
+    end
+
+    # Use Timecop to freeze time on Saturday
+    Timecop.freeze(Time.new(2025, 4, 5, 8, 0, 0, "+00:00")) do
+      timezone = ActiveSupport::TimeZone["UTC"]
+
+      @weekdays_standup.default_hour = 9
+      @weekdays_standup.default_minute = 0
+
+      expected_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
+      assert_equal expected_time, @weekdays_standup.next_occurrence_in_timezone(timezone)
+    end
+  end
+
+  test "should calculate next occurrence for weekly standup" do
+    # Use Timecop to freeze time on Sunday
+    Timecop.freeze(Time.new(2025, 4, 6, 8, 0, 0, "+00:00")) do
+      timezone = ActiveSupport::TimeZone["UTC"]
+
+      @weekly_standup.default_hour = 9
+      @weekly_standup.default_minute = 0
+      @weekly_standup.schedule_days = [ 1 ] # Monday
+
+      # Next occurrence should be Monday, April 7th
+      expected_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
+      assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
+    end
+  end
+end

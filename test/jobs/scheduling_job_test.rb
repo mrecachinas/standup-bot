@@ -1,0 +1,87 @@
+require "test_helper"
+
+class SchedulingJobTest < ActiveJob::TestCase
+  setup do
+    @active_standup = standups(:daily)
+    @inactive_standup = standups(:inactive)
+    @participant = standup_participants(:one) # Using 'one' fixture instead of 'active_participant'
+    @inactive_participant = standup_participants(:inactive)
+
+    # Make sure our test standup is active
+    @active_standup.update(active: true)
+    @inactive_standup.update(active: false)
+
+    # Associate participant with the active standup
+    @participant.update(standup_id: @active_standup.id, active: true)
+
+    # Mock time calculation for consistency
+    @scheduled_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
+    StandupParticipant.any_instance.stubs(:calculate_send_time).returns(@scheduled_time)
+  end
+
+  test "schedules messages for active standups only" do
+    # First clear out any unexpected participants from fixtures to ensure
+    # we have a controlled environment
+    StandupParticipant.where.not(id: [ @participant.id, @inactive_participant.id ]).delete_all
+
+    # First test: active standup should have job scheduled
+    assert_enqueued_with(job: StandupMessageJob, at: @scheduled_time, args: [ @participant.slack_id, @active_standup.id ]) do
+      SchedulingJob.perform_now
+    end
+
+    # Reset the job queue to start fresh
+    ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+
+    # Ensure the inactive standup exists and is saved
+    assert @inactive_standup.persisted?
+
+    # Update the inactive participant to be associated with the inactive standup
+    @inactive_participant.standup = @inactive_standup
+    @inactive_participant.active = true  # Even though this participant is active...
+    @inactive_participant.save!
+
+    # Remove active participants to isolate our test
+    @participant.destroy!
+
+    # Also make sure no other active participants exist for ANY standup
+    StandupParticipant.where.not(id: @inactive_participant.id).delete_all
+
+    # Verify we only have participants for the inactive standup
+    participant_count = StandupParticipant.count
+    inactive_standup_participant_count = StandupParticipant.where(standup_id: @inactive_standup.id).count
+    assert_equal participant_count, inactive_standup_participant_count,
+      "Expected all participants to be for the inactive standup"
+
+    # Now run SchedulingJob and verify no jobs are scheduled for inactive standups
+    assert_no_enqueued_jobs(only: StandupMessageJob) do
+      SchedulingJob.perform_now
+    end
+  end
+
+  test "schedules messages for active participants only" do
+    # First, remove any other active participants to control our test environment
+    StandupParticipant.where.not(id: [ @participant.id, @inactive_participant.id ]).delete_all
+
+    # Create an inactive participant
+    @inactive_participant.standup = @active_standup
+    @inactive_participant.save!
+
+    # Verify we only have one active participant with the active standup
+    active_count = StandupParticipant.where(active: true, standup_id: @active_standup.id).count
+    assert_equal 1, active_count, "Expected only one active participant but found #{active_count}"
+
+    # Check that message is scheduled only for active participants
+    assert_enqueued_jobs 1, only: StandupMessageJob do
+      SchedulingJob.perform_now
+    end
+  end
+
+  test "calculates correct time for each participant" do
+    # Test that the job uses the participant's calculated send time
+    send_at = @participant.calculate_send_time
+
+    assert_enqueued_with(job: StandupMessageJob, at: send_at, args: [ @participant.slack_id, @active_standup.id ]) do
+      SchedulingJob.perform_now
+    end
+  end
+end

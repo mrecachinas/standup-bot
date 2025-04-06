@@ -4,10 +4,18 @@ class SlackClient
     @client = Slack::Web::Client.new(token: Rails.application.config.slack[:bot_token])
   end
 
+  # Provide a shared instance for the application
+  def self.instance
+    @instance ||= new
+  end
+
   # Send standup questions to a user
   def send_standup_questions(slack_id, intro, questions)
     Rails.logger.info "Sending standup questions to user: #{slack_id}"
     first_question = questions.first
+
+    # Use consistent formatting from the formatter
+    formatted_question = StandupFormatter.format_question(first_question, 1, questions.size)
 
     blocks = [
       {
@@ -22,7 +30,7 @@ class SlackClient
         type: "section",
         text: {
           type: "mrkdwn",
-          text: "*Question 1:* #{first_question}"
+          text: formatted_question
         }
       }
     ]
@@ -75,7 +83,7 @@ class SlackClient
       response
     rescue Slack::Web::Api::Errors::TooManyRequestsError => e
       # Get retry time from response header or use exponential backoff
-      retry_after = e.response_metadata&.dig("retry_after") || (2**retries)
+      retry_after = e.retry_after || (2**retries)
       Rails.logger.warn "Rate limited by Slack API. Retry after #{retry_after} seconds. Attempt #{retries + 1}/4"
 
       if retries < 3
@@ -127,9 +135,17 @@ class SlackClient
   # Get user info including timezone
   def get_user_info(slack_id)
     Rails.logger.info "Fetching user info for Slack ID: #{slack_id}"
-    user = @client.users_info(user: slack_id)&.user
+    response = @client.users_info(user: slack_id)
+    user = response.user
     Rails.logger.info "Successfully retrieved info for user: #{user&.name || slack_id}"
-    user
+
+    # Return a hash with user data instead of the full user object
+    {
+      "name" => user.name,
+      "tz" => user.tz,
+      "tz_offset" => user.tz_offset,
+      "profile" => user.profile
+    }
   rescue Slack::Web::Api::Errors::UserNotFound
     Rails.logger.error "User not found in Slack: #{slack_id}"
     nil
