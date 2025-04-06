@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nerdbot
+  labels:
+    app: nerdbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nerdbot
+  template:
+    metadata:
+      labels:
+        app: nerdbot
+    spec:
+      initContainers:
+      - name: import-standups
+        image: your-nerdbot-image:tag
+        command: ['bundle', 'exec', 'rake', 'standups:import']
+        env:
+        - name: RAILS_ENV
+          value: "production"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config/standups
+        # Database and other necessary environment variables
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: nerdbot-secrets
+              key: database-url
+        # Add any other environment variables your app needs
+      
+      containers:
+      - name: nerdbot
+        image: your-nerdbot-image:tag
+        # Main container configuration
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config/standups
+        # Rest of your container definition
+      
+      volumes:
+      - name: config-volume
+        configMap:
+          name: standup-configs

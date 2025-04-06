@@ -1,0 +1,17 @@
+default: &default
+  bot_token: <%= ENV.fetch('SLACK_BOT_TOKEN', nil) %>
+  signing_secret: <%= ENV.fetch('SLACK_SIGNING_SECRET', nil) %>
+  client_id: <%= ENV.fetch('SLACK_CLIENT_ID', nil) %>
+  client_secret: <%= ENV.fetch('SLACK_CLIENT_SECRET', nil) %>
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+  # Use mock values for testing
+  bot_token: "xoxb-test-token"
+  signing_secret: "test-signing-secret"
+
+production:
+  <<: *default

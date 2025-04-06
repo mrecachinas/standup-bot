@@ -1,0 +1,35 @@
+name: "Engineering Team Daily Standup"
+slack_channel: "eng-standup"
+schedule:
+  timezone: "America/Los_Angeles"
+  days:
+    - monday
+    - tuesday
+    - wednesday
+    - thursday
+    - friday
+  time: "09:30"
+  
+intro: "Good morning! Let's check in on your progress. Please answer these questions for today's standup:"
+
+questions:
+  - "What did you accomplish since the last standup?"
+  - "What are you working on today?"
+  - "Are there any blockers or challenges you're facing?"
+  - "Do you need help from anyone on the team?"
+
+outro: "Thanks for completing your standup! Have a productive day."
+
+participants:
+  - slack_id: "U01ABC123"
+    name: "Sarah Thompson"
+    active: true
+  - slack_id: "U02DEF456"
+    name: "Michael Chen"
+    active: true
+  - slack_id: "U03GHI789"
+    name: "Priya Patel"
+    active: true
+  - slack_id: "U04JKL012"
+    name: "David Rodriguez"
+    active: false # On vacation
