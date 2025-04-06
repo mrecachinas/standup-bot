@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nerdbot-scheduling-job
+spec:
+  schedule: "0 0 * * *"  # Run at midnight UTC
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: nerdbot-scheduler
+            image: your-nerdbot-image:tag
+            command: ['bundle', 'exec', 'rails', 'runner', 'SchedulingJob.perform_now']
+            # Include necessary environment variables
+          restartPolicy: OnFailure
