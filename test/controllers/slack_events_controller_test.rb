@@ -108,7 +108,7 @@ class SlackEventsControllerTest < ActionDispatch::IntegrationTest
         # Check the log content
         log_output.rewind
         log_content = log_output.read
-        assert_match(/Received Slack event: message from user: U12345 in channel: C67890/, log_content)
+        assert_match(/Received Slack event=message subtype= from user=U12345 in channel=C67890/, log_content)
       ensure
         # Restore the original logger
         Rails.logger = original_logger

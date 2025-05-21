@@ -13,8 +13,11 @@ class SlackEventsController < ApplicationController
     end
 
     event_type = event_params[:type]
+    subtype = event_params[:subtype]
+    user_id = event_params[:user] || event_params.dig(:message, :user)
+    channel = event_params[:channel]
 
-    Rails.logger.info "Received Slack event: #{event_type} from user: #{params[:event][:user]} in channel: #{params[:event][:channel]}"
+    Rails.logger.info "Received Slack event=#{event_type} subtype=#{subtype} from user=#{user_id} in channel=#{channel}"
 
     # Process the event asynchronously
     SlackEventProcessorJob.perform_later(event_params.to_h)
@@ -26,7 +29,12 @@ class SlackEventsController < ApplicationController
   private
 
   def event_params
-    params.require(:event).permit(:type, :user, :text, :channel, :ts)
+    # Allow deeper nested parameters for message_changed events
+    params.require(:event).permit(
+      :type, :user, :text, :channel, :ts, :subtype,
+      message: [ :type, :user, :text, :ts, :edited, { edited: [ :user, :ts ] } ],
+      previous_message: [ :type, :user, :text, :ts, :edited, { edited: [ :user, :ts ] } ]
+    )
   end
 
   def verify_slack_request

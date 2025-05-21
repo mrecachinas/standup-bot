@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_04_06_020914) do
+ActiveRecord::Schema[8.0].define(version: 2025_04_06_230752) do
   create_table "standup_participants", force: :cascade do |t|
     t.integer "standup_id", null: false
     t.string "slack_id", null: false
@@ -30,6 +30,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_04_06_020914) do
     t.json "answers", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slack_message_ts"
     t.index ["standup_id"], name: "index_standup_responses_on_standup_id"
   end
 

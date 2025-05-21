@@ -84,6 +84,69 @@ class StandupResponseService
     standup_response.save!
   end
 
+  # Update an existing standup response in the channel
+  def self.repost_response(standup_response)
+    Rails.logger.info "Updating standup response #{standup_response.id} in channel"
+    standup = standup_response.standup
+
+    # Get the message timestamp
+    message_ts = standup_response.slack_message_ts
+
+    if message_ts.present?
+      # Format the updated response
+      # Get user info for the display name
+      user_info = slack_client.get_user_info(standup_response.slack_id)
+      display_name = user_info&.dig("profile", "display_name") || user_info&.dig("name") || "Unknown User"
+
+      # Format the responses
+      formatted_responses = []
+      standup_response.answers.each do |answer|
+        # Skip empty answers
+        next if answer["answer"].blank? || answer["answer"] == "(skipped)"
+
+        formatted_responses << "*#{answer["question"]}*\n#{answer["answer"]}"
+      end
+
+      # Build the message with user information
+      message = [
+        "*#{display_name}'s Standup Update:*",
+        "",
+        formatted_responses.join("\n\n")
+      ].join("\n")
+
+      # Create blocks for formatting (same structure as in post_individual_response)
+      blocks = [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "*#{display_name}'s Standup Update:*"
+          }
+        }
+      ]
+
+      # Add each formatted response as a section
+      formatted_responses.each do |response_text|
+        blocks << {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: response_text
+          }
+        }
+      end
+
+      # Update the existing message
+      Rails.logger.info "Updating message with timestamp #{message_ts} in channel #{standup.slack_channel}"
+      slack_client.update_message(standup.slack_channel, message_ts, message, blocks)
+      Rails.logger.info "Successfully updated standup response in channel #{standup.slack_channel}"
+    else
+      # If we don't have a stored message timestamp, post as a new message
+      Rails.logger.info "No stored message timestamp, posting as a new message"
+      post_individual_response(standup_response)
+    end
+  end
+
   private
 
   def self.complete_standup_response(standup_response)
@@ -167,8 +230,16 @@ class StandupResponseService
 
     Rails.logger.info "Posting formatted response with #{formatted_responses.size} answers"
 
-    # Post to the channel
-    slack_client.send_message(standup.slack_channel, message)
+    # Post to the channel and store the message timestamp for potential future updates
+    response = slack_client.send_message(standup.slack_channel, message)
+
+    # Store the message timestamp in the standup_response for future reference
+    if response && response["ts"]
+      standup_response.slack_message_ts = response["ts"]
+      standup_response.save!
+      Rails.logger.info "Saved message timestamp #{response['ts']} to standup_response #{standup_response.id}"
+    end
+
     Rails.logger.info "Successfully posted response to channel ##{standup.slack_channel}"
   end
 
