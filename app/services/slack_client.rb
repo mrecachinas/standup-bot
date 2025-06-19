@@ -246,4 +246,36 @@ class SlackClient
     Rails.logger.info "Successfully sent standup summary to channel: #{channel}"
     response
   end
+
+  # Update an existing message in a channel
+  def update_message(channel, message_ts, text, blocks = nil)
+    Rails.logger.info "Updating message with timestamp #{message_ts} in channel: #{channel}"
+
+    begin
+      response = if blocks
+        Rails.logger.debug "Updating message with blocks"
+        @client.chat_update(
+          channel: channel,
+          ts: message_ts,
+          blocks: blocks,
+          text: text, # Fallback text
+          as_user: true
+        )
+      else
+        Rails.logger.debug "Updating message with simple text"
+        @client.chat_update(
+          channel: channel,
+          ts: message_ts,
+          text: text,
+          as_user: true
+        )
+      end
+
+      Rails.logger.info "Successfully updated message in channel: #{channel}"
+      response
+    rescue => e
+      Rails.logger.error "Error updating Slack message: #{e.class} - #{e.message}"
+      raise
+    end
+  end
 end

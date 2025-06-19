@@ -160,4 +160,117 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
 
     StandupResponseService.process_answer_update(@standup_response)
   end
+
+  test "repost_response updates an existing message in channel" do
+    # Create a response with a stored message timestamp
+    completed_response = StandupResponse.new(
+      id: 2,
+      standup_id: @standup.id,
+      slack_id: "U12345",
+      status: "completed",
+      answers: [
+        {
+          "question" => "What did you work on yesterday?",
+          "answer" => "I worked on feature X",
+          "timestamp" => Time.current
+        },
+        {
+          "question" => "What are you working on today?",
+          "answer" => "I will work on feature Y",
+          "timestamp" => Time.current
+        }
+      ],
+      slack_message_ts: "1234567890.123456"
+    )
+
+    completed_response.stubs(:standup).returns(@standup)
+
+    # Expect get_user_info call for display name
+    @mock_slack_client.expects(:get_user_info).with("U12345").returns(
+      { "name" => "Test User", "profile" => { "display_name" => "Test User" } }
+    ).once
+
+    # Expect update_message call with appropriate parameters
+    @mock_slack_client.expects(:update_message).with(
+      @standup.slack_channel,
+      "1234567890.123456",
+      is_a(String),
+      is_a(Array)
+    ).returns({ "ok" => true })
+
+    StandupResponseService.repost_response(completed_response)
+  end
+
+  test "repost_response posts new message when no timestamp exists" do
+    # Create a response without a stored message timestamp
+    completed_response = StandupResponse.new(
+      id: 2,
+      standup_id: @standup.id,
+      slack_id: "U12345",
+      status: "completed",
+      answers: [
+        {
+          "question" => "What did you work on yesterday?",
+          "answer" => "I worked on feature X",
+          "timestamp" => Time.current
+        },
+        {
+          "question" => "What are you working on today?",
+          "answer" => "I will work on feature Y",
+          "timestamp" => Time.current
+        }
+      ],
+      slack_message_ts: nil # No stored timestamp
+    )
+
+    completed_response.stubs(:standup).returns(@standup)
+
+    # Expect get_user_info call for display name
+    @mock_slack_client.expects(:get_user_info).with("U12345").returns(
+      { "name" => "Test User", "profile" => { "display_name" => "Test User" } }
+    ).at_least_once
+
+    # Expect send_message call instead of update_message
+    @mock_slack_client.expects(:send_message).returns({ "ok" => true, "ts" => "1234567890.123456" })
+
+    # Should try to save the new timestamp
+    completed_response.expects(:save!).at_least_once
+
+    StandupResponseService.repost_response(completed_response)
+  end
+
+  test "repost_response handles empty answers" do
+    # Create a response with only skipped answers
+    completed_response = StandupResponse.new(
+      id: 2,
+      standup_id: @standup.id,
+      slack_id: "U12345",
+      status: "completed",
+      answers: [
+        {
+          "question" => "What did you work on yesterday?",
+          "answer" => "(skipped)",
+          "timestamp" => Time.current
+        },
+        {
+          "question" => "What are you working on today?",
+          "answer" => "(skipped)",
+          "timestamp" => Time.current
+        }
+      ],
+      slack_message_ts: "1234567890.123456"
+    )
+
+    completed_response.stubs(:standup).returns(@standup)
+
+    # Expect get_user_info call for display name
+    @mock_slack_client.expects(:get_user_info).with("U12345").returns(
+      { "name" => "Test User", "profile" => { "display_name" => "Test User" } }
+    ).once
+
+    # With all skipped answers, there should be no update
+    # because post_individual_response will return early with no updates
+    # and repost_response will fall through to that method
+    StandupResponseService.repost_response(completed_response)
+  end
 end
