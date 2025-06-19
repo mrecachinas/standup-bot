@@ -1,0 +1,25 @@
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+
+# Configuration for Copilot SWE Agent
+# https://gh.io/copilot/actions-setup-steps
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write # for setup-ruby
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install Ruby
+        uses: ruby/setup-ruby@13e7a03dc3ac6c3798f4570bfead2aed4d96abfb # pin@v1.244.0
+        with:
+          bundler-cache: true
+          
+      - run: script/bootstrap
