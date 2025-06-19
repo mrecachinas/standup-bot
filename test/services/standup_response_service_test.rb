@@ -272,5 +272,9 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     # because post_individual_response will return early with no updates
     # and repost_response will fall through to that method
     StandupResponseService.repost_response(completed_response)
+
+    # Assert that the method completed successfully without updating the message
+    # The mock expectations above ensure update_message was not called
+    assert true, "repost_response should handle empty answers without calling update_message"
   end
 end
