@@ -107,6 +107,12 @@ class StandupResponseService
         formatted_responses << "*#{answer["question"]}*\n#{answer["answer"]}"
       end
 
+      # No need to update if all questions were skipped
+      if formatted_responses.empty?
+        Rails.logger.info "All questions were skipped, not updating message"
+        return
+      end
+
       # Build the message with user information
       message = [
         "*#{display_name}'s Standup Update:*",
