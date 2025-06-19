@@ -263,14 +263,21 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
 
     completed_response.stubs(:standup).returns(@standup)
 
-    # Expect get_user_info call for display name
+    # Expect get_user_info call for display name (called during repost_response)
     @mock_slack_client.expects(:get_user_info).with("U12345").returns(
       { "name" => "Test User", "profile" => { "display_name" => "Test User" } }
-    ).once
+    ).twice # Once in repost_response, once in post_individual_response
 
-    # With all skipped answers, there should be no update
-    # because post_individual_response will return early with no updates
-    # and repost_response will fall through to that method
-    StandupResponseService.repost_response(completed_response)
+    # With all skipped answers, update_message should NOT be called
+    @mock_slack_client.expects(:update_message).never
+
+    # Instead, post_individual_response should be called, but since all answers are skipped,
+    # it should return early and not call send_message
+    @mock_slack_client.expects(:send_message).never
+
+    # The method should complete without errors
+    assert_nothing_raised do
+      StandupResponseService.repost_response(completed_response)
+    end
   end
 end

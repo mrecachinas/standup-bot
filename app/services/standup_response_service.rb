@@ -107,6 +107,14 @@ class StandupResponseService
         formatted_responses << "*#{answer["question"]}*\n#{answer["answer"]}"
       end
 
+      # If all answers were skipped, fall through to post_individual_response
+      # which handles empty responses appropriately
+      if formatted_responses.empty?
+        Rails.logger.info "All answers were skipped, falling through to post_individual_response"
+        post_individual_response(standup_response)
+        return
+      end
+
       # Build the message with user information
       message = [
         "*#{display_name}'s Standup Update:*",
