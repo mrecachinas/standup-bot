@@ -1,0 +1,18 @@
+current directory: /home/runner/work/standup-bot/standup-bot/vendor/bundle/ruby/3.4.0/gems/erb-5.0.1/ext/erb/escape
+/opt/hostedtoolcache/Ruby/3.4.2/x64/bin/ruby extconf.rb
+creating Makefile
+
+current directory: /home/runner/work/standup-bot/standup-bot/vendor/bundle/ruby/3.4.0/gems/erb-5.0.1/ext/erb/escape
+make DESTDIR\= sitearchdir\=./.gem.20250618-2005-8nlfdk sitelibdir\=./.gem.20250618-2005-8nlfdk clean
+
+current directory: /home/runner/work/standup-bot/standup-bot/vendor/bundle/ruby/3.4.0/gems/erb-5.0.1/ext/erb/escape
+make DESTDIR\= sitearchdir\=./.gem.20250618-2005-8nlfdk sitelibdir\=./.gem.20250618-2005-8nlfdk
+compiling escape.c
+linking shared-object erb/escape.so
+
+current directory: /home/runner/work/standup-bot/standup-bot/vendor/bundle/ruby/3.4.0/gems/erb-5.0.1/ext/erb/escape
+make DESTDIR\= sitearchdir\=./.gem.20250618-2005-8nlfdk sitelibdir\=./.gem.20250618-2005-8nlfdk install
+/usr/bin/install -c -m 0755 escape.so ./.gem.20250618-2005-8nlfdk/erb
+
+current directory: /home/runner/work/standup-bot/standup-bot/vendor/bundle/ruby/3.4.0/gems/erb-5.0.1/ext/erb/escape
+make DESTDIR\= sitearchdir\=./.gem.20250618-2005-8nlfdk sitelibdir\=./.gem.20250618-2005-8nlfdk clean
