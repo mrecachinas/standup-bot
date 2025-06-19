@@ -281,7 +281,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       test_standup = Standup.create!(
         name: "Test Cancel Standup",
         slack_channel: "general",
-        questions: ["Question 1", "Question 2"],
+        questions: [ "Question 1", "Question 2" ],
         intro: "Test intro",
         outro: "Test outro"
       )
@@ -291,7 +291,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
         standup_id: test_standup.id,
         slack_id: "U12345",
         status: "pending",
-        answers: [{ "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current }],
+        answers: [ { "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current } ],
         created_at: 1.day.ago
       )
 
@@ -309,7 +309,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
         standup_id: test_standup.id,
         slack_id: "U12345",
         status: "completed",
-        answers: [{ "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current }],
+        answers: [ { "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current } ],
         created_at: 1.day.ago
       )
 
@@ -333,7 +333,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     test_standup = Standup.create!(
       name: "Test No Pending Standup",
       slack_channel: "general",
-      questions: ["Question 1", "Question 2"],
+      questions: [ "Question 1", "Question 2" ],
       intro: "Test intro",
       outro: "Test outro"
     )
@@ -350,7 +350,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       test_standup1 = Standup.create!(
         name: "Test User Standup 1",
         slack_channel: "general",
-        questions: ["Question 1", "Question 2"],
+        questions: [ "Question 1", "Question 2" ],
         intro: "Test intro",
         outro: "Test outro"
       )
@@ -358,7 +358,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       test_standup2 = Standup.create!(
         name: "Test User Standup 2",
         slack_channel: "general",
-        questions: ["Question 1", "Question 2"],
+        questions: [ "Question 1", "Question 2" ],
         intro: "Test intro",
         outro: "Test outro"
       )

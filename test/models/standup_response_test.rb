@@ -62,7 +62,7 @@ class StandupResponseTest < ActiveSupport::TestCase
       status: "skipped",
       answers: []
     )
-    
+
     pending_response = standup_responses(:pending)
     completed_response = standup_responses(:completed)
 

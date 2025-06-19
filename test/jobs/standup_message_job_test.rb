@@ -102,7 +102,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
       slack_id: @slack_id,
       standup_id: @standup.id,
       status: "pending",
-      answers: [{ "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current }],
+      answers: [ { "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current } ],
       created_at: 1.day.ago
     )
 
