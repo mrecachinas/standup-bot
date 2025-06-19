@@ -9,6 +9,7 @@ class StandupResponse < ApplicationRecord
   # Scopes
   scope :pending, -> { where(status: "pending") }
   scope :completed, -> { where(status: "completed") }
+  scope :skipped, -> { where(status: "skipped") }
   scope :for_today, -> { where("DATE(created_at) = ?", Time.zone.today) }
 
   def participant

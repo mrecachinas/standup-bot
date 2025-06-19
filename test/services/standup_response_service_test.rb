@@ -273,4 +273,132 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     # and repost_response will fall through to that method
     StandupResponseService.repost_response(completed_response)
   end
+
+  test "cancel_previous_pending_responses cancels old pending responses" do
+    # Use Timecop to control time
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      # Create a real standup for testing
+      test_standup = Standup.create!(
+        name: "Test Cancel Standup",
+        slack_channel: "general",
+        questions: ["Question 1", "Question 2"],
+        intro: "Test intro",
+        outro: "Test outro"
+      )
+
+      # Create a pending response from yesterday
+      yesterday_response = StandupResponse.create!(
+        standup_id: test_standup.id,
+        slack_id: "U12345",
+        status: "pending",
+        answers: [{ "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current }],
+        created_at: 1.day.ago
+      )
+
+      # Create a pending response from today (should not be canceled)
+      today_response = StandupResponse.create!(
+        standup_id: test_standup.id,
+        slack_id: "U12345",
+        status: "pending",
+        answers: [],
+        created_at: Time.current
+      )
+
+      # Create a completed response from yesterday (should not be canceled)
+      completed_response = StandupResponse.create!(
+        standup_id: test_standup.id,
+        slack_id: "U12345",
+        status: "completed",
+        answers: [{ "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current }],
+        created_at: 1.day.ago
+      )
+
+      # Call the method
+      StandupResponseService.cancel_previous_pending_responses("U12345", test_standup.id)
+
+      # Verify results
+      yesterday_response.reload
+      today_response.reload
+      completed_response.reload
+
+      assert_equal "skipped", yesterday_response.status
+      assert_equal "pending", today_response.status
+      assert_equal "completed", completed_response.status
+    end
+  end
+
+  test "cancel_previous_pending_responses handles no pending responses" do
+    # Should not raise an error when there are no pending responses
+    # Create a real standup for testing
+    test_standup = Standup.create!(
+      name: "Test No Pending Standup",
+      slack_channel: "general",
+      questions: ["Question 1", "Question 2"],
+      intro: "Test intro",
+      outro: "Test outro"
+    )
+
+    assert_nothing_raised do
+      StandupResponseService.cancel_previous_pending_responses("U12345", test_standup.id)
+    end
+  end
+
+  test "cancel_previous_pending_responses only affects specified user and standup" do
+    # Use Timecop to control time
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      # Create real standups for testing
+      test_standup1 = Standup.create!(
+        name: "Test User Standup 1",
+        slack_channel: "general",
+        questions: ["Question 1", "Question 2"],
+        intro: "Test intro",
+        outro: "Test outro"
+      )
+
+      test_standup2 = Standup.create!(
+        name: "Test User Standup 2",
+        slack_channel: "general",
+        questions: ["Question 1", "Question 2"],
+        intro: "Test intro",
+        outro: "Test outro"
+      )
+
+      # Create pending responses for different users and standups
+      user1_standup1 = StandupResponse.create!(
+        standup_id: test_standup1.id,
+        slack_id: "U12345",
+        status: "pending",
+        answers: [],
+        created_at: 1.day.ago
+      )
+
+      user2_standup1 = StandupResponse.create!(
+        standup_id: test_standup1.id,
+        slack_id: "U67890",
+        status: "pending",
+        answers: [],
+        created_at: 1.day.ago
+      )
+
+      user1_standup2 = StandupResponse.create!(
+        standup_id: test_standup2.id,
+        slack_id: "U12345",
+        status: "pending",
+        answers: [],
+        created_at: 1.day.ago
+      )
+
+      # Call the method for user1 and standup1
+      StandupResponseService.cancel_previous_pending_responses("U12345", test_standup1.id)
+
+      # Verify results
+      user1_standup1.reload
+      user2_standup1.reload
+      user1_standup2.reload
+
+      assert_equal "skipped", user1_standup1.status
+      assert_equal "pending", user2_standup1.status
+      assert_equal "pending", user1_standup2.status
+    end
+  end
 end

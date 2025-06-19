@@ -7,6 +7,9 @@ class StandupMessageJob < ApplicationJob
     standup = Standup.find(standup_id)
     Rails.logger.info "Found standup: #{standup.name}"
 
+    # Cancel any previous pending responses for this user in this standup
+    StandupResponseService.cancel_previous_pending_responses(slack_id, standup_id)
+
     # Format intro with the first question
     first_question = standup.questions.first
     formatted_question = StandupFormatter.format_question(

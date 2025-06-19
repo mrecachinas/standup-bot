@@ -54,6 +54,23 @@ class StandupResponseTest < ActiveSupport::TestCase
     assert_not_includes StandupResponse.completed, pending_response
   end
 
+  test "skipped scope should return only skipped responses" do
+    # Create a skipped response
+    skipped_response = StandupResponse.create!(
+      standup: @response.standup,
+      slack_id: "U99999",
+      status: "skipped",
+      answers: []
+    )
+    
+    pending_response = standup_responses(:pending)
+    completed_response = standup_responses(:completed)
+
+    assert_includes StandupResponse.skipped, skipped_response
+    assert_not_includes StandupResponse.skipped, pending_response
+    assert_not_includes StandupResponse.skipped, completed_response
+  end
+
   test "for_today scope should return only responses created today" do
     today_response = standup_responses(:today)
     yesterday_response = standup_responses(:yesterday)
