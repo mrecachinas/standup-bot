@@ -95,4 +95,28 @@ class StandupMessageJobTest < ActiveJob::TestCase
       end
     end
   end
+
+  test "cancels previous pending responses before creating new one" do
+    # Create a previous pending response
+    old_response = StandupResponse.create!(
+      slack_id: @slack_id,
+      standup_id: @standup.id,
+      status: "pending",
+      answers: [ { "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current } ],
+      created_at: 1.day.ago
+    )
+
+    # Expect the cancel method to be called
+    StandupResponseService.expects(:cancel_previous_pending_responses)
+      .with(@slack_id, @standup.id)
+      .once
+
+    # Expect the message to be sent to Slack
+    @mock_slack_client.expects(:send_message)
+      .with(@slack_id, is_a(String))
+      .returns(@message_response)
+
+    # Perform the job
+    StandupMessageJob.perform_now(@slack_id, @standup.id)
+  end
 end

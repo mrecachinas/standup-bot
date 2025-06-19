@@ -66,6 +66,26 @@ class StandupResponseService
     Rails.logger.info "Standup response #{standup_response.id} completed"
   end
 
+  def self.cancel_previous_pending_responses(slack_id, standup_id)
+    Rails.logger.info "Canceling previous pending responses for user #{slack_id} in standup #{standup_id}"
+
+    # Find all pending responses for this user in this standup that are from previous days
+    previous_pending = StandupResponse
+      .where(slack_id: slack_id, standup_id: standup_id, status: "pending")
+      .where("created_at < ?", Date.today.beginning_of_day)
+
+    return if previous_pending.empty?
+
+    Rails.logger.info "Found #{previous_pending.count} previous pending responses to cancel"
+
+    previous_pending.each do |response|
+      Rails.logger.info "Canceling standup response #{response.id} from #{response.created_at.strftime('%Y-%m-%d')}"
+      response.update!(status: "skipped")
+    end
+
+    Rails.logger.info "Successfully canceled #{previous_pending.count} previous pending responses"
+  end
+
   # Helper method to process answer updates and determine next steps
   def self.process_answer_update(standup_response)
     standup = standup_response.standup
