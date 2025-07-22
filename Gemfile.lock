@@ -97,7 +97,7 @@ GEM
     erubi (1.13.1)
     et-orbi (1.2.11)
       tzinfo
-    faraday (2.13.1)
+    faraday (2.13.3)
       faraday-net_http (>= 2.0, < 3.5)
       json
       logger
@@ -123,7 +123,7 @@ GEM
       pp (>= 0.6.0)
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
-    json (2.12.2)
+    json (2.13.0)
     kamal (2.7.0)
       activesupport (>= 7.0)
       base64 (~> 0.2)
@@ -185,7 +185,7 @@ GEM
       racc (~> 1.4)
     nokogiri (1.18.8-x86_64-linux-musl)
       racc (~> 1.4)
-    ostruct (0.6.2)
+    ostruct (0.6.3)
     parallel (1.26.3)
     parser (3.3.7.4)
       ast (~> 2.4.1)
@@ -280,8 +280,8 @@ GEM
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
     securerandom (0.4.1)
-    slack-ruby-client (2.6.0)
-      faraday (>= 2.0)
+    slack-ruby-client (2.7.0)
+      faraday (>= 2.0.1)
       faraday-mashify
       faraday-multipart
       gli
@@ -359,7 +359,7 @@ DEPENDENCIES
   puma (>= 5.0)
   rails (~> 8.0.2)
   rubocop-rails-omakase
-  slack-ruby-client (~> 2.6.0)
+  slack-ruby-client (~> 2.7.0)
   solid_cable
   solid_cache
   solid_queue
