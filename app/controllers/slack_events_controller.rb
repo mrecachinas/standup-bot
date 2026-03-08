@@ -4,6 +4,15 @@ class SlackEventsController < ApplicationController
   def install
   end
 
+  def interactions
+    Rails.logger.info "Received Slack interaction payload"
+
+    # Process interaction asynchronously
+    SlackEventProcessorJob.perform_later(params.to_unsafe_h)
+
+    head :ok
+  end
+
   def events
     # Handle URL verification challenge from Slack
     if params[:type] == "url_verification"

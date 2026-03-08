@@ -59,25 +59,11 @@ class StandupMessageJobTest < ActiveJob::TestCase
     StandupMessageJob.perform_now(@slack_id, @standup.id)
   end
 
-  test "throws error when standup not found" do
-    # Test that Standup.find is called with the correct ID
-    Standup.expects(:find).with(999999).raises(ActiveRecord::RecordNotFound)
-
-    # Expect the exception but catch it
-    begin
+  test "silently discards job when standup not found" do
+    # With discard_on ActiveRecord::RecordNotFound, the job should
+    # complete without raising when the standup doesn't exist
+    assert_nothing_raised do
       StandupMessageJob.perform_now(@slack_id, 999999)
-      flunk "Expected ActiveRecord::RecordNotFound but no exception was raised"
-    rescue ActiveRecord::RecordNotFound
-      # This is the expected behavior, test passes
-    rescue RuntimeError => e
-      if e.message.include?("Couldn't determine a delay")
-        # Even though we got a RuntimeError about delay calculation,
-        # the important part is that the job tried to find the standup with the right ID
-        # and that verification passes because of our expect on Standup.find
-        pass
-      else
-        raise # Re-raise any other RuntimeError
-      end
     end
   end
 

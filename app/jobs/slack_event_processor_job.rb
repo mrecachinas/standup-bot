@@ -11,10 +11,15 @@ class SlackEventProcessorJob < ApplicationJob
 
     return unless event["type"] == "message"
 
+    # Ignore bot messages and non-text messages
+    return if event["subtype"].present?
+
     # Regular message processing
     user_id = event["user"]
     text = event["text"]
     channel = event["channel"]
+
+    return if user_id.blank? || text.blank?
 
     Rails.logger.info "Processing message from user: #{user_id} in channel: #{channel}"
 
@@ -101,14 +106,10 @@ class SlackEventProcessorJob < ApplicationJob
 
     Rails.logger.info "Updating completed standup response #{standup_response.id} with edited message"
 
-    # Here we don't know which answer was edited, so we'll need to determine it
-    # by matching the edited text against parts of the original answers
+    # Try to match the edit to a specific answer by checking text similarity
     edited = false
 
-    # Find the most likely answer this edit applies to
     standup_response.answers.each_with_index do |answer, index|
-      # Simple approach: if the edit is similar enough to the original answer, update it
-      # More sophisticated approach could use text similarity algorithms
       if text.include?(answer["answer"]) || answer["answer"].include?(text)
         standup_response.answers[index]["answer"] = text
         standup_response.answers[index]["timestamp"] = Time.current
@@ -118,22 +119,17 @@ class SlackEventProcessorJob < ApplicationJob
       end
     end
 
-    # If we couldn't match a specific answer, update the last one as a fallback
-    if !edited && standup_response.answers.any?
-      last_idx = standup_response.answers.size - 1
-      standup_response.answers[last_idx]["answer"] = text
-      standup_response.answers[last_idx]["timestamp"] = Time.current
-      edited = true
-      Rails.logger.info "Updated last answer for standup response #{standup_response.id} as fallback"
+    # If we couldn't match a specific answer, log and skip to avoid data corruption
+    unless edited
+      Rails.logger.warn "Could not match edited message to any answer for standup response #{standup_response.id}, skipping update"
+      return
     end
 
-    if edited
-      standup_response.save!
+    standup_response.save!
 
-      # Repost the updated response to the channel
-      Rails.logger.info "Reposting updated standup response to channel"
-      StandupResponseService.repost_response(standup_response)
-    end
+    # Repost the updated response to the channel
+    Rails.logger.info "Reposting updated standup response to channel"
+    StandupResponseService.repost_response(standup_response)
   end
 
   def slack_client

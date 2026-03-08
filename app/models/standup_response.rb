@@ -4,7 +4,7 @@ class StandupResponse < ApplicationRecord
   belongs_to :standup
 
   validates :slack_id, presence: true
-  validates :status, inclusion: { in: %w[pending completed skipped] }
+  validates :status, inclusion: { in: %w[pending completed skipped cancelled] }
 
   # Scopes
   scope :pending, -> { where(status: "pending") }

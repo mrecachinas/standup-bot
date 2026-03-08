@@ -147,7 +147,7 @@ class SlackCommands
 
     if standup_response
       Rails.logger.info "Cancelling standup response: #{standup_response.id}"
-      standup_response.update(status: "cancelled")
+      standup_response.update!(status: "cancelled")
       @slack_client.send_message(channel, "Your standup has been cancelled.")
     else
       Rails.logger.info "No active standup found for user #{slack_id}"
@@ -162,14 +162,17 @@ class SlackCommands
     participants = StandupParticipant.where(slack_id: slack_id, active: true)
 
     if participants.any?
+      # Track which participants we're deactivating so reactivation is precise
+      participant_ids = participants.pluck(:id)
+
       # Update all participants to inactive
       count = participants.update_all(active: false)
       Rails.logger.info "Set #{count} standup participants to inactive for user #{slack_id}"
 
-      # Schedule reactivation
+      # Schedule reactivation with specific participant IDs
       return_date = Date.today + days.days
       Rails.logger.info "Scheduling reactivation for #{slack_id} on #{return_date}"
-      SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(slack_id)
+      SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(slack_id, participant_ids)
 
       @slack_client.send_message(
         channel,

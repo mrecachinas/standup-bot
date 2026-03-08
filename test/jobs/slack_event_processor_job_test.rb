@@ -215,7 +215,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     # No assertions needed, we expect no errors and the expectations above to be met
   end
 
-  test "updates last answer if no specific match found in completed response" do
+  test "skips update when no specific match found in completed response" do
     # Create a completed standup response with answers that won't match the edited text
     completed_response = StandupResponse.create!(
       slack_id: @slack_id,
@@ -237,8 +237,8 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
       created_at: Time.zone.today.beginning_of_day + 1.hour # Ensure it's from today
     )
 
-    # Setup expectation for repost_response
-    StandupResponseService.expects(:repost_response).with(completed_response)
+    # repost_response should NOT be called since no match was found
+    StandupResponseService.expects(:repost_response).never
 
     # Create a message edit event with text that doesn't match any answer
     event = {
@@ -263,7 +263,8 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     # Reload the response from the database
     completed_response.reload
 
-    # Assert that the last answer was updated as a fallback when no match was found
-    assert_equal "I completely forgot to mention I'm also helping with project C", completed_response.answers[1]["answer"]
+    # Assert that answers are unchanged (no fallback corruption)
+    assert_equal "I fixed bug A", completed_response.answers[0]["answer"]
+    assert_equal "I will implement feature B", completed_response.answers[1]["answer"]
   end
 end

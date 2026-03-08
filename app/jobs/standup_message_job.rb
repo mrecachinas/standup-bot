@@ -7,6 +7,18 @@ class StandupMessageJob < ApplicationJob
     standup = Standup.find(standup_id)
     Rails.logger.info "Found standup: #{standup.name}"
 
+    # Skip if user already has a pending or completed response for today
+    existing = StandupResponse
+      .where(slack_id: slack_id, standup_id: standup_id)
+      .where(status: %w[pending completed])
+      .where("created_at >= ?", Date.today.beginning_of_day)
+      .exists?
+
+    if existing
+      Rails.logger.info "User #{slack_id} already has a response for standup #{standup_id} today, skipping"
+      return
+    end
+
     # Cancel any previous pending responses for this user in this standup
     StandupResponseService.cancel_previous_pending_responses(slack_id, standup_id)
 

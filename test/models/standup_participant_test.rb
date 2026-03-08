@@ -62,6 +62,9 @@ class StandupParticipantTest < ActiveSupport::TestCase
     @participant.expects(:fetch_info).returns({ "tz" => "America/Los_Angeles" })
     assert_equal "America/Los_Angeles", @participant.timezone
 
+    # Clear cached timezone to test fallback behavior
+    @participant.update_column(:cached_timezone, nil)
+
     # Test fallback to UTC when timezone info unavailable
     @participant.expects(:fetch_info).returns(nil)
     assert_equal "UTC", @participant.timezone

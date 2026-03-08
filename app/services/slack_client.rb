@@ -59,8 +59,6 @@ class SlackClient
     Rails.logger.debug "Message text: #{text.truncate(50) if text}"
     Rails.logger.debug "Using blocks: #{blocks ? 'yes' : 'no'}"
 
-    # Rate limiting with exponential backoff
-    retries = 0
     begin
       response = if blocks
         Rails.logger.debug "Sending message with blocks"
@@ -81,19 +79,10 @@ class SlackClient
 
       Rails.logger.info "Successfully sent message to channel: #{channel}"
       response
-    rescue Slack::Web::Api::Errors::TooManyRequestsError => e
-      # Get retry time from response header or use exponential backoff
-      retry_after = e.retry_after || (2**retries)
-      Rails.logger.warn "Rate limited by Slack API. Retry after #{retry_after} seconds. Attempt #{retries + 1}/4"
-
-      if retries < 3
-        retries += 1
-        sleep retry_after
-        retry
-      else
-        Rails.logger.error "Failed to send Slack message after retries: #{e.message}"
-        raise
-      end
+    rescue Slack::Web::Api::Errors::TooManyRequestsError
+      # Re-raise to let ActiveJob retry handle rate limiting
+      Rails.logger.warn "Rate limited by Slack API, will retry via job framework"
+      raise
     rescue => e
       Rails.logger.error "Error sending Slack message: #{e.class} - #{e.message}"
       raise

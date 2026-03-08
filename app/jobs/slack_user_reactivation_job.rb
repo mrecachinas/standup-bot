@@ -1,11 +1,15 @@
 class SlackUserReactivationJob < ApplicationJob
   queue_as :default
 
-  def perform(slack_id)
+  def perform(slack_id, participant_ids = nil)
     Rails.logger.info "Starting reactivation process for Slack user: #{slack_id}"
 
-    # Find all inactive standup participants for this user
-    participants = StandupParticipant.where(slack_id: slack_id, active: false)
+    # Only reactivate the specific participants that were deactivated by the away command
+    participants = if participant_ids.present?
+      StandupParticipant.where(id: participant_ids, slack_id: slack_id, active: false)
+    else
+      StandupParticipant.where(slack_id: slack_id, active: false)
+    end
 
     Rails.logger.info "Found #{participants.count} inactive standup participants for user #{slack_id}"
 

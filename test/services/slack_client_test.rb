@@ -109,7 +109,7 @@ class SlackClientTest < ActiveSupport::TestCase
     assert_nil result
   end
 
-  test "send_message handles rate limiting" do
+  test "send_message re-raises rate limit errors for job-level retry" do
     channel = "C12345"
     message = "Hello, world!"
 
@@ -122,26 +122,13 @@ class SlackClientTest < ActiveSupport::TestCase
     # Create a rate limit error with the proper response object
     rate_limit_error = Slack::Web::Api::Errors::TooManyRequestsError.new(mock_response)
 
-    # Set up sequence of events - first error, then success
-    seq = sequence("rate_limit_sequence")
-
-    # First call raises rate limit error
+    # Call raises rate limit error, which should be re-raised for ActiveJob retry
     @mock_api_client.expects(:chat_postMessage)
       .with(channel: channel, text: message, as_user: true)
       .raises(rate_limit_error)
-      .in_sequence(seq)
 
-    # Second call succeeds
-    expected_response = { "ok" => true, "channel" => channel, "ts" => "1234567890.123456" }
-    @mock_api_client.expects(:chat_postMessage)
-      .with(channel: channel, text: message, as_user: true)
-      .returns(expected_response)
-      .in_sequence(seq)
-
-    # Prevent actual sleep for test
-    @slack_client.stubs(:sleep)
-
-    response = @slack_client.send_message(channel, message)
-    assert_equal expected_response, response
+    assert_raises(Slack::Web::Api::Errors::TooManyRequestsError) do
+      @slack_client.send_message(channel, message)
+    end
   end
 end

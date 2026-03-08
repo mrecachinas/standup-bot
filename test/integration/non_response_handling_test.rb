@@ -99,19 +99,14 @@ class NonResponseHandlingTest < ActiveSupport::TestCase
       morning_response = StandupResponse.where(slack_id: @slack_id, standup_id: @standup.id).last
       assert_equal "pending", morning_response.status
 
-      # Later in the day: Another standup is scheduled (shouldn't happen in practice but good to test)
-      @mock_slack_client.expects(:send_message)
-        .with(@slack_id, is_a(String))
-        .returns({ channel: "D12345", ts: "1234567890.123457" })
-        .once
-
+      # Later in the day: Another standup message is triggered but should be skipped
+      # because a pending response already exists for today
       StandupMessageJob.perform_now(@slack_id, @standup.id)
 
-      # Verify that we have 2 responses and the morning one is still pending (not canceled)
+      # Verify that only 1 response exists (dedup prevents second)
       responses = StandupResponse.where(slack_id: @slack_id, standup_id: @standup.id).order(:created_at)
-      assert_equal 2, responses.count
+      assert_equal 1, responses.count
       assert_equal "pending", responses[0].status  # Morning response should still be pending
-      assert_equal "pending", responses[1].status  # Afternoon response should be pending
     end
   end
 

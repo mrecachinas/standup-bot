@@ -1,8 +1,8 @@
 production:
-  daily_standup_scheduler:
+  hourly_standup_scheduler:
     class: SchedulingJob
     queue: default
-    schedule: at 12am every day
+    schedule: every hour
   
   # You can keep these example jobs commented out for reference
   # periodic_cleanup:

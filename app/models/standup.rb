@@ -7,15 +7,14 @@ class Standup < ApplicationRecord
   validates :name, presence: true
   validates :slack_channel, presence: true
   validates :questions, presence: true
-  validates :schedule_type, inclusion: { in: %w[daily weekdays weekly biweekly monthly custom] }
+  validates :schedule_type, inclusion: { in: %w[daily weekdays weekly] }
   validates :respect_timezone, inclusion: { in: [ true, false ] }
 
   # For custom schedules, store as array of weekday numbers (0=Sunday, 6=Saturday)
   # For weekly, store day of week (0-6)
   # For biweekly/monthly, store day of month (1-31)
 
-  # Default scope to only show active standups
-  default_scope { where(active: true) }
+  scope :active, -> { where(active: true) }
 
   # Calculate the next occurrence of this standup in the given timezone
   def next_occurrence_in_timezone(timezone)
@@ -58,8 +57,8 @@ class Standup < ApplicationRecord
 
       next_time
 
-    when "biweekly"
-      # Every other week on the configured day
+    else
+      raise ArgumentError, "Unsupported schedule_type: #{schedule_type}"
     end
   end
 
