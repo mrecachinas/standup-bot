@@ -53,7 +53,7 @@ class StandupParticipantTest < ActiveSupport::TestCase
     user_info = { "tz" => "America/New_York" }
     slack_client_mock.expects(:get_user_info).with(@participant.slack_id).returns(user_info)
 
-    SlackClient.expects(:new).returns(slack_client_mock)
+    SlackClient.expects(:instance).returns(slack_client_mock)
 
     assert_equal user_info, @participant.fetch_info
   end
