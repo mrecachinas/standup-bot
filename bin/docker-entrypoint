@@ -6,8 +6,12 @@ if [ -z "${LD_PRELOAD+x}" ]; then
     export LD_PRELOAD
 fi
 
-# If running the rails server then create or migrate existing database
+# Prepare the database for both web server and job worker
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+  ./bin/rails db:prepare
+fi
+
+if [ "${@: -1:1}" == "bin/jobs" ] || [ "${@: -1:1}" == "./bin/jobs" ]; then
   ./bin/rails db:prepare
 fi
 

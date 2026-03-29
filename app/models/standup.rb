@@ -4,6 +4,11 @@ class Standup < ApplicationRecord
   has_many :standup_participants, dependent: :destroy
   has_many :standup_responses, dependent: :destroy
 
+  attribute :intro, :text, default: "Good morning! Time for standup. When you're ready, please answer the following"
+  attribute :outro, :text, default: "Thanks for your answers! Have a great day!"
+  attribute :questions, :json, default: -> { [] }
+  attribute :schedule_days, :json, default: -> { [] }
+
   validates :name, presence: true
   validates :slack_channel, presence: true
   validates :questions, presence: true

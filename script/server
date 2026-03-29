@@ -1,3 +1,21 @@
 #!/usr/bin/env bash
 
-bin/rails server
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Ensure MySQL is running
+check_mysql() {
+  mysqladmin ping -h "${DB_HOST:-127.0.0.1}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" --silent 2>/dev/null
+}
+
+if ! check_mysql; then
+  echo "==> MySQL not running, starting via docker compose..."
+  docker compose up -d --wait mysql
+fi
+
+echo "==> Preparing database..."
+bin/rails db:prepare
+
+echo "==> Starting server..."
+bin/rails server "$@"
