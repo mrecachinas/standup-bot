@@ -50,13 +50,13 @@ class StandupCollectionJobTest < ActiveJob::TestCase
         standup: @standup,
         slack_id: "UAAA",
         status: "completed",
-        answers: [{ "question" => "What did you do yesterday?", "answer" => "Task A", "timestamp" => Time.current }]
+        answers: [ { "question" => "What did you do yesterday?", "answer" => "Task A", "timestamp" => Time.current } ]
       )
       StandupResponse.create!(
         standup: @standup,
         slack_id: "UBBB",
         status: "completed",
-        answers: [{ "question" => "What did you do yesterday?", "answer" => "Task B", "timestamp" => Time.current }]
+        answers: [ { "question" => "What did you do yesterday?", "answer" => "Task B", "timestamp" => Time.current } ]
       )
 
       @mock_slack_client.expects(:get_user_info).with("UAAA").returns({ "name" => "alice" })
@@ -90,7 +90,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
         standup: @standup,
         slack_id: "UREAL",
         status: "completed",
-        answers: [{ "question" => "Q1?", "answer" => "Did stuff", "timestamp" => Time.current }]
+        answers: [ { "question" => "Q1?", "answer" => "Did stuff", "timestamp" => Time.current } ]
       )
 
       @mock_slack_client.expects(:get_user_info).with("USKIP").returns({ "name" => "skipper" })
@@ -110,7 +110,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
         standup: @standup,
         slack_id: "UNODISPLAY",
         status: "completed",
-        answers: [{ "question" => "Q?", "answer" => "A", "timestamp" => Time.current }]
+        answers: [ { "question" => "Q?", "answer" => "A", "timestamp" => Time.current } ]
       )
 
       @mock_slack_client.expects(:get_user_info).with("UNODISPLAY").returns(
@@ -131,7 +131,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
         standup: @standup,
         slack_id: "UGHOST",
         status: "completed",
-        answers: [{ "question" => "Q?", "answer" => "A", "timestamp" => Time.current }]
+        answers: [ { "question" => "Q?", "answer" => "A", "timestamp" => Time.current } ]
       )
 
       @mock_slack_client.expects(:get_user_info).with("UGHOST").returns(nil)
