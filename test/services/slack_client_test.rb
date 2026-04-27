@@ -2,6 +2,7 @@ require "test_helper"
 
 class SlackClientTest < ActiveSupport::TestCase
   setup do
+    SlackClient.reset!
     @slack_client = SlackClient.new
     # Mock the Slack::Web::Client
     @mock_api_client = mock("Slack::Web::Client")
@@ -13,6 +14,15 @@ class SlackClientTest < ActiveSupport::TestCase
     second_instance = SlackClient.instance
 
     assert_equal first_instance.object_id, second_instance.object_id
+  end
+
+  test "reset clears singleton instance for token rotation" do
+    first_instance = SlackClient.instance
+
+    SlackClient.reset!
+
+    second_instance = SlackClient.instance
+    assert_not_equal first_instance.object_id, second_instance.object_id
   end
 
   test "send_message with simple text" do
@@ -109,9 +119,10 @@ class SlackClientTest < ActiveSupport::TestCase
     assert_nil result
   end
 
-  test "send_message re-raises rate limit errors for job-level retry" do
+  test "send_message retries rate limit errors" do
     channel = "C12345"
     message = "Hello, world!"
+    expected_response = { "ok" => true, "channel" => channel, "ts" => "1234567890.123456" }
 
     # Create a mock Faraday response with proper rate limit headers
     mock_response = mock("Faraday::Response")
@@ -122,13 +133,17 @@ class SlackClientTest < ActiveSupport::TestCase
     # Create a rate limit error with the proper response object
     rate_limit_error = Slack::Web::Api::Errors::TooManyRequestsError.new(mock_response)
 
-    # Call raises rate limit error, which should be re-raised for ActiveJob retry
+    sequence = sequence("rate limited send")
     @mock_api_client.expects(:chat_postMessage)
       .with(channel: channel, text: message, as_user: true)
+      .in_sequence(sequence)
       .raises(rate_limit_error)
+    @slack_client.expects(:sleep).with(1).once
+    @mock_api_client.expects(:chat_postMessage)
+      .with(channel: channel, text: message, as_user: true)
+      .in_sequence(sequence)
+      .returns(expected_response)
 
-    assert_raises(Slack::Web::Api::Errors::TooManyRequestsError) do
-      @slack_client.send_message(channel, message)
-    end
+    assert_equal expected_response, @slack_client.send_message(channel, message)
   end
 end

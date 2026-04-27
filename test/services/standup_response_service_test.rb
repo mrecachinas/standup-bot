@@ -42,6 +42,16 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     assert_not_nil @standup_response.answers.first["timestamp"]
   end
 
+  test "record_answer truncates oversized answers" do
+    answer_text = "a" * (StandupResponse::MAX_ANSWER_LENGTH + 1)
+
+    @mock_slack_client.expects(:send_message).once
+
+    StandupResponseService.record_answer(@standup_response, answer_text)
+
+    assert_equal StandupResponse::MAX_ANSWER_LENGTH, @standup_response.answers.first["answer"].length
+  end
+
   test "skip_question marks a question as skipped" do
     # Expect the next question to be sent
     @mock_slack_client.expects(:send_message).once
@@ -296,7 +306,8 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
         slack_id: "U12345",
         status: "pending",
         answers: [ { "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current } ],
-        created_at: 1.day.ago
+        created_at: 1.day.ago,
+        standup_date: 1.day.ago.to_date
       )
 
       # Create a pending response from today (should not be canceled)
@@ -305,16 +316,18 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
         slack_id: "U12345",
         status: "pending",
         answers: [],
-        created_at: Time.current
+        created_at: Time.current,
+        standup_date: Time.zone.today
       )
 
-      # Create a completed response from yesterday (should not be canceled)
+      # Create a completed response from an earlier day (should not be canceled)
       completed_response = StandupResponse.create!(
         standup_id: test_standup.id,
         slack_id: "U12345",
         status: "completed",
         answers: [ { "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current } ],
-        created_at: 1.day.ago
+        created_at: 2.days.ago,
+        standup_date: 2.days.ago.to_date
       )
 
       # Call the method
@@ -373,7 +386,8 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
         slack_id: "U12345",
         status: "pending",
         answers: [],
-        created_at: 1.day.ago
+        created_at: 1.day.ago,
+        standup_date: 1.day.ago.to_date
       )
 
       user2_standup1 = StandupResponse.create!(
@@ -381,7 +395,8 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
         slack_id: "U67890",
         status: "pending",
         answers: [],
-        created_at: 1.day.ago
+        created_at: 1.day.ago,
+        standup_date: 1.day.ago.to_date
       )
 
       user1_standup2 = StandupResponse.create!(
@@ -389,7 +404,8 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
         slack_id: "U12345",
         status: "pending",
         answers: [],
-        created_at: 1.day.ago
+        created_at: 1.day.ago,
+        standup_date: 1.day.ago.to_date
       )
 
       # Call the method for user1 and standup1

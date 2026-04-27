@@ -1,15 +1,17 @@
 class StandupCollectionJob < ApplicationJob
   queue_as :default
 
-  def perform(standup_id)
+  def perform(standup_id, standup_date = nil, timezone = nil)
     Rails.logger.info "Collecting standup responses for standup #{standup_id}"
 
     standup = Standup.find(standup_id)
+    report_zone = timezone.present? ? Standup.resolve_time_zone(timezone) : Time.zone
+    report_date = standup_date.present? ? StandupResponse.normalize_date(standup_date) : report_zone.today
 
-    # Gather today's completed responses
+    # Gather completed responses for the requested local standup date
     responses = StandupResponse
       .where(standup_id: standup.id, status: "completed")
-      .where("created_at >= ?", Date.today.beginning_of_day)
+      .for_standup_date(report_date, report_zone)
 
     if responses.empty?
       Rails.logger.info "No completed responses found for standup #{standup.name} today"

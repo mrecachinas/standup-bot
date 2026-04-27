@@ -32,4 +32,21 @@ class SlackSignatureVerifierTest < ActiveSupport::TestCase
 
     refute SlackSignatureVerifier.verify(@request_body, old_timestamp, valid_signature)
   end
+
+  test "should return false when signing secret is missing" do
+    Rails.application.config.slack[:signing_secret] = nil
+
+    sig_basestring = "v0:#{@timestamp}:#{@request_body}"
+    signature = "v0=" + OpenSSL::HMAC.hexdigest("SHA256", @signing_secret, sig_basestring)
+
+    refute SlackSignatureVerifier.verify(@request_body, @timestamp, signature)
+  end
+
+  test "should return false for missing headers" do
+    refute SlackSignatureVerifier.verify(@request_body, nil, nil)
+  end
+
+  test "should return false for malformed signature" do
+    refute SlackSignatureVerifier.verify(@request_body, @timestamp, "invalid")
+  end
 end

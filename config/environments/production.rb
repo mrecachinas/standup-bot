@@ -54,9 +54,6 @@ Rails.application.configure do
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
 
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "example.com" }
-
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via rails credentials:edit.
   # config.action_mailer.smtp_settings = {
   #   user_name: Rails.application.credentials.dig(:smtp, :user_name),
@@ -76,12 +73,18 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [ :id ]
 
+  app_hosts = ENV.fetch("APP_HOSTS", ENV.fetch("APP_HOST", "app.example.com"))
+    .split(",")
+    .map(&:strip)
+    .reject(&:blank?)
+  app_hosts = [ "app.example.com" ] if app_hosts.empty?
+
+  # Set host to be used by links generated in mailer templates.
+  config.action_mailer.default_url_options = { host: app_hosts.first }
+
   # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  #
-  # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  config.hosts = app_hosts
+
+  # Skip DNS rebinding protection only for health check endpoints.
+  config.host_authorization = { exclude: config.x.health_check_host_authorization_exclude }
 end

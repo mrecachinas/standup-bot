@@ -112,4 +112,50 @@ class StandupTest < ActiveSupport::TestCase
       assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
     end
   end
+
+  test "should calculate next occurrence for biweekly standup" do
+    Timecop.freeze(Time.new(2024, 1, 8, 8, 0, 0, "+00:00")) do
+      timezone = ActiveSupport::TimeZone["UTC"]
+      @weekly_standup.update!(schedule_type: "biweekly", schedule_days: [ 1 ], default_hour: 9, default_minute: 0)
+
+      expected_time = Time.new(2024, 1, 15, 9, 0, 0, "+00:00")
+      assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
+    end
+  end
+
+  test "should calculate next occurrence for monthly standup using month end when needed" do
+    Timecop.freeze(Time.new(2025, 2, 15, 8, 0, 0, "+00:00")) do
+      timezone = ActiveSupport::TimeZone["UTC"]
+      @weekly_standup.update!(schedule_type: "monthly", schedule_days: [ 31 ], default_hour: 9, default_minute: 0)
+
+      expected_time = Time.new(2025, 2, 28, 9, 0, 0, "+00:00")
+      assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
+    end
+  end
+
+  test "should calculate next occurrence for custom weekday schedules" do
+    Timecop.freeze(Time.new(2025, 4, 6, 8, 0, 0, "+00:00")) do
+      timezone = ActiveSupport::TimeZone["UTC"]
+      @weekly_standup.update!(schedule_type: "custom", schedule_days: [ 2, 4 ], default_hour: 9, default_minute: 0)
+
+      expected_time = Time.new(2025, 4, 8, 9, 0, 0, "+00:00")
+      assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
+    end
+  end
+
+  test "should validate schedule day ranges" do
+    @weekly_standup.schedule_type = "custom"
+    @weekly_standup.schedule_days = [ 7 ]
+
+    assert_not @weekly_standup.valid?
+    assert_includes @weekly_standup.errors[:schedule_days], "contains invalid days for custom schedule"
+  end
+
+  test "should require custom schedule days" do
+    @weekly_standup.schedule_type = "custom"
+    @weekly_standup.schedule_days = []
+
+    assert_not @weekly_standup.valid?
+    assert_includes @weekly_standup.errors[:schedule_days], "must include at least one weekday for custom schedule"
+  end
 end

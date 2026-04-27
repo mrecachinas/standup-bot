@@ -30,7 +30,7 @@ class StandupResponseTest < ActiveSupport::TestCase
   end
 
   test "should be valid with any valid status" do
-    valid_statuses = %w[pending completed skipped]
+    valid_statuses = %w[pending completed skipped cancelled expired]
 
     valid_statuses.each do |status|
       @response.status = status
@@ -82,6 +82,46 @@ class StandupResponseTest < ActiveSupport::TestCase
     end
   end
 
+  test "for_date_in_timezone should use timezone local day" do
+    response = StandupResponse.create!(
+      standup: @standup,
+      slack_id: "UTZTEST",
+      status: "completed",
+      answers: [],
+      created_at: Time.new(2025, 4, 6, 15, 0, 0, "+00:00")
+    )
+    response.update_column(:standup_date, nil)
+
+    assert_includes StandupResponse.for_date_in_timezone(Date.new(2025, 4, 7), "Australia/Sydney"), response
+    assert_not_includes StandupResponse.for_date_in_timezone(Date.new(2025, 4, 7), "UTC"), response
+  end
+
+  test "for_standup_date includes nil standup_date rows by created_at fallback" do
+    response = StandupResponse.create!(
+      standup: @standup,
+      slack_id: "UNILDATE",
+      status: "pending",
+      answers: [],
+      created_at: Time.new(2025, 4, 6, 15, 0, 0, "+00:00")
+    )
+    response.update_column(:standup_date, nil)
+
+    assert_includes StandupResponse.for_standup_date(Date.new(2025, 4, 7), "Australia/Sydney"), response
+    assert_not_includes StandupResponse.for_standup_date(Date.new(2025, 4, 7), "UTC"), response
+  end
+
+  test "cancelled scope should return only cancelled responses" do
+    cancelled_response = StandupResponse.create!(
+      standup: @standup,
+      slack_id: "UCANCELLED",
+      status: "cancelled",
+      answers: []
+    )
+
+    assert_includes StandupResponse.cancelled, cancelled_response
+    assert_not_includes StandupResponse.cancelled, standup_responses(:pending)
+  end
+
   test "should find participant by slack_id" do
     participant = standup_participants(:one)
     @response.slack_id = participant.slack_id
@@ -107,5 +147,39 @@ class StandupResponseTest < ActiveSupport::TestCase
       assert_equal answers, reloaded_response.answers
       assert_equal "More coding", reloaded_response.answers.last["answer"]
     end
+  end
+
+  test "should reject answers longer than maximum length" do
+    @response.answers = [
+      {
+        "question" => "What did you do yesterday?",
+        "answer" => "a" * (StandupResponse::MAX_ANSWER_LENGTH + 1),
+        "timestamp" => Time.current
+      }
+    ]
+
+    assert_not @response.valid?
+    assert_match(/exceeds maximum length/, @response.errors[:answers].join)
+  end
+
+  test "authorized_for_slack_user scope requires standup membership" do
+    authorized_participant = standup_participants(:one)
+    authorized_response = StandupResponse.create!(
+      standup: authorized_participant.standup,
+      slack_id: authorized_participant.slack_id,
+      status: "pending",
+      answers: []
+    )
+    unauthorized_response = StandupResponse.create!(
+      standup: standups(:weekly),
+      slack_id: authorized_participant.slack_id,
+      status: "pending",
+      answers: []
+    )
+
+    scoped_responses = StandupResponse.authorized_for_slack_user(authorized_participant.slack_id)
+
+    assert_includes scoped_responses, authorized_response
+    assert_not_includes scoped_responses, unauthorized_response
   end
 end

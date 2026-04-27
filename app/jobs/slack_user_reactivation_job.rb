@@ -15,7 +15,7 @@ class SlackUserReactivationJob < ApplicationJob
 
     # Reactivate them
     if participants.any?
-      participants.update_all(active: true)
+      participants.update_all(active: true, vacation_until: nil)
       Rails.logger.info "Successfully reactivated #{participants.count} participants for user #{slack_id}"
 
       # Notify the user

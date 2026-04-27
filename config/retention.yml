@@ -1,0 +1,13 @@
+default: &default
+  response_retention_days: <%= ENV.fetch("RESPONSE_RETENTION_DAYS", 90) %>
+  stale_pending_days: <%= ENV.fetch("STALE_PENDING_DAYS", 7) %>
+  cleanup_batch_size: <%= ENV.fetch("CLEANUP_BATCH_SIZE", 1000) %>
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default

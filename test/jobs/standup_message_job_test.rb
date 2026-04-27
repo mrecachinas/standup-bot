@@ -3,7 +3,15 @@ require "test_helper"
 class StandupMessageJobTest < ActiveJob::TestCase
   setup do
     @standup = standups(:daily)
-    @slack_id = "U12345"
+    @participant = standup_participants(:one)
+    @participant.update!(
+      active: true,
+      vacation_until: nil,
+      cached_timezone: "UTC",
+      cached_timezone_updated_at: Time.current
+    )
+    @slack_id = @participant.slack_id
+    StandupResponse.where(slack_id: @slack_id, standup_id: @standup.id).delete_all
 
     # Mock the slack client
     @mock_slack_client = mock("SlackClient")
@@ -15,7 +23,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
     @standup.save!
 
     # Mock response from Slack
-    @message_response = { channel: "D12345", ts: "1234567890.123456" }
+    @message_response = { "channel" => "D12345", "ts" => "1234567890.123456" }
   end
 
   test "sends standup message to slack user" do
@@ -34,7 +42,8 @@ class StandupMessageJobTest < ActiveJob::TestCase
     assert_equal @slack_id, response.slack_id
     assert_equal @standup.id, response.standup_id
     assert_equal "pending", response.status
-    assert_equal @message_response[:channel], response.slack_channel
+    assert_equal @message_response["channel"], response.slack_channel
+    assert_equal Time.zone.today, response.standup_date
     assert_empty response.answers
   end
 
@@ -84,7 +93,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
 
   test "cancels previous pending responses before creating new one" do
     # Create a previous pending response
-    old_response = StandupResponse.create!(
+    StandupResponse.create!(
       slack_id: @slack_id,
       standup_id: @standup.id,
       status: "pending",
@@ -92,9 +101,11 @@ class StandupMessageJobTest < ActiveJob::TestCase
       created_at: 1.day.ago
     )
 
+    standup_date = Date.new(2025, 4, 7)
+
     # Expect the cancel method to be called
     StandupResponseService.expects(:cancel_previous_pending_responses)
-      .with(@slack_id, @standup.id)
+      .with(@slack_id, @standup.id, standup_date, @participant.standup_time_zone)
       .once
 
     # Expect the message to be sent to Slack
@@ -103,6 +114,41 @@ class StandupMessageJobTest < ActiveJob::TestCase
       .returns(@message_response)
 
     # Perform the job
-    StandupMessageJob.perform_now(@slack_id, @standup.id)
+    StandupMessageJob.perform_now(@slack_id, @standup.id, standup_date.iso8601)
+  end
+
+  test "does not send duplicate standup for same standup date" do
+    StandupResponse.create!(
+      slack_id: @slack_id,
+      standup_id: @standup.id,
+      status: "pending",
+      standup_date: Date.new(2025, 4, 7),
+      answers: []
+    )
+
+    @mock_slack_client.expects(:send_message).never
+
+    assert_no_difference "StandupResponse.count" do
+      StandupMessageJob.perform_now(@slack_id, @standup.id, "2025-04-07")
+    end
+  end
+
+  test "does not send duplicate when existing same-day response has nil standup date" do
+    Timecop.freeze(Time.zone.local(2025, 4, 7, 12, 0, 0)) do
+      response = StandupResponse.create!(
+        slack_id: @slack_id,
+        standup_id: @standup.id,
+        status: "pending",
+        answers: [],
+        created_at: Time.current
+      )
+      response.update_column(:standup_date, nil)
+
+      @mock_slack_client.expects(:send_message).never
+
+      assert_no_difference "StandupResponse.count" do
+        StandupMessageJob.perform_now(@slack_id, @standup.id, "2025-04-07")
+      end
+    end
   end
 end

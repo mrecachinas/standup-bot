@@ -72,6 +72,21 @@ class SlackCommandsTest < ActiveSupport::TestCase
     assert_nil result
   end
 
+  test "parse should return nil for nil text" do
+    assert_nil @commands.parse(nil)
+  end
+
+  test "parse should return nil for nil or blank text" do
+    assert_nil @commands.parse(nil)
+    assert_nil @commands.parse("   ")
+  end
+
+  test "parse should trim command text" do
+    result = @commands.parse("  help  ")
+
+    assert_equal :help, result[:command]
+  end
+
   test "process should handle help command" do
     @slack_client.expects(:send_message).with(@channel, is_a(String))
 
@@ -86,9 +101,31 @@ class SlackCommandsTest < ActiveSupport::TestCase
     @commands.process(command_info, @slack_id, @channel)
   end
 
+  test "process should generate report for participant timezone date" do
+    standup = standups(:daily)
+    participant = StandupParticipant.create!(
+      standup: standup,
+      slack_id: @slack_id,
+      slack_name: "Report User",
+      active: true,
+      cached_timezone: "UTC",
+      cached_timezone_updated_at: Time.current
+    )
+
+    StandupCollectionJob.expects(:perform_later).with(
+      standup.id,
+      participant.standup_date_for(Time.current).iso8601,
+      "Etc/UTC"
+    )
+    @slack_client.expects(:send_message).with(@channel, includes("Generating report"))
+
+    command_info = { command: :report, match: "report".match(/^report$/i) }
+    @commands.process(command_info, @slack_id, @channel)
+  end
+
   test "process should handle skip command when no standup is active" do
     @slack_client.expects(:send_message).with(@channel, "You don't have an active standup to skip questions for.")
-    StandupResponse.expects(:where).returns(StandupResponse.none)
+    StandupResponse.expects(:authorized_for_slack_user).with(@slack_id).returns(StandupResponse.none)
 
     command_info = { command: :skip, match: "skip".match(/^skip$/i) }
     @commands.process(command_info, @slack_id, @channel)
@@ -96,7 +133,7 @@ class SlackCommandsTest < ActiveSupport::TestCase
 
   test "process should handle cancel command when no standup is active" do
     @slack_client.expects(:send_message).with(@channel, "You don't have an active standup to cancel.")
-    StandupResponse.expects(:where).returns(StandupResponse.none)
+    StandupResponse.expects(:authorized_for_slack_user).with(@slack_id).returns(StandupResponse.none)
 
     command_info = { command: :cancel, match: "cancel".match(/^cancel$/i) }
     @commands.process(command_info, @slack_id, @channel)

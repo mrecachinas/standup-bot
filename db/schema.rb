@@ -10,15 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_08_174103) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_27_102000) do
   create_table "standup_participants", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.string "cached_timezone"
+    t.datetime "cached_timezone_updated_at"
     t.datetime "created_at", null: false
     t.string "slack_id", null: false
     t.string "slack_name", null: false
     t.bigint "standup_id", null: false
     t.datetime "updated_at", null: false
+    t.date "vacation_until"
     t.index ["standup_id", "slack_id"], name: "index_standup_participants_on_standup_id_and_slack_id", unique: true
     t.index ["standup_id"], name: "index_standup_participants_on_standup_id"
   end
@@ -26,13 +28,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_174103) do
   create_table "standup_responses", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.json "answers"
     t.datetime "created_at", null: false
+    t.datetime "last_reminder_at"
+    t.integer "reminder_count", default: 0, null: false
     t.string "slack_channel"
     t.string "slack_id", null: false
     t.string "slack_message_ts"
+    t.date "standup_date"
     t.bigint "standup_id", null: false
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false
     t.index ["slack_id", "status"], name: "index_standup_responses_on_slack_id_and_status"
+    t.index ["standup_id", "slack_id", "standup_date"], name: "idx_standup_responses_on_standup_user_date", unique: true
     t.index ["standup_id"], name: "index_standup_responses_on_standup_id"
   end
 
@@ -42,9 +48,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_174103) do
     t.integer "default_hour", default: 9, null: false
     t.integer "default_minute", default: 0, null: false
     t.text "intro"
+    t.integer "max_reminders", default: 1, null: false
     t.string "name", null: false
     t.text "outro"
     t.json "questions"
+    t.integer "reminder_after_minutes", default: 120, null: false
+    t.boolean "reminder_enabled", default: true, null: false
     t.boolean "respect_timezone", default: true, null: false
     t.json "schedule_days"
     t.string "schedule_type", default: "daily", null: false

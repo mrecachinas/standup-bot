@@ -31,5 +31,10 @@ module Nerdbot
 
     # Configure Slack API credentials
     config.slack = config_for(:slack)
+    config.retention = config_for(:retention)
+
+    config.x.health_check_host_authorization_exclude = lambda do |request|
+      request.path == "/up" || request.path == "/health" || request.path.start_with?("/health/")
+    end
   end
 end

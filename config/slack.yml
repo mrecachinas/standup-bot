@@ -9,9 +9,9 @@ development:
 
 test:
   <<: *default
-  # Use mock values for testing
-  bot_token: "xoxb-test-token"
-  signing_secret: "test-signing-secret"
+  # Clearly invalid defaults for tests; override with ENV only when needed.
+  bot_token: <%= ENV.fetch('SLACK_BOT_TOKEN', 'xoxb-000000000000-0000000000000-TESTINVALIDTOKEN') %>
+  signing_secret: <%= ENV.fetch('SLACK_SIGNING_SECRET', 'test-only-not-for-production-00000000') %>
 
 production:
   <<: *default
