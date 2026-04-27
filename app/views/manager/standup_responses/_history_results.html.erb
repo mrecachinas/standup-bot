@@ -1,0 +1,106 @@
+<% summary = history.summary %>
+
+<section class="grid gap-3 md:grid-cols-4">
+  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <p class="text-sm text-slate-600">Standup dates</p>
+    <p class="text-2xl font-semibold text-slate-950"><%= summary[:dates] %></p>
+  </div>
+  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <p class="text-sm text-slate-600">Expected</p>
+    <p class="text-2xl font-semibold text-slate-950"><%= summary[:expected] %></p>
+  </div>
+  <div class="rounded-lg border border-slate-200 bg-green-50 p-4">
+    <p class="text-sm text-green-700">Answered</p>
+    <p class="text-2xl font-semibold text-green-900"><%= summary[:answered] %></p>
+  </div>
+  <div class="rounded-lg border border-slate-200 bg-amber-50 p-4">
+    <p class="text-sm text-amber-700">Missed</p>
+    <p class="text-2xl font-semibold text-amber-900"><%= summary[:missed] %></p>
+  </div>
+</section>
+
+<% if history.range_limited? %>
+  <p class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+    Date range was limited to the most recent <%= StandupResponseHistory::MAX_RANGE_DAYS %> days.
+  </p>
+<% end %>
+
+<% if history.days.any? %>
+  <div class="mt-6 space-y-6">
+    <% history.days.each do |day| %>
+      <section id="standup-history-<%= day.date.iso8601 %>" class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <header class="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-4 py-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-950"><%= day.date.to_fs(:long) %></h2>
+            <p class="text-sm text-slate-600">
+              <%= day.answered_count %> answered · <%= day.missed_count %> missed · <%= day.expected_count %> expected
+            </p>
+          </div>
+        </header>
+
+        <div class="divide-y divide-slate-200">
+          <% day.entries.each do |entry| %>
+            <article id="standup-history-<%= day.date.iso8601 %>-<%= entry.slack_id.parameterize %>" class="grid gap-4 px-4 py-4 md:grid-cols-[16rem_1fr]">
+              <aside class="space-y-2">
+                <div>
+                  <h3 class="font-medium text-slate-950"><%= entry.slack_name %></h3>
+                  <p class="text-sm text-slate-500"><%= entry.slack_id %></p>
+                </div>
+                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold <%= entry.answered? ? "bg-green-100 text-green-800" : entry.missed? ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700" %>">
+                  <%= entry.status_label %>
+                </span>
+                <% if entry.response %>
+                  <dl class="space-y-1 text-sm text-slate-600">
+                    <div>
+                      <dt class="font-medium text-slate-700">Submitted</dt>
+                      <dd><%= entry.submitted_at&.to_fs(:long) || "Unknown" %></dd>
+                    </div>
+                    <div>
+                      <dt class="font-medium text-slate-700">Last updated</dt>
+                      <dd><%= entry.updated_at&.to_fs(:long) || "Unknown" %></dd>
+                    </div>
+                  </dl>
+                  <% if entry.updated_after_create? %>
+                    <p class="text-sm font-medium text-blue-700">Updated after submission</p>
+                  <% end %>
+                <% end %>
+              </aside>
+
+              <div class="space-y-3">
+                <% if entry.answers.any? %>
+                  <% entry.answers.each do |answer| %>
+                    <div class="rounded border border-slate-200 p-3">
+                      <p class="text-sm font-medium text-slate-700"><%= answer.question %></p>
+                      <p class="mt-1 whitespace-pre-wrap text-slate-950"><%= answer.text.presence || "No answer provided." %></p>
+                      <% if answer.timestamp.present? %>
+                        <p class="mt-2 text-xs text-slate-500">
+                          Answered at <%= answer.timestamp_time&.to_fs(:long) || answer.timestamp %>
+                        </p>
+                      <% end %>
+                    </div>
+                  <% end %>
+                <% elsif entry.response && history.question.present? %>
+                  <p class="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                    No answer recorded for “<%= history.question %>”.
+                  </p>
+                <% elsif entry.response %>
+                  <p class="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                    No submitted answers were recorded for this response.
+                  </p>
+                <% else %>
+                  <p class="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    No response submitted for this standup date.
+                  </p>
+                <% end %>
+              </div>
+            </article>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+  </div>
+<% else %>
+  <p class="mt-6 rounded border border-slate-200 bg-slate-50 p-4 text-slate-600">
+    No standup runs found for the selected filters.
+  </p>
+<% end %>

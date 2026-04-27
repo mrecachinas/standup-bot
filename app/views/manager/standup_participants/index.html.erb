@@ -1,0 +1,172 @@
+<turbo-frame id="standup_participants">
+  <div class="space-y-6">
+    <header>
+      <%= link_to "← Back to #{@standup.name}", manager_standup_path(@standup), data: { turbo_frame: "_top" }, class: "text-sm text-blue-700" %>
+      <h1 class="text-2xl font-semibold">Participants for <%= @standup.name %></h1>
+      <p class="text-sm text-slate-600">
+        <%= pluralize(@participants.count, "participant") %> ·
+        <%= pluralize(@participants.count(&:active?), "active") %> ·
+        <%= pluralize(@participants.count { |participant| participant.timezone_cache_status != "fresh" }, "timezone needing sync") %>
+      </p>
+    </header>
+
+    <% if @participant&.errors&.any? %>
+      <section class="rounded border border-red-300 bg-red-50 p-3 text-red-800">
+        <h2 class="font-semibold"><%= pluralize(@participant.errors.count, "error") %> prevented saving this participant:</h2>
+        <ul class="list-disc pl-5">
+          <% @participant.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
+    <% if @bulk_import_errors.present? %>
+      <section class="rounded border border-red-300 bg-red-50 p-3 text-red-800">
+        <h2 class="font-semibold">Bulk import needs attention:</h2>
+        <ul class="list-disc pl-5">
+          <% @bulk_import_errors.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
+    <% if @sync_errors.present? %>
+      <section class="rounded border border-red-300 bg-red-50 p-3 text-red-800">
+        <h2 class="font-semibold">Slack sync needs attention:</h2>
+        <ul class="list-disc pl-5">
+          <% @sync_errors.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
+    <section class="rounded border border-slate-200 p-4">
+      <h2 class="text-lg font-semibold">Add participant</h2>
+      <%= form_with model: @new_participant, url: manager_standup_participants_path(@standup), data: { turbo_frame: "standup_participants" }, class: "grid gap-3 md:grid-cols-5" do |form| %>
+        <div>
+          <%= form.label :slack_id, "Slack user ID", class: "block text-sm font-medium" %>
+          <%= form.text_field :slack_id, required: true, placeholder: "U123ABC", class: "w-full rounded border p-2" %>
+        </div>
+        <div>
+          <%= form.label :slack_name, "Slack name", class: "block text-sm font-medium" %>
+          <%= form.text_field :slack_name, required: true, placeholder: "Jane Doe", class: "w-full rounded border p-2" %>
+        </div>
+        <div>
+          <%= form.label :cached_timezone, "Timezone", class: "block text-sm font-medium" %>
+          <%= form.text_field :cached_timezone, placeholder: "America/New_York", class: "w-full rounded border p-2" %>
+        </div>
+        <div>
+          <%= form.label :vacation_until, "Vacation until", class: "block text-sm font-medium" %>
+          <%= form.date_field :vacation_until, class: "w-full rounded border p-2" %>
+        </div>
+        <div class="flex items-end gap-3">
+          <label class="flex items-center gap-2 text-sm">
+            <%= form.checkbox :active %>
+            Active
+          </label>
+          <%= form.submit "Add", class: "rounded bg-blue-700 px-4 py-2 text-white" %>
+        </div>
+      <% end %>
+    </section>
+
+    <section class="grid gap-4 md:grid-cols-2">
+      <div class="rounded border border-slate-200 p-4">
+        <h2 class="text-lg font-semibold">Bulk import</h2>
+        <p class="text-sm text-slate-600">One participant per line: Slack ID, name, timezone, active. Commas are recommended for names with spaces.</p>
+        <%= form_with url: bulk_import_manager_standup_participants_path(@standup), method: :post, data: { turbo_frame: "standup_participants" }, class: "space-y-3" do |form| %>
+          <%= form.text_area :participants_text, value: @bulk_import_text, rows: 6, placeholder: "U123,Alice,America/New_York,true\n<@U456|Bob>,Bob,UTC,false", class: "w-full rounded border p-2 font-mono text-sm" %>
+          <%= form.submit "Import participants", class: "rounded bg-slate-800 px-4 py-2 text-white" %>
+        <% end %>
+      </div>
+
+      <div class="rounded border border-slate-200 p-4">
+        <h2 class="text-lg font-semibold">Sync from Slack channel</h2>
+        <p class="text-sm text-slate-600">Adds or updates members returned by Slack and refreshes cached timezones when Slack exposes them.</p>
+        <%= form_with url: sync_manager_standup_participants_path(@standup), method: :post, data: { turbo_frame: "standup_participants" }, class: "space-y-3" do |form| %>
+          <div>
+            <%= form.label :channel, "Channel ID or name", class: "block text-sm font-medium" %>
+            <%= form.text_field :channel, value: @sync_channel, class: "w-full rounded border p-2" %>
+          </div>
+          <label class="flex items-center gap-2 text-sm">
+            <%= form.checkbox :deactivate_missing, checked: @deactivate_missing %>
+            Mark active participants missing from the channel inactive
+          </label>
+          <%= form.submit "Sync channel", class: "rounded bg-slate-800 px-4 py-2 text-white" %>
+        <% end %>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold">Current participants</h2>
+      <% if @participants.any? %>
+        <div class="space-y-3">
+          <% @participants.each do |participant| %>
+            <turbo-frame id="<%= dom_id(participant) %>">
+              <article class="rounded border border-slate-200 p-4">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 class="font-semibold"><%= participant.slack_name %></h3>
+                    <p class="font-mono text-sm text-slate-600"><%= participant.slack_id %></p>
+                  </div>
+                  <div class="flex flex-wrap gap-2 text-sm">
+                    <span class="rounded px-2 py-1 <%= participant.active? ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-700' %>">
+                      <%= participant.active? ? "Active" : "Inactive" %>
+                    </span>
+                    <span class="rounded bg-slate-100 px-2 py-1 text-slate-700">
+                      <%= participant.vacation_status_on %>
+                    </span>
+                    <span class="rounded bg-slate-100 px-2 py-1 text-slate-700">
+                      <%= participant.holiday_status_on %>
+                    </span>
+                  </div>
+                </div>
+
+                <p class="mb-3 text-sm text-slate-600">
+                  Timezone:
+                  <strong><%= participant.cached_timezone.presence || "Not cached" %></strong>
+                  · <%= participant.timezone_cache_status %>
+                  · <%= participant.timezone_cache_status_description %>
+                </p>
+
+                <div class="grid gap-3 lg:grid-cols-[1fr_auto]">
+                  <%= form_with model: participant, url: manager_standup_participant_path(@standup, participant), data: { turbo_frame: "standup_participants" }, class: "grid gap-3 md:grid-cols-5" do |form| %>
+                    <div>
+                      <%= form.label :slack_name, "Slack name", class: "block text-sm font-medium" %>
+                      <%= form.text_field :slack_name, required: true, class: "w-full rounded border p-2" %>
+                    </div>
+                    <div>
+                      <%= form.label :cached_timezone, "Timezone", class: "block text-sm font-medium" %>
+                      <%= form.text_field :cached_timezone, class: "w-full rounded border p-2" %>
+                    </div>
+                    <div>
+                      <%= form.label :vacation_until, "Vacation until", class: "block text-sm font-medium" %>
+                      <%= form.date_field :vacation_until, class: "w-full rounded border p-2" %>
+                    </div>
+                    <div class="flex items-end">
+                      <label class="flex items-center gap-2 text-sm">
+                        <%= form.checkbox :active %>
+                        Active
+                      </label>
+                    </div>
+                    <div class="flex items-end">
+                      <%= form.submit "Save", class: "rounded bg-blue-700 px-4 py-2 text-white" %>
+                    </div>
+                  <% end %>
+
+                  <div class="flex items-end">
+                    <%= button_to "Remove", manager_standup_participant_path(@standup, participant), method: :delete, form: { data: { turbo_frame: "standup_participants" } }, class: "rounded border border-red-300 px-4 py-2 text-red-700" %>
+                  </div>
+                </div>
+              </article>
+            </turbo-frame>
+          <% end %>
+        </div>
+      <% else %>
+        <p>No participants have been added yet.</p>
+      <% end %>
+    </section>
+  </div>
+</turbo-frame>

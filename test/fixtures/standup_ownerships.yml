@@ -1,0 +1,9 @@
+daily_manager:
+  standup: daily
+  user: manager
+  role: manager
+
+weekly_other_manager:
+  standup: weekly
+  user: other_manager
+  role: manager

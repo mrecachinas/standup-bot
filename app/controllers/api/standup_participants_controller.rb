@@ -14,6 +14,7 @@ module Api
 
       if participant.save
         StandupMetrics.track("admin.participant_created", standup_id: @standup.id, participant_id: participant.id)
+        audit_admin_change!("standup_participant.create", auditable: participant, metadata: { standup_id: @standup.id })
         render json: { participant: serialize_participant(participant) }, status: :created
       else
         render json: { errors: participant.errors.full_messages }, status: :unprocessable_entity
@@ -22,8 +23,10 @@ module Api
 
     def destroy
       participant = @standup.standup_participants.find(params[:id])
+      metadata = { standup_id: @standup.id, slack_id: participant.slack_id, slack_name: participant.slack_name }
       participant.destroy!
       StandupMetrics.track("admin.participant_deleted", standup_id: @standup.id, participant_id: participant.id)
+      audit_admin_change!("standup_participant.destroy", auditable: participant, metadata: metadata)
       head :no_content
     end
 

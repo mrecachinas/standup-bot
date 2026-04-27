@@ -41,6 +41,10 @@ class HealthCheckService
       }
     end
 
+    def slack_status
+      slack_check
+    end
+
     private
 
     def database_check
@@ -84,13 +88,27 @@ class HealthCheckService
     end
 
     def slack_check
-      configured = Rails.application.config.slack[:bot_token].present?
+      bot_token_configured = slack_config_value(:bot_token).present?
+      signing_secret_configured = slack_config_value(:signing_secret).present?
+      configured = bot_token_configured && signing_secret_configured
+
       {
         status: configured ? "ok" : "warn",
         configured: configured,
+        bot_token_configured: bot_token_configured,
+        signing_secret_configured: signing_secret_configured,
         last_successful_message_at: StandupMetrics.last_seen("slack.message_sent"),
         last_rate_limited_at: StandupMetrics.last_seen("slack.rate_limited")
       }
+    end
+
+    def slack_config_value(key)
+      config = Rails.application.config.slack || {}
+      if config.respond_to?(:[])
+        config[key] || config[key.to_s]
+      elsif config.respond_to?(key)
+        config.public_send(key)
+      end
     end
 
     def non_solid_queue_check

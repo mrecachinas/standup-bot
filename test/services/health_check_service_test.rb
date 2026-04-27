@@ -70,4 +70,32 @@ class HealthCheckServiceTest < ActiveSupport::TestCase
     assert_equal "HealthCheckService::MissingQueueTable", check[:error]
     assert_match "solid_queue_scheduled_executions", check[:message]
   end
+
+  test "slack status reports bot token and signing secret presence" do
+    original_config = Rails.application.config.slack
+    Rails.application.config.slack = { bot_token: "xoxb-configured", signing_secret: "signing-secret" }
+
+    check = HealthCheckService.slack_status
+
+    assert_equal "ok", check[:status]
+    assert_equal true, check[:configured]
+    assert_equal true, check[:bot_token_configured]
+    assert_equal true, check[:signing_secret_configured]
+  ensure
+    Rails.application.config.slack = original_config
+  end
+
+  test "slack status warns when signing secret is missing" do
+    original_config = Rails.application.config.slack
+    Rails.application.config.slack = { bot_token: "xoxb-configured", signing_secret: nil }
+
+    check = HealthCheckService.slack_status
+
+    assert_equal "warn", check[:status]
+    assert_equal false, check[:configured]
+    assert_equal true, check[:bot_token_configured]
+    assert_equal false, check[:signing_secret_configured]
+  ensure
+    Rails.application.config.slack = original_config
+  end
 end

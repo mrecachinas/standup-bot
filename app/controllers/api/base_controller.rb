@@ -39,5 +39,16 @@ module Api
     def render_bad_request(exception)
       render json: { error: exception.message }, status: :bad_request
     end
+
+    def audit_admin_change!(action, auditable:, metadata: {})
+      AuditLogger.log!(
+        actor: nil,
+        actor_label: "admin_api",
+        action: action,
+        auditable: auditable,
+        metadata: metadata.merge(auth_method: "admin_api_token"),
+        request: request
+      )
+    end
   end
 end

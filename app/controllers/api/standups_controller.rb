@@ -17,6 +17,7 @@ module Api
 
       if standup.save
         StandupMetrics.track("admin.standup_created", standup_id: standup.id)
+        audit_admin_change!("standup.create", auditable: standup, metadata: { attributes: audited_standup_attributes(standup) })
         render json: { standup: serialize_standup(standup, include_counts: true) }, status: :created
       else
         render json: { errors: standup.errors.full_messages }, status: :unprocessable_entity
@@ -28,6 +29,7 @@ module Api
 
       if standup.update(standup_params)
         StandupMetrics.track("admin.standup_updated", standup_id: standup.id)
+        audit_admin_change!("standup.update", auditable: standup, metadata: { changes: audited_changes(standup) })
         render json: { standup: serialize_standup(standup, include_counts: true) }
       else
         render json: { errors: standup.errors.full_messages }, status: :unprocessable_entity
@@ -36,8 +38,10 @@ module Api
 
     def destroy
       standup = Standup.find(params[:id])
+      snapshot = audited_standup_attributes(standup)
       standup.destroy!
       StandupMetrics.track("admin.standup_deleted", standup_id: standup.id)
+      audit_admin_change!("standup.destroy", auditable: standup, metadata: { attributes: snapshot })
       head :no_content
     end
 
@@ -84,6 +88,24 @@ module Api
       end
 
       payload
+    end
+
+    def audited_changes(standup)
+      standup.saved_changes.except("updated_at").transform_values { |before, after| [ before, after ] }
+    end
+
+    def audited_standup_attributes(standup)
+      standup.attributes.slice(
+        "id",
+        "name",
+        "slack_channel",
+        "schedule_type",
+        "schedule_days",
+        "default_hour",
+        "default_minute",
+        "respect_timezone",
+        "active"
+      )
     end
   end
 end

@@ -1,0 +1,204 @@
+<turbo-frame id="<%= dom_id(@standup, :schedule_exceptions) %>">
+  <section class="space-y-6">
+    <div class="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
+      <p class="text-sm font-medium uppercase tracking-wide text-slate-300">Schedule exceptions</p>
+      <div class="mt-2 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 class="text-3xl font-bold"><%= @standup.name %></h1>
+          <p class="mt-2 text-slate-300">Manage holidays, skipped dates, and one-off schedule changes for #<%= @standup.slack_channel %>.</p>
+        </div>
+        <span class="inline-flex rounded-full px-3 py-1 text-sm font-semibold <%= @standup.active? ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900" %>">
+          <%= @standup.active? ? "Active" : "Paused" %>
+        </span>
+      </div>
+    </div>
+
+    <nav class="flex flex-wrap gap-2" aria-label="<%= @standup.name %> schedule navigation">
+      <%= link_to "Back to standup", manager_standup_path(@standup), class: "rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
+      <%= link_to "Edit base schedule", edit_manager_standup_path(@standup), class: "rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
+      <% if @standup.active? %>
+        <%= button_to "Pause standup",
+          pause_manager_standup_path(@standup),
+          method: :patch,
+          class: "rounded-lg border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50",
+          form: { data: { turbo_frame: "_top" } } %>
+      <% else %>
+        <%= button_to "Resume standup",
+          resume_manager_standup_path(@standup),
+          method: :patch,
+          class: "rounded-lg border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50",
+          form: { data: { turbo_frame: "_top" } } %>
+      <% end %>
+    </nav>
+
+    <% if @schedule_exception.errors.any? %>
+      <section class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-900" aria-labelledby="schedule-exception-errors">
+        <h2 id="schedule-exception-errors" class="text-lg font-semibold"><%= pluralize(@schedule_exception.errors.count, "error") %> prevented saving</h2>
+        <ul class="mt-3 list-disc space-y-1 pl-5 text-sm">
+          <% @schedule_exception.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
+    <section class="rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm text-blue-950">
+      <h2 class="text-base font-semibold">How exceptions affect reminders and reports</h2>
+      <p class="mt-2">Skipped, holiday, and canceled dates do not create prompts, reminders, or expected report rows. Rescheduled occurrences replace the original send time; reminders follow the new time, while responses and reports stay attached to the original standup date.</p>
+      <p class="mt-2">Pausing the standup stops future scheduling until it is resumed. Existing exception records remain in place.</p>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 class="text-xl font-semibold text-slate-900">Upcoming occurrences</h2>
+          <p class="mt-1 text-sm text-slate-600">Preview the next scheduled and blocked runs after applying exceptions.</p>
+        </div>
+        <%= form_with url: manager_standup_schedule_exceptions_path(@standup), method: :get, data: { turbo_frame: dom_id(@standup, :schedule_exceptions) }, class: "flex flex-col gap-2 sm:flex-row sm:items-end" do %>
+          <div>
+            <%= label_tag :preview_timezone, "Preview timezone", class: "block text-sm font-medium text-slate-700" %>
+            <%= select_tag :preview_timezone, options_for_select(@time_zone_options, @preview_timezone), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+          </div>
+          <%= submit_tag "Refresh", class: "rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" %>
+        <% end %>
+      </div>
+
+      <% if @upcoming_occurrences.any? %>
+        <ol class="mt-4 divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200">
+          <% @upcoming_occurrences.each do |occurrence| %>
+            <% local_occurrence = occurrence.scheduled_at.in_time_zone(@preview_timezone) %>
+            <% status_class = occurrence.sendable? ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800" %>
+            <li class="grid gap-3 bg-white p-4 md:grid-cols-[1.2fr_0.8fr_1fr] md:items-center">
+              <div>
+                <p class="text-sm font-semibold text-slate-900">
+                  <time datetime="<%= occurrence.scheduled_at.iso8601 %>"><%= local_occurrence.strftime("%A, %B %-d, %Y at %-l:%M %p %Z") %></time>
+                </p>
+                <p class="text-xs text-slate-500">Standup date <%= occurrence.standup_date.iso8601 %></p>
+              </div>
+              <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold <%= status_class %>"><%= occurrence.status_label %></span>
+              <p class="text-sm text-slate-600"><%= occurrence.exception&.reason.presence || (occurrence.blocked? ? "No prompts will be sent." : "Prompts and reminders follow this time.") %></p>
+            </li>
+          <% end %>
+        </ol>
+      <% else %>
+        <p class="mt-4 rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">No upcoming occurrences could be calculated for this schedule.</p>
+      <% end %>
+    </section>
+
+    <div class="grid gap-4 lg:grid-cols-2">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 class="text-xl font-semibold text-slate-900">Add skipped date or holiday</h2>
+        <p class="mt-1 text-sm text-slate-600">Choose a scheduled date that should not send prompts.</p>
+
+        <%= form_with url: manager_standup_schedule_exceptions_path(@standup), scope: :schedule_exception, data: { turbo_frame: dom_id(@standup, :schedule_exceptions) }, class: "mt-4 space-y-4" do |form| %>
+          <div>
+            <%= form.label :exception_type, "Exception type", class: "block text-sm font-medium text-slate-700" %>
+            <%= form.select :exception_type, [[ "Skipped date", "skipped_date" ], [ "Holiday", "holiday" ]], {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+          </div>
+          <div>
+            <%= form.label :original_date, "Scheduled date", class: "block text-sm font-medium text-slate-700" %>
+            <%= form.date_field :original_date, required: true, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+          </div>
+          <div>
+            <%= form.label :reason, "Reason", class: "block text-sm font-medium text-slate-700" %>
+            <%= form.text_field :reason, placeholder: "Company holiday, team offsite, etc.", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+          </div>
+          <%= form.submit "Save exception", class: "rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800" %>
+        <% end %>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 class="text-xl font-semibold text-slate-900">Change the next occurrence</h2>
+        <% if @next_occurrence %>
+          <% next_local = @next_occurrence.scheduled_at.in_time_zone(@preview_timezone) %>
+          <p class="mt-1 text-sm text-slate-600">Next sendable occurrence: <strong><%= next_local.strftime("%A, %B %-d, %Y at %-l:%M %p %Z") %></strong>.</p>
+
+          <div class="mt-4 grid gap-4">
+            <%= form_with url: manager_standup_schedule_exceptions_path(@standup), scope: :schedule_exception, data: { turbo_frame: dom_id(@standup, :schedule_exceptions) }, class: "space-y-4 rounded-xl border border-slate-200 p-4" do |form| %>
+              <%= form.hidden_field :exception_type, value: "rescheduled" %>
+              <%= form.hidden_field :original_date, value: @next_occurrence.standup_date.iso8601 %>
+              <div class="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <%= form.label :rescheduled_date, "New date", class: "block text-sm font-medium text-slate-700" %>
+                  <%= form.date_field :rescheduled_date, value: next_local.to_date.iso8601, required: true, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+                </div>
+                <div>
+                  <%= form.label :rescheduled_time, "New time", class: "block text-sm font-medium text-slate-700" %>
+                  <%= form.time_field :rescheduled_time, value: next_local.strftime("%H:%M"), required: true, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+                </div>
+                <div>
+                  <%= form.label :rescheduled_timezone, "Timezone", class: "block text-sm font-medium text-slate-700" %>
+                  <%= form.select :rescheduled_timezone, options_for_select(@time_zone_options, @preview_timezone), {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+                </div>
+              </div>
+              <div>
+                <%= form.label :reason, "Reason", class: "block text-sm font-medium text-slate-700" %>
+                <%= form.text_field :reason, placeholder: "Team offsite schedule change", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+              </div>
+              <%= form.submit "Reschedule next occurrence", class: "rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800" %>
+            <% end %>
+
+            <%= button_to "Cancel next occurrence",
+              manager_standup_schedule_exceptions_path(@standup),
+              method: :post,
+              params: {
+                schedule_exception: {
+                  exception_type: "cancelled",
+                  original_date: @next_occurrence.standup_date.iso8601,
+                  reason: "One-off cancellation"
+                }
+              },
+              class: "rounded-lg border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50",
+              form: { data: { turbo_frame: dom_id(@standup, :schedule_exceptions) } } %>
+          </div>
+        <% else %>
+          <p class="mt-1 text-sm text-slate-600">No sendable occurrence is available to reschedule or cancel.</p>
+        <% end %>
+      </section>
+    </div>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 class="text-xl font-semibold text-slate-900">Saved exceptions</h2>
+      <% if @schedule_exceptions.any? %>
+        <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-4 py-3">Date</th>
+                <th class="px-4 py-3">Type</th>
+                <th class="px-4 py-3">Rescheduled time</th>
+                <th class="px-4 py-3">Reason</th>
+                <th class="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <% @schedule_exceptions.each do |schedule_exception| %>
+                <tr>
+                  <td class="px-4 py-3 font-medium text-slate-900"><%= schedule_exception.original_date.iso8601 %></td>
+                  <td class="px-4 py-3 text-slate-700"><%= schedule_exception.label %></td>
+                  <td class="px-4 py-3 text-slate-700">
+                    <% if schedule_exception.rescheduled? %>
+                      <%= schedule_exception.scheduled_at.in_time_zone(schedule_exception.rescheduled_timezone).strftime("%A, %B %-d, %Y at %-l:%M %p %Z") %>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
+                  <td class="px-4 py-3 text-slate-700"><%= schedule_exception.reason.presence || "—" %></td>
+                  <td class="px-4 py-3">
+                    <%= button_to "Remove",
+                      manager_standup_schedule_exception_path(@standup, schedule_exception),
+                      method: :delete,
+                      class: "rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50",
+                      form: { data: { turbo_frame: dom_id(@standup, :schedule_exceptions) } } %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="mt-4 rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">No schedule exceptions have been saved yet.</p>
+      <% end %>
+    </section>
+  </section>
+</turbo-frame>

@@ -158,4 +158,42 @@ class StandupTest < ActiveSupport::TestCase
     assert_not @weekly_standup.valid?
     assert_includes @weekly_standup.errors[:schedule_days], "must include at least one weekday for custom schedule"
   end
+
+  test "normalizes and validates Slack channel input" do
+    standup = Standup.new(
+      name: "Channel Validation",
+      slack_channel: " #team-standup ",
+      questions: [ "Question?" ],
+      schedule_type: "daily",
+      respect_timezone: true
+    )
+
+    assert standup.valid?
+    assert_equal "team-standup", standup.slack_channel
+
+    standup.slack_channel = "bad channel"
+    assert_not standup.valid?
+    assert_includes standup.errors[:slack_channel], "must be a Slack channel name or ID without spaces"
+  end
+
+  test "normalizes blank questions before validation" do
+    @daily_standup.questions = [ "  Keep me  ", "", "   " ]
+
+    assert @daily_standup.valid?
+    assert_equal [ "Keep me" ], @daily_standup.questions
+  end
+
+  test "previews upcoming occurrences without persisting" do
+    Timecop.freeze(Time.new(2025, 4, 6, 8, 0, 0, "+00:00")) do
+      @weekly_standup.assign_attributes(schedule_type: "custom", schedule_days: [ 1, 3 ], default_hour: 9, default_minute: 30)
+
+      occurrences = @weekly_standup.upcoming_occurrences_in_timezone("UTC", count: 3)
+
+      assert_equal [
+        Time.new(2025, 4, 7, 9, 30, 0, "+00:00"),
+        Time.new(2025, 4, 9, 9, 30, 0, "+00:00"),
+        Time.new(2025, 4, 14, 9, 30, 0, "+00:00")
+      ], occurrences
+    end
+  end
 end

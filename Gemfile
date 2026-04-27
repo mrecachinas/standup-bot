@@ -60,3 +60,5 @@ group :development, :test do
 
   gem "timecop"
 end
+
+gem "csv", "~> 3.3"

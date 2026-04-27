@@ -29,6 +29,11 @@ module Nerdbot
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    # The Slack and JSON API endpoints remain API-only, but the manager UI uses
+    # cookie-backed sessions for browser authentication.
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::Session::CookieStore, key: "_nerdbot_session", same_site: :lax
+
     # Configure Slack API credentials
     config.slack = config_for(:slack)
     config.retention = config_for(:retention)

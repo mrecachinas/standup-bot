@@ -1,0 +1,45 @@
+<section id="slack-status" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <h2 class="text-lg font-semibold text-slate-900">Slack app status</h2>
+      <p class="text-sm text-slate-600"><%= status[:installation][:message] %></p>
+    </div>
+    <span class="rounded-full px-3 py-1 text-sm font-medium <%= status[:configured] ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800' %>">
+      <%= status[:configured] ? "Configured" : "Needs setup" %>
+    </span>
+  </div>
+
+  <dl class="mt-4 grid gap-3 md:grid-cols-2">
+    <% status[:credentials].each do |key, credential| %>
+      <div id="slack-credential-<%= key %>" class="rounded-md border border-slate-100 bg-slate-50 p-3">
+        <dt class="text-sm font-medium text-slate-700"><%= credential[:label] %></dt>
+        <dd class="mt-1 text-sm <%= credential[:configured] ? 'text-green-700' : 'text-amber-700' %>">
+          <%= credential[:configured] ? "Configured" : "Missing" %>
+          <% unless credential[:required] %>
+            <span class="text-slate-500">(optional)</span>
+          <% end %>
+        </dd>
+        <dd class="mt-1 text-xs text-slate-500"><%= credential[:message] %></dd>
+      </div>
+    <% end %>
+  </dl>
+
+  <% if connection_result.present? %>
+    <div id="slack-connection-health" class="mt-4 rounded-md border <%= connection_result.success? ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50' %> p-3">
+      <h3 class="text-sm font-semibold <%= connection_result.success? ? 'text-green-900' : 'text-amber-900' %>">Slack API connection</h3>
+      <p class="mt-1 text-sm <%= connection_result.success? ? 'text-green-800' : 'text-amber-800' %>"><%= connection_result.message %></p>
+      <% if connection_result.success? && connection_result.metadata.present? %>
+        <dl class="mt-2 grid gap-2 text-xs text-green-900 md:grid-cols-2">
+          <% connection_result.metadata.each do |key, value| %>
+            <div>
+              <dt class="font-medium"><%= key.to_s.humanize %></dt>
+              <dd><%= value %></dd>
+            </div>
+          <% end %>
+        </dl>
+      <% elsif connection_result.action.present? %>
+        <p class="mt-2 text-sm font-medium text-amber-900">Next step: <%= connection_result.action %></p>
+      <% end %>
+    </div>
+  <% end %>
+</section>

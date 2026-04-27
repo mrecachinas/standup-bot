@@ -52,4 +52,32 @@ class StandupReminderJobTest < ActiveJob::TestCase
       StandupReminderJob.perform_now
     end
   end
+
+  test "does not remind paused standups or cancelled standup dates" do
+    Timecop.freeze(Time.zone.local(2026, 5, 1, 12, 0, 0)) do
+      paused_response = StandupResponse.create!(
+        standup: @standup,
+        slack_id: "UPAUSED",
+        status: "pending",
+        answers: [],
+        standup_date: Date.new(2026, 5, 1),
+        created_at: 2.hours.ago
+      )
+      @standup.update!(active: false)
+
+      @mock_slack_client.expects(:send_message).never
+      StandupReminderJob.perform_now(@standup.id)
+
+      assert_equal 0, paused_response.reload.reminder_count
+
+      @standup.update!(active: true)
+      @standup.standup_schedule_exceptions.create!(
+        exception_type: "cancelled",
+        original_date: Date.new(2026, 5, 1)
+      )
+
+      StandupReminderJob.perform_now(@standup.id)
+      assert_equal 0, paused_response.reload.reminder_count
+    end
+  end
 end

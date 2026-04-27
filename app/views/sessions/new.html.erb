@@ -1,0 +1,19 @@
+<turbo-frame id="session">
+  <h1>Manager sign in</h1>
+
+  <% if response.status == 401 %>
+    <p>Invalid email or access token.</p>
+  <% end %>
+
+  <%= form_with url: session_path, method: :post, data: { turbo_frame: "_top" } do |form| %>
+    <div>
+      <%= form.label :email %>
+      <%= form.email_field :email, value: @email, required: true, autocomplete: "email" %>
+    </div>
+    <div>
+      <%= form.label :access_token, "Access token" %>
+      <%= form.password_field :access_token, required: true, autocomplete: "current-password" %>
+    </div>
+    <%= form.submit "Sign in" %>
+  <% end %>
+</turbo-frame>

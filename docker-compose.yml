@@ -1,6 +1,77 @@
+x-app: &app
+  build:
+    context: .
+  image: standup-bot:local
+  environment:
+    RAILS_ENV: production
+    RAILS_LOG_LEVEL: info
+    SECRET_KEY_BASE: ${SECRET_KEY_BASE:-local-docker-compose-secret-key-base-change-me-local-only}
+    APP_HOST: localhost
+    APP_HOSTS: localhost,127.0.0.1,web
+    FORCE_SSL: "false"
+    ASSUME_SSL: "false"
+    ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-local-admin-api-token}
+    MANAGER_ADMIN_EMAIL: ${MANAGER_ADMIN_EMAIL:-admin@example.com}
+    MANAGER_ADMIN_NAME: ${MANAGER_ADMIN_NAME:-Local Admin}
+    MANAGER_ADMIN_TOKEN: ${MANAGER_ADMIN_TOKEN:-local-manager-token}
+    DB_HOST: postgres
+    DB_PORT: 5432
+    DB_USER: nerdbot
+    DB_PASSWORD: postgres
+    DB_NAME: nerdbot_development
+    DATABASE_URL: postgres://nerdbot:postgres@postgres:5432/nerdbot_development
+    CACHE_DB_HOST: postgres
+    CACHE_DB_PORT: 5432
+    CACHE_DB_USER: nerdbot
+    CACHE_DB_PASSWORD: postgres
+    CACHE_DB_NAME: nerdbot_development_cache
+    QUEUE_DB_HOST: postgres
+    QUEUE_DB_PORT: 5432
+    QUEUE_DB_USER: nerdbot
+    QUEUE_DB_PASSWORD: postgres
+    QUEUE_DB_NAME: nerdbot_development_queue
+    CABLE_DB_HOST: postgres
+    CABLE_DB_PORT: 5432
+    CABLE_DB_USER: nerdbot
+    CABLE_DB_PASSWORD: postgres
+    CABLE_DB_NAME: nerdbot_development_cable
+  depends_on:
+    postgres:
+      condition: service_healthy
+
 services:
+  setup:
+    <<: *app
+    command: ./bin/rails db:prepare db:seed
+    restart: "no"
+
+  web:
+    <<: *app
+    ports:
+      - "3000:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/up || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    <<: *app
+    command: ./bin/jobs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+
   mysql:
     image: mysql:8.0
+    profiles: ["dev-deps"]
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: nerdbot_development
@@ -19,8 +90,6 @@ services:
       POSTGRES_USER: nerdbot
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: nerdbot_development
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

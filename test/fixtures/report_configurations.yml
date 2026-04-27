@@ -1,0 +1,7 @@
+daily_report:
+  standup: daily
+  delivery_channel: daily-reports
+  recipients:
+    - UREPORT1
+  report_format: slack
+  detail_level: detailed
