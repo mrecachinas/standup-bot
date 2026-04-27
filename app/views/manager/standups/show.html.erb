@@ -58,6 +58,65 @@
       </section>
     </div>
 
+    <section id="manager-access" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">Manager access</h2>
+          <p class="mt-1 text-sm text-slate-600">Managers can edit this standup, configure Slack setup, review responses, and grant access to other active users.</p>
+        </div>
+      </div>
+
+      <% if params[:manager_added].present? %>
+        <p class="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-800">Manager access granted.</p>
+      <% end %>
+      <% if params[:manager_removed].present? %>
+        <p class="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-800">Manager access removed.</p>
+      <% end %>
+      <% if params[:manager_notice].present? %>
+        <p class="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-950"><%= params[:manager_notice] %></p>
+      <% end %>
+      <% if params[:manager_error].present? %>
+        <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><%= params[:manager_error] %></p>
+      <% end %>
+
+      <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
+        <ul class="divide-y divide-slate-200">
+          <% @standup_manager_ownerships.each do |ownership| %>
+            <li class="flex flex-col gap-3 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p class="font-medium text-slate-900"><%= ownership.user.name %></p>
+                <p class="text-sm text-slate-500"><%= ownership.user.email %> · <%= ownership.role.titleize %></p>
+              </div>
+              <% if @standup_manager_ownerships.size > 1 %>
+                <%= button_to "Remove access",
+                  manager_standup_manager_path(@standup, ownership),
+                  method: :delete,
+                  form: { data: { turbo_confirm: "Remove #{ownership.user.name}'s manager access?", turbo_frame: "_top" } },
+                  class: "w-fit rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50" %>
+              <% else %>
+                <span class="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Required</span>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+
+      <% if @available_manager_users.any? %>
+        <%= form_with url: manager_standup_managers_path(@standup), scope: :standup_manager, data: { turbo_frame: "_top" }, class: "mt-4 flex flex-col gap-3 md:flex-row md:items-end" do |form| %>
+          <div class="min-w-0 flex-1">
+            <%= form.label :user_id, "Grant manager access", class: "block text-sm font-medium text-slate-700" %>
+            <%= form.select :user_id,
+              options_for_select(@available_manager_users.map { |user| [ "#{user.name} (#{user.email})", user.id ] }),
+              { include_blank: "Choose an active user" },
+              class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+          </div>
+          <%= form.submit "Grant access", class: "rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800" %>
+        <% end %>
+      <% else %>
+        <p class="mt-4 rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">Every active user already has manager access to this standup.</p>
+      <% end %>
+    </section>
+
     <%= render "schedule_preview", occurrences: @schedule_preview, preview_timezone: @preview_timezone, schedule_preview_error: @schedule_preview_error %>
   </section>
 </turbo-frame>

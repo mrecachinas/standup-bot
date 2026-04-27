@@ -93,15 +93,28 @@
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Step 3</p>
       <h2 class="mt-1 text-xl font-semibold text-slate-900">Questions</h2>
-      <p class="mt-1 text-sm text-slate-600">Edit, add, or reorder prompts by changing their order below. Blank rows are ignored.</p>
+      <p class="mt-1 text-sm text-slate-600">Edit prompts, add more as needed, and use the move controls to set the order. Blank rows are ignored.</p>
 
-      <div class="mt-5 space-y-3">
-        <% @question_rows.each_with_index do |question, index| %>
-          <div class="flex gap-3">
-            <span class="mt-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700"><%= index + 1 %></span>
-            <%= text_field_tag "standup[question_rows][]", question, placeholder: "What did you accomplish yesterday?", class: "w-full rounded-lg border border-slate-300 px-3 py-2" %>
-          </div>
-        <% end %>
+      <div class="mt-5 space-y-3" data-question-editor>
+        <div class="space-y-3" data-question-list>
+          <% @question_rows.each_with_index do |question, index| %>
+            <div class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[auto_1fr_auto] md:items-center" data-question-row>
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-slate-700 shadow-sm" data-question-position><%= index + 1 %></span>
+              <%= text_field_tag "standup[question_rows][]", question, placeholder: "What do you plan to work on today?", class: "w-full rounded-lg border border-slate-300 bg-white px-3 py-2", data: { question_input: true }, aria: { label: "Question #{index + 1}" } %>
+              <div class="flex gap-1">
+                <button type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50" data-question-move="up" aria-label="Move question <%= index + 1 %> up">
+                  Up
+                </button>
+                <button type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50" data-question-move="down" aria-label="Move question <%= index + 1 %> down">
+                  Down
+                </button>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <button type="button" class="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50" data-question-add>
+          Add another question
+        </button>
       </div>
     </section>
 

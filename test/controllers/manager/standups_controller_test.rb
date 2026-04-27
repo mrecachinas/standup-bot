@@ -25,12 +25,44 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, @unowned_standup.name
   end
 
-  test "manager layout loads Turbo runtime for frame interactions" do
+  test "regular user can view dashboard and create a standup they manage" do
+    viewer = users(:viewer)
+    sign_in(viewer, "viewer-access-token")
+
+    get manager_standups_path
+    assert_response :success
+    assert_includes response.body, "New standup"
+    assert_not_includes response.body, @owned_standup.name
+
+    assert_difference [ "Standup.count", "StandupOwnership.count", "AuditLog.where(action: 'standup.create').count" ], 1 do
+      post manager_standups_path,
+        params: {
+          standup: {
+            name: "Viewer Standup",
+            slack_channel: "viewer-standup",
+            questions: [ "Plan?" ],
+            schedule_type: "daily",
+            default_hour: 9,
+            default_minute: 0,
+            respect_timezone: true,
+            active: true
+          }
+        }
+    end
+
+    standup = Standup.find_by!(name: "Viewer Standup")
+    assert_equal "owner", standup.standup_ownerships.find_by!(user: viewer).role
+    assert_redirected_to manager_standup_path(standup)
+  end
+
+  test "manager layout loads Tailwind styles and Turbo runtime for frame interactions" do
     sign_in(@manager, "manager-access-token")
 
     get manager_standups_path
 
     assert_response :success
+    assert_includes response.body, "tailwind"
+    assert_includes response.body, "manager_questions"
     assert_includes response.body, "@hotwired/turbo@8.0.23/dist/turbo.es2017-umd.js"
     assert_includes response.body, "sha384-2ePXINFSJiSCWUJkjFJGYdr2kyM132s7uBi9k+JISp4P+AjN9DXn4H/1enWEHu36"
     assert_includes response.body, "<turbo-frame id=\"standups_dashboard\">"
@@ -184,6 +216,41 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to manager_standup_path(standup)
   end
 
+  test "admin also receives explicit ownership when creating standups" do
+    sign_in(@admin, "admin-access-token")
+
+    assert_difference [ "Standup.count", "StandupOwnership.count" ], 1 do
+      post manager_standups_path,
+        params: {
+          standup: {
+            name: "Admin Owned Standup",
+            slack_channel: "admin-owned-standup",
+            questions: [ "Anything to share?" ],
+            schedule_type: "daily",
+            default_hour: 9,
+            default_minute: 0,
+            respect_timezone: true,
+            active: true
+          }
+        }
+    end
+
+    standup = Standup.find_by!(name: "Admin Owned Standup")
+    assert_equal "owner", standup.standup_ownerships.find_by!(user: @admin).role
+  end
+
+  test "show renders manager access controls" do
+    sign_in(@manager, "manager-access-token")
+
+    get manager_standup_path(@owned_standup)
+
+    assert_response :success
+    assert_includes response.body, "Manager access"
+    assert_includes response.body, @manager.email
+    assert_includes response.body, "Other Manager"
+    assert_includes response.body, manager_standup_managers_path(@owned_standup)
+  end
+
   test "new standup wizard renders schedule preview questions and participants" do
     sign_in(@manager, "manager-access-token")
 
@@ -193,6 +260,18 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Create a standup"
     assert_includes response.body, "Preview schedule"
     assert_includes response.body, "standup[question_rows][]"
+    assert_select "input[name='standup[question_rows][]']", 3
+    assert_includes response.body, "Add another question"
+    assert_select "[data-question-move='up']", 3
+    assert_select "[data-question-move='down']", 3
+    assert_includes response.body, "What do you plan to work on today?"
+    assert_includes response.body, "Are there any blockers/do you need help on anything?"
+    assert_includes response.body, "Anything else you&#39;d like to share?"
+    (1..5).each do |weekday|
+      assert_select "input[name='standup[schedule_days][]'][value='#{weekday}'][checked]"
+    end
+    assert_select "input[name='standup[schedule_days][]'][value='0'][checked]", false
+    assert_select "input[name='standup[schedule_days][]'][value='6'][checked]", false
     assert_includes response.body, "standup[participants][0][slack_id]"
   end
 

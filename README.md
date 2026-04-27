@@ -40,7 +40,7 @@ This is a Ruby on Rails 8.0 API-only application that integrates with Slack's We
 
 ### Manager Web UI Authorization
 
-The browser UI uses cookie-backed sessions and `User` records. Users have either the `admin` or `manager` role. Admins can manage every standup; managers can only manage standups linked through `StandupOwnership`. New manager-created standups automatically become owned by that manager. Use `Standup.manageable_by(user)`, `standup.manageable_by?(user)`, or `user.can_manage_standup?(standup)` in future UI controllers.
+The browser UI uses cookie-backed sessions and `User` records. Active users can sign in and create standups; the creator receives `owner` access through `StandupOwnership`. Admins can manage every standup globally, while regular users and global managers can manage only standups linked through `StandupOwnership`. Standup managers can grant or revoke manager access for other active users on that standup. Use `Standup.manageable_by(user)`, `standup.manageable_by?(user)`, or `user.can_manage_standup?(standup)` in future UI controllers.
 
 `User#access_token=` stores only a SHA-256 digest, so provision high-entropy tokens and show the raw token only once. The existing `ADMIN_API_TOKEN` still protects `/api/*` endpoints as a global admin API credential. Manager/admin create, update, and delete actions should call `AuditLogger.log!` (or the controller helpers) so changes are captured in `AuditLog`.
 

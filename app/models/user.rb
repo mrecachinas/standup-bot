@@ -1,7 +1,7 @@
 require "openssl"
 
 class User < ApplicationRecord
-  ROLES = %w[manager admin].freeze
+  ROLES = %w[user manager admin].freeze
   TOKEN_DIGEST_PATTERN = /\A\h{64}\z/
 
   has_many :standup_ownerships, dependent: :destroy
@@ -51,6 +51,10 @@ class User < ApplicationRecord
 
   def manager?
     role == "manager"
+  end
+
+  def user?
+    role == "user"
   end
 
   def can_manage_standup?(standup)

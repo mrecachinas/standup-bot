@@ -5,21 +5,38 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="turbo-cache-control" content="no-preview">
     <%= csrf_meta_tags %>
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= javascript_include_tag "https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.23/dist/turbo.es2017-umd.js",
       integrity: "sha384-2ePXINFSJiSCWUJkjFJGYdr2kyM132s7uBi9k+JISp4P+AjN9DXn4H/1enWEHu36",
       crossorigin: "anonymous",
       defer: true %>
+    <%= javascript_include_tag "manager_questions", "data-turbo-track": "reload", defer: true %>
   </head>
-  <body>
-    <nav>
-      <%= link_to "Standup Bot", manager_standups_path, data: { turbo_frame: "_top" } %>
-      <% if current_user %>
-        <%= link_to "Slack integration", manager_slack_integration_path, data: { turbo_frame: "_top" } %>
-        <span><%= current_user.name %> (<%= current_user.role %>)</span>
-        <%= button_to "Sign out", session_path, method: :delete, form: { data: { turbo: false } } %>
-      <% end %>
-    </nav>
-    <main>
+  <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+    <header class="border-b border-slate-200 bg-white shadow-sm">
+      <nav class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        <%= link_to current_user ? manager_standups_path : new_session_path, class: "flex items-center gap-3 text-slate-950", data: { turbo_frame: "_top" } do %>
+          <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-sm font-bold text-white">SB</span>
+          <span>
+            <span class="block text-base font-semibold leading-5">Standup Bot</span>
+            <span class="block text-xs font-medium text-slate-500">Manager console</span>
+          </span>
+        <% end %>
+
+        <% if current_user %>
+          <div class="flex flex-wrap items-center gap-3">
+            <%= link_to "Standups", manager_standups_path, class: "rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-950", data: { turbo_frame: "_top" } %>
+            <%= link_to "Slack integration", manager_slack_integration_path, class: "rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-950", data: { turbo_frame: "_top" } %>
+            <span class="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700"><%= current_user.name %> · <%= current_user.role.titleize %></span>
+            <%= button_to "Sign out", session_path, method: :delete, form: { data: { turbo: false }, class: "inline" }, class: "rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+          </div>
+        <% else %>
+          <%= link_to "Sign in", new_session_path, class: "w-fit rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800", data: { turbo_frame: "_top" } %>
+        <% end %>
+      </nav>
+    </header>
+
+    <main class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <%= yield %>
     </main>
   </body>

@@ -30,6 +30,7 @@ Rails.application.routes.draw do
         post :bulk_import, on: :collection
         post :sync, on: :collection
       end
+      resources :managers, controller: "standup_managers", only: [ :create, :destroy ]
       resources :responses, controller: "standup_responses", only: [ :index ]
       resource :analytics, controller: "standup_analytics", only: [ :show ]
       resource :report, controller: "standup_reports", only: [ :show, :update ] do

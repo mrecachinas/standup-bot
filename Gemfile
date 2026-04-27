@@ -2,6 +2,10 @@ source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 8.1.3"
+# Serve fingerprinted browser assets for the manager UI.
+gem "propshaft"
+# Compile Tailwind utilities without requiring a Node toolchain.
+gem "tailwindcss-rails"
 # Use MySQL as the database for Active Record
 gem "mysql2", "~> 0.5"
 # Support PostgreSQL-backed production deployments.

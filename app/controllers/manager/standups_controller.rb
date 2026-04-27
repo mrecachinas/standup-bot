@@ -3,9 +3,15 @@ module Manager
     before_action :set_standup, only: [ :show, :edit, :update, :destroy, :pause, :resume ]
 
     PREVIEW_OCCURRENCE_COUNT = 5
-    BLANK_QUESTION_ROWS = 3
+    MINIMUM_QUESTION_ROWS = 3
     BLANK_PARTICIPANT_ROWS = 3
     DEFAULT_PREVIEW_TIMEZONE = "UTC"
+    DEFAULT_QUESTIONS = [
+      "What do you plan to work on today?",
+      "Are there any blockers/do you need help on anything?",
+      "Anything else you'd like to share?"
+    ].freeze
+    DEFAULT_SCHEDULE_DAYS = [ 1, 2, 3, 4, 5 ].freeze
     WEEKDAY_OPTIONS = [
       [ "Sunday", 0 ],
       [ "Monday", 1 ],
@@ -26,10 +32,17 @@ module Manager
     def show
       @preview_timezone = DEFAULT_PREVIEW_TIMEZONE
       prepare_schedule_preview
+      prepare_manager_access
     end
 
     def new
-      @standup = Standup.new(schedule_type: "daily", questions: [], respect_timezone: true, active: true)
+      @standup = Standup.new(
+        schedule_type: "weekdays",
+        schedule_days: DEFAULT_SCHEDULE_DAYS,
+        questions: DEFAULT_QUESTIONS,
+        respect_timezone: true,
+        active: true
+      )
       prepare_wizard
     end
 
@@ -45,7 +58,7 @@ module Manager
         participant_changes = []
         ActiveRecord::Base.transaction do
           @standup.save!
-          @standup.standup_ownerships.create!(user: current_user, role: "owner") unless current_user.admin?
+          @standup.standup_ownerships.create!(user: current_user, role: "owner")
           participant_changes = apply_participant_rows!(@standup, participant_rows)
           audit_manager_change!(
             "standup.create",
@@ -188,6 +201,12 @@ module Manager
       prepare_schedule_preview
     end
 
+    def prepare_manager_access
+      @standup_manager_ownerships = @standup.standup_ownerships.joins(:user).includes(:user).order("users.name", "users.email")
+      assigned_user_ids = @standup_manager_ownerships.map(&:user_id)
+      @available_manager_users = User.active.where.not(id: assigned_user_ids).order(:name, :email)
+    end
+
     def prepare_schedule_preview
       @schedule_preview_error = nil
       @schedule_preview = build_schedule_preview(@standup, @preview_timezone || DEFAULT_PREVIEW_TIMEZONE)
@@ -239,7 +258,7 @@ module Manager
 
     def padded_question_rows(rows)
       normalized_rows = rows.map(&:to_s)
-      normalized_rows += Array.new(BLANK_QUESTION_ROWS, "")
+      normalized_rows += Array.new([ MINIMUM_QUESTION_ROWS - normalized_rows.length, 0 ].max, "")
       normalized_rows
     end
 

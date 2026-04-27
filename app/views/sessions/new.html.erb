@@ -1,19 +1,25 @@
 <turbo-frame id="session">
-  <h1>Manager sign in</h1>
+  <section class="mx-auto max-w-md">
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Manager console</p>
+      <h1 class="mt-2 text-3xl font-bold text-slate-950">Sign in to Standup Bot</h1>
+      <p class="mt-2 text-sm text-slate-600">Use the email and access token configured for your manager account.</p>
 
-  <% if response.status == 401 %>
-    <p>Invalid email or access token.</p>
-  <% end %>
+      <% if response.status == 401 %>
+        <p class="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800">Invalid email or access token.</p>
+      <% end %>
 
-  <%= form_with url: session_path, method: :post, data: { turbo_frame: "_top" } do |form| %>
-    <div>
-      <%= form.label :email %>
-      <%= form.email_field :email, value: @email, required: true, autocomplete: "email" %>
+      <%= form_with url: session_path, method: :post, data: { turbo_frame: "_top" }, class: "mt-6 space-y-4" do |form| %>
+        <div>
+          <%= form.label :email, class: "block text-sm font-medium text-slate-700" %>
+          <%= form.email_field :email, value: @email, required: true, autocomplete: "email", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm" %>
+        </div>
+        <div>
+          <%= form.label :access_token, "Access token", class: "block text-sm font-medium text-slate-700" %>
+          <%= form.password_field :access_token, required: true, autocomplete: "current-password", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm" %>
+        </div>
+        <%= form.submit "Sign in", class: "w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800" %>
+      <% end %>
     </div>
-    <div>
-      <%= form.label :access_token, "Access token" %>
-      <%= form.password_field :access_token, required: true, autocomplete: "current-password" %>
-    </div>
-    <%= form.submit "Sign in" %>
-  <% end %>
+  </section>
 </turbo-frame>

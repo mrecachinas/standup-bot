@@ -7,6 +7,13 @@ class UserTest < ActiveSupport::TestCase
     assert_equal users(:manager), user
   end
 
+  test "authenticates regular users with access token" do
+    user = User.authenticate("viewer@example.com", "viewer-access-token")
+
+    assert_equal users(:viewer), user
+    assert user.user?
+  end
+
   test "rejects invalid and inactive authentication" do
     assert_nil User.authenticate("manager@example.com", "wrong-token")
     assert_nil User.authenticate("inactive-manager@example.com", "inactive-access-token")
@@ -17,6 +24,16 @@ class UserTest < ActiveSupport::TestCase
 
     assert manager.can_manage_standup?(standups(:daily))
     assert_not manager.can_manage_standup?(standups(:weekly))
+  end
+
+  test "regular users manage standups only through ownerships" do
+    viewer = users(:viewer)
+
+    assert_not viewer.can_manage_standup?(standups(:daily))
+
+    standups(:daily).standup_ownerships.create!(user: viewer, role: "manager")
+
+    assert viewer.can_manage_standup?(standups(:daily))
   end
 
   test "admin manages every standup" do
