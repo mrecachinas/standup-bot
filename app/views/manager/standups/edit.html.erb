@@ -1,0 +1,9 @@
+<section class="space-y-6">
+  <div>
+    <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Standup wizard</p>
+    <h1 class="mt-1 text-3xl font-bold text-slate-900">Edit <%= @standup.name %></h1>
+    <p class="mt-2 text-sm text-slate-600">Update recurrence, questions, and participants with a live schedule preview.</p>
+  </div>
+
+  <%= render "form", standup: @standup %>
+</section>

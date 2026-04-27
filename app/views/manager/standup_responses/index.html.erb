@@ -1,0 +1,52 @@
+<turbo-frame id="standup_responses">
+  <div class="space-y-6">
+    <header class="flex flex-col gap-2 border-b border-slate-200 pb-4">
+      <%= link_to "← Back to #{@standup.name}", manager_standup_path(@standup), class: "text-sm font-medium text-blue-700 hover:text-blue-900", data: { turbo_frame: "_top" } %>
+      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold text-slate-950">Response history for <%= @standup.name %></h1>
+          <p class="text-sm text-slate-600">Review completion status, submitted answers, and response updates by standup date.</p>
+        </div>
+        <%= link_to "View analytics",
+          manager_standup_analytics_path(@standup, start_date: @history.start_date.iso8601, end_date: @history.end_date.iso8601),
+          class: "inline-flex rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200",
+          data: { turbo_frame: "_top" } %>
+      </div>
+    </header>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <%= form_with url: manager_standup_responses_path(@standup), method: :get, data: { turbo_frame: "response_history_results", turbo_action: "advance" }, class: "grid gap-4 md:grid-cols-5" do |form| %>
+        <div>
+          <%= form.label :start_date, "Start date", class: "block text-sm font-medium text-slate-700" %>
+          <%= form.date_field :start_date, value: @history.start_date.iso8601, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+        </div>
+        <div>
+          <%= form.label :end_date, "End date", class: "block text-sm font-medium text-slate-700" %>
+          <%= form.date_field :end_date, value: @history.end_date.iso8601, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+        </div>
+        <div>
+          <%= form.label :participant, "Participant", class: "block text-sm font-medium text-slate-700" %>
+          <%= form.select :participant,
+            options_for_select(@history.participant_options.map { |participant| [ participant.label, participant.slack_id ] }, @history.participant_slack_id),
+            { include_blank: "All participants" },
+            class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+        </div>
+        <div>
+          <%= form.label :question, "Question", class: "block text-sm font-medium text-slate-700" %>
+          <%= form.select :question,
+            options_for_select(@history.question_options, @history.question),
+            { include_blank: "All questions" },
+            class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+        </div>
+        <div class="flex items-end gap-2">
+          <%= form.submit "Apply filters", class: "rounded bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800" %>
+          <%= link_to "Reset", manager_standup_responses_path(@standup), class: "rounded border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50", data: { turbo_frame: "response_history_results" } %>
+        </div>
+      <% end %>
+    </section>
+
+    <turbo-frame id="response_history_results">
+      <%= render "history_results", history: @history %>
+    </turbo-frame>
+  </div>
+</turbo-frame>

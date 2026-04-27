@@ -1,0 +1,33 @@
+<turbo-frame id="standups_dashboard">
+  <section class="space-y-6">
+    <div class="flex flex-col gap-4 rounded-2xl bg-slate-900 p-6 text-white shadow-sm md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="text-sm font-medium uppercase tracking-wide text-slate-300">Manager dashboard</p>
+        <h1 class="mt-2 text-3xl font-bold">Managed standups</h1>
+        <p class="mt-2 text-slate-300">Admins can manage every standup. Managers see only standups they own.</p>
+      </div>
+      <%= link_to "New standup", new_manager_standup_path, class: "inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-100", data: { turbo_frame: "_top" } %>
+    </div>
+
+    <nav class="flex flex-wrap gap-2" aria-label="Standup visibility">
+      <% [["all", "All"], ["active", "Active"], ["paused", "Paused"]].each do |visibility, label| %>
+        <% selected = @visibility == visibility %>
+        <%= link_to label,
+          manager_standups_path(visibility: visibility, period_days: @period_days),
+          class: "rounded-full px-4 py-2 text-sm font-medium #{selected ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}",
+          data: { turbo_frame: "standups_dashboard" } %>
+      <% end %>
+    </nav>
+
+    <% if @dashboard_items.any? %>
+      <div class="grid gap-4">
+        <%= render partial: "standup_card", collection: @dashboard_items, as: :dashboard_item %>
+      </div>
+    <% else %>
+      <div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
+        <h2 class="text-lg font-semibold text-slate-900">No standups found</h2>
+        <p class="mt-2 text-sm text-slate-600">No <%= @visibility == "all" ? "" : @visibility %> standups are assigned to you yet.</p>
+      </div>
+    <% end %>
+  </section>
+</turbo-frame>

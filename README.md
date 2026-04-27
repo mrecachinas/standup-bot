@@ -34,6 +34,15 @@ This is a Ruby on Rails 8.0 API-only application that integrates with Slack's We
 - **Standup**: Configuration for a team's standup (questions, schedule, participants)
 - **StandupParticipant**: Links users to standups with timezone preferences
 - **StandupResponse**: Stores user responses to standup questions
+- **User**: Manager/admin web identity authenticated with an access token
+- **StandupOwnership**: Assigns managers to the standups they can manage
+- **AuditLog**: Records manager/admin changes to standups and participants
+
+### Manager Web UI Authorization
+
+The browser UI uses cookie-backed sessions and `User` records. Users have either the `admin` or `manager` role. Admins can manage every standup; managers can only manage standups linked through `StandupOwnership`. New manager-created standups automatically become owned by that manager. Use `Standup.manageable_by(user)`, `standup.manageable_by?(user)`, or `user.can_manage_standup?(standup)` in future UI controllers.
+
+`User#access_token=` stores only a SHA-256 digest, so provision high-entropy tokens and show the raw token only once. The existing `ADMIN_API_TOKEN` still protects `/api/*` endpoints as a global admin API credential. Manager/admin create, update, and delete actions should call `AuditLogger.log!` (or the controller helpers) so changes are captured in `AuditLog`.
 
 ### Background Jobs
 
@@ -129,31 +138,51 @@ participants:
    ```
 
 2. **Install dependencies and setup database**
-   ```bash
-   bin/setup
-   ```
+    ```bash
+    bin/setup
+    ```
    This will:
    - Install Ruby gems with `bundle install`
    - Setup the database with `rails db:prepare`
-   - Clear logs and temp files
-   - Start the development server
+    - Clear logs and temp files
+    - Start the development server
 
-3. **Manual setup (alternative)**
+3. **Docker Compose full app (without Slack)**
    ```bash
-   bundle install
-   rails db:create db:migrate
-   rails server
+   docker compose up --build
+   ```
+   This starts Postgres, prepares the primary/cache/queue/cable databases, seeds a local admin, runs the Rails web process on http://localhost:3000, and runs the Solid Queue worker. Slack credentials are optional for this mode; Slack-related UI will report missing configuration until real credentials are provided.
+
+   Default local manager UI credentials:
+   - Email: `admin@example.com`
+   - Access token: `local-manager-token`
+
+   Override the seeded admin/API tokens when starting Compose:
+   ```bash
+   MANAGER_ADMIN_EMAIL=you@example.com \
+   MANAGER_ADMIN_TOKEN=replace-with-a-long-random-token \
+   ADMIN_API_TOKEN=replace-with-a-long-random-token \
+   docker compose up --build
    ```
 
-4. **Run tests**
-   ```bash
-   bundle exec rails test
-   ```
+   Stop the app with `docker compose down`. To reset all Compose database data, run `docker compose down -v`.
 
-5. **Run with background jobs**
-   ```bash
-   # In one terminal
-   rails server
+4. **Manual setup (alternative)**
+    ```bash
+    bundle install
+    rails db:create db:migrate
+    rails server
+    ```
+
+5. **Run tests**
+    ```bash
+    bundle exec rails test
+    ```
+
+6. **Run with background jobs**
+    ```bash
+    # In one terminal
+    rails server
    
    # In another terminal (for background job processing)
    bin/jobs
@@ -184,11 +213,28 @@ The application includes Docker and Kamal configuration for deployment:
 2. Click "Create New App" → "From scratch"
 3. Name your app (e.g., "Standup Bot") and select your workspace
 
+You can also generate a Slack app manifest and create the app from that manifest:
+
+```bash
+APP_URL=https://your-domain.com bin/rails slack:manifest > slack-manifest.yml
+```
+
+For local Slack testing, expose Rails with ngrok or another tunnel first and use that public URL:
+
+```bash
+ngrok http 3000
+APP_URL=https://abc123.ngrok-free.app bin/rails slack:manifest > slack-manifest.yml
+```
+
+In Slack, choose **Create New App** → **From an app manifest**, paste `slack-manifest.yml`, review, and create the app. The manifest configures the bot user, required scopes, event subscriptions, interactivity, and slash commands.
+
 ### 2. Configure Bot Permissions
 
 Under **OAuth & Permissions**, add these Bot Token Scopes:
 - `channels:read` - View basic information about public channels
 - `chat:write` - Send messages as the bot
+- `commands` - Register and receive slash commands
+- `im:history` - Receive direct message events from users
 - `im:write` - Start direct messages with people
 - `users:read` - View people in the workspace
 

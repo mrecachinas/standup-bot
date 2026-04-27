@@ -1,0 +1,27 @@
+admin:
+  email: admin@example.com
+  name: Admin User
+  role: admin
+  access_token_digest: ff9dc2c0636d4fee95b6ce1d86b9af8c6dd0c9a68c912487cdb259c506b17aa0
+  active: true
+
+manager:
+  email: manager@example.com
+  name: Manager User
+  role: manager
+  access_token_digest: 85cce23113f50ffa857c436969a17db7613ec5417dfd78f2fc791632c1175399
+  active: true
+
+other_manager:
+  email: other-manager@example.com
+  name: Other Manager
+  role: manager
+  access_token_digest: 9b00c8eb914bef5a1b58c4292c6215afaffb93a87070bbf2b2307f4415bdfe37
+  active: true
+
+inactive_manager:
+  email: inactive-manager@example.com
+  name: Inactive Manager
+  role: manager
+  access_token_digest: 64860d986d9488d2b6d722d5bfb0a16a216b830b15c18c3d6f3e7cc0c38ca00e
+  active: false

@@ -163,6 +163,78 @@ class SlackClient
     nil
   end
 
+
+  # Validate the configured Slack bot token without exposing it.
+  def auth_test
+    response = with_rate_limit_handling("auth_test") do
+      @client.auth_test
+    end
+
+    normalize_hash_response(response, %w[ok team team_id user user_id bot_id url])
+  end
+
+  # Discover Slack channels that can be selected for standup reports.
+  def list_channels(query: nil, limit: 100)
+    response = with_rate_limit_handling("list_channels") do
+      @client.conversations_list(
+        exclude_archived: true,
+        limit: limit,
+        types: "public_channel,private_channel"
+      )
+    end
+
+    channels = Array(response_value(response, "channels")).filter_map { |channel| normalize_channel(channel) }
+    filter_records(channels, query, "id", "name", "label")
+  end
+
+  # Discover Slack users that can be selected as standup participants.
+  def list_users(query: nil, limit: 100)
+    response = with_rate_limit_handling("list_users") do
+      @client.users_list(limit: limit)
+    end
+
+    users = Array(response_value(response, "members")).filter_map { |user| normalize_user(user) }
+    filter_records(users, query, "id", "name", "display_name", "real_name", "label")
+  end
+
+  def channel_members(channel)
+    channel_id = resolve_channel_id(channel)
+    members = []
+    cursor = nil
+
+    loop do
+      response = with_rate_limit_handling("channel_members") do
+        @client.conversations_members(channel: channel_id, cursor: cursor, limit: 200)
+      end
+      members.concat(Array(response_value(response, "members")))
+      cursor = response_cursor(response)
+      break if cursor.blank?
+    end
+
+    members
+  rescue Slack::Web::Api::Errors::ChannelNotFound
+    Rails.logger.warn "Slack channel not found: #{channel}"
+    []
+  rescue Slack::Web::Api::Errors::TooManyRequestsError
+    raise
+  rescue StandardError => e
+    Rails.logger.error "Error fetching Slack channel members: #{e.class} - #{e.message}"
+    []
+  end
+
+  def channel_member_profiles(channel)
+    channel_members(channel).filter_map do |slack_id|
+      info = get_user_info(slack_id)
+      next unless info
+
+      {
+        "slack_id" => slack_id,
+        "slack_name" => info["name"].presence || slack_id,
+        "cached_timezone" => info["tz"].presence
+      }
+    end
+  end
+
   # Send standup selection menu
   def send_standup_selection(channel, text, options)
     Rails.logger.info "Sending standup selection menu to channel: #{channel}"
@@ -296,11 +368,103 @@ class SlackClient
 
   private
 
+
+  def normalize_hash_response(response, keys)
+    keys.each_with_object({}) do |key, payload|
+      value = response_value(response, key)
+      payload[key] = value if value.present? || value == false
+    end
+  end
+
+  def normalize_channel(channel)
+    id = response_value(channel, "id")
+    name = response_value(channel, "name") || response_value(channel, "name_normalized")
+    return if id.blank? || name.blank?
+
+    {
+      "id" => id,
+      "name" => name,
+      "label" => "##{name}",
+      "is_private" => truthy_response_value(channel, "is_private"),
+      "is_member" => truthy_response_value(channel, "is_member"),
+      "num_members" => response_value(channel, "num_members")
+    }.compact
+  end
+
+  def normalize_user(user)
+    id = response_value(user, "id")
+    return if id.blank? || id == "USLACKBOT"
+    return if truthy_response_value(user, "deleted") || truthy_response_value(user, "is_bot")
+
+    profile = response_value(user, "profile") || {}
+    display_name = response_value(profile, "display_name")
+    real_name = response_value(user, "real_name") || response_value(profile, "real_name")
+    username = response_value(user, "name")
+    label = display_name.presence || real_name.presence || username.presence || id
+
+    {
+      "id" => id,
+      "name" => username,
+      "display_name" => display_name,
+      "real_name" => real_name,
+      "label" => label,
+      "tz" => response_value(user, "tz")
+    }.compact
+  end
+
+  def filter_records(records, query, *keys)
+    return records if query.blank?
+
+    normalized_query = query.to_s.downcase
+    records.select do |record|
+      keys.any? { |key| record[key].to_s.downcase.include?(normalized_query) }
+    end
+  end
+
+  def truthy_response_value(response, key)
+    value = response_value(response, key)
+    value == true || value.to_s == "true"
+  end
+
   def slack_bot_token
     slack_config = Rails.application.config.slack || {}
     token = slack_config[:bot_token] || slack_config["bot_token"]
     Rails.logger.warn "Slack bot token is not configured" if token.blank?
     token
+  end
+
+  def resolve_channel_id(channel)
+    normalized = channel.to_s.strip.delete_prefix("#")
+    return normalized if normalized.match?(/\A[CGD][A-Z0-9]+\z/i)
+
+    find_channel_id_by_name(normalized) || normalized
+  end
+
+  def find_channel_id_by_name(channel_name)
+    cursor = nil
+
+    loop do
+      response = with_rate_limit_handling("find_channel_id_by_name") do
+        @client.conversations_list(
+          types: "public_channel,private_channel",
+          exclude_archived: true,
+          cursor: cursor,
+          limit: 200
+        )
+      end
+      match = Array(response_value(response, "channels")).find do |slack_channel|
+        response_value(slack_channel, "name") == channel_name || response_value(slack_channel, "id") == channel_name
+      end
+      return response_value(match, "id") if match
+
+      cursor = response_cursor(response)
+      break if cursor.blank?
+    end
+
+    nil
+  rescue StandardError => e
+    Rails.logger.warn "Unable to resolve Slack channel #{channel_name}: #{e.class} - #{e.message}"
+    nil
   end
 
   def with_rate_limit_handling(operation)
@@ -345,8 +509,17 @@ class SlackClient
   end
 
   def response_value(response, key)
-    response[key] || response[key.to_sym]
-  rescue NoMethodError
+    if response.respond_to?(:[])
+      response[key] || response[key.to_sym]
+    elsif response.respond_to?(key)
+      response.public_send(key)
+    end
+  rescue NoMethodError, TypeError
     response.public_send(key) if response.respond_to?(key)
+  end
+
+  def response_cursor(response)
+    metadata = response_value(response, "response_metadata")
+    response_value(metadata, "next_cursor").to_s
   end
 end

@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
+# This Dockerfile is production-style. Use it with Docker Compose for local full-app runs,
+# Kamal for deployment, or build'n'run by hand:
 # docker build -t nerdbot .
 # docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name nerdbot nerdbot
 

@@ -22,13 +22,14 @@ class SchedulingJob < ApplicationJob
       participants.each do |participant|
         # Calculate send time using participant method
         send_at = participant.calculate_send_time
+        occurrence = participant.next_standup_occurrence
 
         # Only schedule if within the next scheduling window to avoid duplicates
         next unless send_at.present? && send_at <= Time.current + SCHEDULING_WINDOW
 
-        standup_date = participant.standup_date_for(send_at)
-        if standup.holiday_on?(standup_date)
-          Rails.logger.info "Skipping standup #{standup.id} for #{standup_date}; configured holiday"
+        standup_date = occurrence_for_send_time?(occurrence, send_at) ? occurrence.standup_date : participant.standup_date_for(send_at)
+        if standup.skips_occurrence_on?(standup_date)
+          Rails.logger.info "Skipping standup #{standup.id} for #{standup_date}; schedule exception or holiday"
           next
         end
 
@@ -55,5 +56,11 @@ class SchedulingJob < ApplicationJob
 
     StandupMetrics.track("scheduling.completed", active_standups: standups.count, messages_scheduled: scheduled_count)
     Rails.logger.info "Scheduling job completed successfully"
+  end
+
+  private
+
+  def occurrence_for_send_time?(occurrence, send_at)
+    occurrence&.scheduled_at.present? && occurrence.scheduled_at.to_i == send_at.to_i
   end
 end

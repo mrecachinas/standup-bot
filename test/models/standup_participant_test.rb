@@ -12,6 +12,7 @@ class StandupParticipantTest < ActiveSupport::TestCase
       participant = StandupParticipant.new(
         standup: @standup,
         slack_id: "U123NEW",
+        slack_name: "New User",
         active: true
       )
       assert participant.valid?
@@ -26,11 +27,34 @@ class StandupParticipantTest < ActiveSupport::TestCase
     end
   end
 
+  test "should not be valid without slack_name" do
+    @participant.slack_name = nil
+
+    assert_not @participant.valid?
+    assert_includes @participant.errors[:slack_name], "can't be blank"
+  end
+
+  test "normalizes and validates Slack user IDs" do
+    participant = StandupParticipant.new(
+      standup: @standup,
+      slack_id: " uvalid1 ",
+      slack_name: "Valid User"
+    )
+
+    assert participant.valid?
+    assert_equal "UVALID1", participant.slack_id
+
+    participant.slack_id = "not-a-user"
+    assert_not participant.valid?
+    assert_includes participant.errors[:slack_id], "must be a Slack user ID like U123ABC"
+  end
+
   test "should not allow duplicate slack_id in same standup" do
     Timecop.freeze(Time.new(2025, 4, 6)) do
       duplicate = StandupParticipant.new(
         standup: @participant.standup,
-        slack_id: @participant.slack_id
+        slack_id: @participant.slack_id,
+        slack_name: "Duplicate User"
       )
       assert_not duplicate.valid?
       assert_includes duplicate.errors[:slack_id], "has already been taken"
@@ -42,7 +66,8 @@ class StandupParticipantTest < ActiveSupport::TestCase
       different_standup = standups(:weekly)
       participant = StandupParticipant.new(
         standup: different_standup,
-        slack_id: @participant.slack_id
+        slack_id: @participant.slack_id,
+        slack_name: "Different Standup User"
       )
       assert participant.valid?
     end
@@ -95,11 +120,28 @@ class StandupParticipantTest < ActiveSupport::TestCase
     assert_includes @participant.errors[:cached_timezone], "is not a valid timezone"
   end
 
+  test "reports timezone cache status" do
+    @participant.update_columns(cached_timezone: nil, cached_timezone_updated_at: nil)
+    assert_equal "missing", @participant.timezone_cache_status
+    assert_equal "Not cached", @participant.timezone_cache_status_description
+
+    @participant.update_columns(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+    assert_equal "fresh", @participant.reload.timezone_cache_status
+
+    @participant.update_columns(cached_timezone: "UTC", cached_timezone_updated_at: 2.weeks.ago)
+    assert_equal "stale", @participant.reload.timezone_cache_status
+
+    @participant.cached_timezone = "Invalid/Zone"
+    assert_equal "invalid", @participant.timezone_cache_status
+  end
+
   test "should be unavailable through vacation_until date" do
     @participant.update!(vacation_until: Date.new(2025, 4, 7))
 
     assert_not @participant.available_on?(Date.new(2025, 4, 7))
     assert @participant.available_on?(Date.new(2025, 4, 8))
+    assert_equal "Away through 2025-04-07", @participant.vacation_status_on(Date.new(2025, 4, 7))
+    assert_equal "Returned after 2025-04-07", @participant.vacation_status_on(Date.new(2025, 4, 8))
   end
 
   test "should calculate send time based on participant timezone when respecting timezone" do

@@ -16,11 +16,17 @@ class StandupReminderJob < ApplicationJob
 
   def reminder_due?(response)
     standup = response.standup
+    return false unless standup.active?
     return false unless standup.reminder_enabled?
+    return false if standup.skips_occurrence_on?(response_standup_date(response))
     return false if response.reminder_count.to_i >= standup.max_reminders
 
     reminder_reference = response.last_reminder_at || response.created_at
     reminder_reference <= standup.reminder_after_minutes.minutes.ago
+  end
+
+  def response_standup_date(response)
+    response.standup_date || response.created_at.in_time_zone.to_date
   end
 
   def send_reminder(response)

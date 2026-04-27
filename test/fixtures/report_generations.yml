@@ -1,0 +1,17 @@
+failed_daily_report:
+  standup: daily
+  report_configuration: daily_report
+  actor: manager
+  status: failed
+  delivery_channel: daily-reports
+  recipients:
+    - UREPORT1
+  report_format: slack
+  detail_level: detailed
+  standup_date: 2025-04-06
+  timezone: UTC
+  requested_at: 2025-04-06 12:00:00
+  started_at: 2025-04-06 12:01:00
+  completed_at: 2025-04-06 12:02:00
+  error_message: Slack API timeout
+  metadata: {}

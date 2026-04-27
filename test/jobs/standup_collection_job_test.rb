@@ -164,6 +164,132 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     end
   end
 
+  test "updates report generation history and delivers configured recipient copies" do
+    generation = ReportGeneration.create!(
+      standup: @standup,
+      report_configuration: report_configurations(:daily_report),
+      actor: users(:manager),
+      status: "queued",
+      delivery_channel: "reports-channel",
+      recipients: [ "URECIP1" ],
+      report_format: "slack",
+      detail_level: "detailed",
+      standup_date: Date.new(2025, 4, 7),
+      timezone: "UTC",
+      requested_at: Time.zone.parse("2025-04-07 12:00:00")
+    )
+    StandupResponse.create!(
+      standup: @standup,
+      slack_id: "UREPORT",
+      status: "completed",
+      standup_date: Date.new(2025, 4, 7),
+      answers: [ { "question" => "Q?", "answer" => "Report answer", "timestamp" => Time.current } ]
+    )
+
+    @mock_slack_client.expects(:get_user_info).with("UREPORT").returns({ "name" => "reporter" })
+    @mock_slack_client.expects(:send_standup_summary).with("reports-channel", includes("reporter"), @standup.outro)
+    @mock_slack_client.expects(:send_message).with("URECIP1", includes("Report answer"))
+
+    StandupCollectionJob.perform_now(
+      @standup.id,
+      "2025-04-07",
+      "UTC",
+      generation.id,
+      {
+        "destination_channel" => "reports-channel",
+        "recipients" => [ "URECIP1" ],
+        "report_format" => "slack",
+        "detail_level" => "detailed"
+      }
+    )
+
+    generation.reload
+    assert generation.succeeded?
+    assert generation.started_at.present?
+    assert generation.completed_at.present?
+    assert_equal 1, generation.metadata["response_count"]
+    assert_equal 2, generation.metadata["delivery_count"]
+  end
+
+  test "summary detail level sends compact plain text report" do
+    generation = ReportGeneration.create!(
+      standup: @standup,
+      actor: users(:manager),
+      status: "queued",
+      delivery_channel: "summary-channel",
+      recipients: [],
+      report_format: "plain_text",
+      detail_level: "summary",
+      standup_date: Date.new(2025, 4, 7),
+      timezone: "UTC",
+      requested_at: Time.zone.parse("2025-04-07 12:00:00")
+    )
+    StandupResponse.create!(
+      standup: @standup,
+      slack_id: "USUMMARY",
+      status: "completed",
+      standup_date: Date.new(2025, 4, 7),
+      answers: [ { "question" => "Q?", "answer" => "Compact answer", "timestamp" => Time.current } ]
+    )
+
+    @mock_slack_client.expects(:get_user_info).with("USUMMARY").returns({ "name" => "summary_user" })
+    @mock_slack_client.expects(:send_message).with do |channel, text|
+      channel == "summary-channel" &&
+        text.include?("1 completed response") &&
+        text.include?("summary_user: 1 answer")
+    end
+    @mock_slack_client.expects(:send_standup_summary).never
+
+    StandupCollectionJob.perform_now(
+      @standup.id,
+      "2025-04-07",
+      "UTC",
+      generation.id,
+      {
+        "destination_channel" => "summary-channel",
+        "report_format" => "plain_text",
+        "detail_level" => "summary"
+      }
+    )
+
+    assert generation.reload.succeeded?
+  end
+
+  test "marks report generation failed when Slack delivery raises" do
+    generation = ReportGeneration.create!(
+      standup: @standup,
+      actor: users(:manager),
+      status: "queued",
+      delivery_channel: "broken-channel",
+      recipients: [],
+      report_format: "slack",
+      detail_level: "detailed",
+      standup_date: Date.new(2025, 4, 7),
+      timezone: "UTC",
+      requested_at: Time.zone.parse("2025-04-07 12:00:00")
+    )
+
+    @mock_slack_client.expects(:send_message).with(
+      "broken-channel",
+      "No standup responses have been submitted today for #{@standup.name}."
+    ).raises(StandardError.new("Slack unavailable"))
+
+    assert_raises StandardError do
+      StandupCollectionJob.perform_now(
+        @standup.id,
+        "2025-04-07",
+        "UTC",
+        generation.id,
+        { "destination_channel" => "broken-channel" }
+      )
+    end
+
+    generation.reload
+    assert generation.failed?
+    assert_includes generation.error_message, "Slack unavailable"
+    assert_equal "StandardError", generation.metadata["error_class"]
+  end
+
   test "ignores pending and skipped responses" do
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       StandupResponse.create!(standup: @standup, slack_id: "UPEND", status: "pending", answers: [])

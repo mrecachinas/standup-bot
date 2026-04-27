@@ -111,10 +111,34 @@ class SchedulingJobTest < ActiveJob::TestCase
 
   test "does not schedule standups on holidays" do
     StandupParticipant.where.not(id: @participant.id).delete_all
-    Standup.any_instance.stubs(:holiday_on?).with(@standup_date).returns(true)
+    Standup.any_instance.stubs(:skips_occurrence_on?).with(@standup_date).returns(true)
 
     assert_no_enqueued_jobs(only: StandupMessageJob) do
       SchedulingJob.perform_now
+    end
+  end
+
+  test "schedules rescheduled occurrence using original standup date" do
+    StandupParticipant.where.not(id: @participant.id).delete_all
+    original_date = Date.new(2026, 5, 1)
+    rescheduled_at = Time.zone.local(2026, 5, 1, 10, 15)
+    occurrence = Standup::Occurrence.new(
+      standup_date: original_date,
+      scheduled_at: rescheduled_at,
+      status: "rescheduled"
+    )
+
+    StandupParticipant.any_instance.stubs(:calculate_send_time).returns(rescheduled_at)
+    StandupParticipant.any_instance.stubs(:next_standup_occurrence).returns(occurrence)
+
+    Timecop.freeze(Time.zone.local(2026, 5, 1, 9, 30)) do
+      assert_enqueued_with(
+        job: StandupMessageJob,
+        at: rescheduled_at,
+        args: [ @participant.slack_id, @active_standup.id, original_date.iso8601 ]
+      ) do
+        SchedulingJob.perform_now
+      end
     end
   end
 

@@ -119,6 +119,47 @@ class SlackClientTest < ActiveSupport::TestCase
     assert_nil result
   end
 
+  test "channel_member_profiles returns Slack users with cached timezones" do
+    @mock_api_client.expects(:conversations_members)
+      .with(channel: "C12345", cursor: nil, limit: 200)
+      .returns({
+        "members" => [ "U111", "U222" ],
+        "response_metadata" => { "next_cursor" => "" }
+      })
+
+    @mock_api_client.expects(:users_info)
+      .with(user: "U111")
+      .returns(slack_user_info_response("Alice", "America/New_York"))
+    @mock_api_client.expects(:users_info)
+      .with(user: "U222")
+      .returns(slack_user_info_response("Bob", "UTC"))
+
+    assert_equal(
+      [
+        { "slack_id" => "U111", "slack_name" => "Alice", "cached_timezone" => "America/New_York" },
+        { "slack_id" => "U222", "slack_name" => "Bob", "cached_timezone" => "UTC" }
+      ],
+      @slack_client.channel_member_profiles("C12345")
+    )
+  end
+
+  test "channel_members resolves channel names before listing members" do
+    @mock_api_client.expects(:conversations_list)
+      .with(types: "public_channel,private_channel", exclude_archived: true, cursor: nil, limit: 200)
+      .returns({
+        "channels" => [ { "id" => "CDAILY", "name" => "daily-standup" } ],
+        "response_metadata" => { "next_cursor" => "" }
+      })
+    @mock_api_client.expects(:conversations_members)
+      .with(channel: "CDAILY", cursor: nil, limit: 200)
+      .returns({
+        "members" => [ "U111" ],
+        "response_metadata" => { "next_cursor" => "" }
+      })
+
+    assert_equal [ "U111" ], @slack_client.channel_members("#daily-standup")
+  end
+
   test "send_message retries rate limit errors" do
     channel = "C12345"
     message = "Hello, world!"
@@ -145,5 +186,67 @@ class SlackClientTest < ActiveSupport::TestCase
       .returns(expected_response)
 
     assert_equal expected_response, @slack_client.send_message(channel, message)
+  end
+
+  private
+
+  def slack_user_info_response(name, timezone)
+    user = mock()
+    user.stubs(:name).returns(name)
+    user.stubs(:tz).returns(timezone)
+    user.stubs(:tz_offset).returns(0)
+    user.stubs(:profile).returns({})
+
+    response = mock()
+    response.stubs(:user).returns(user)
+    response
+  end
+
+  test "auth_test normalizes Slack auth response" do
+    @mock_api_client.expects(:auth_test)
+      .returns({ "ok" => true, "team" => "Example", "team_id" => "T123", "user_id" => "U999" })
+
+    result = @slack_client.auth_test
+
+    assert_equal true, result["ok"]
+    assert_equal "Example", result["team"]
+    assert_equal "U999", result["user_id"]
+  end
+
+  test "list_channels normalizes and filters channels" do
+    @mock_api_client.expects(:conversations_list)
+      .with(exclude_archived: true, limit: 100, types: "public_channel,private_channel")
+      .returns({
+        "channels" => [
+          { "id" => "C123", "name" => "general", "is_private" => false, "is_member" => true, "num_members" => 12 },
+          { "id" => "C999", "name" => "random", "is_private" => false }
+        ]
+      })
+
+    channels = @slack_client.list_channels(query: "gen")
+
+    assert_equal 1, channels.size
+    assert_equal "C123", channels.first["id"]
+    assert_equal "#general", channels.first["label"]
+    assert_equal true, channels.first["is_member"]
+  end
+
+  test "list_users normalizes users and skips bots and deleted users" do
+    @mock_api_client.expects(:users_list)
+      .with(limit: 100)
+      .returns({
+        "members" => [
+          { "id" => "U123", "name" => "alice", "real_name" => "Alice Doe", "profile" => { "display_name" => "Alice" }, "tz" => "America/New_York" },
+          { "id" => "U999", "name" => "bot", "is_bot" => true },
+          { "id" => "U888", "name" => "deleted", "deleted" => true }
+        ]
+      })
+
+    users = @slack_client.list_users(query: "alice")
+
+    assert_equal 1, users.size
+    assert_equal "U123", users.first["id"]
+    assert_equal "Alice", users.first["label"]
+    assert_equal "America/New_York", users.first["tz"]
   end
 end

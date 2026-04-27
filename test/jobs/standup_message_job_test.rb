@@ -151,4 +151,19 @@ class StandupMessageJobTest < ActiveJob::TestCase
       end
     end
   end
+
+  test "does not send when schedule exception cancels the standup date" do
+    standup_date = Date.new(2026, 5, 1)
+    @standup.standup_schedule_exceptions.create!(
+      exception_type: "cancelled",
+      original_date: standup_date,
+      reason: "One-off cancellation"
+    )
+
+    @mock_slack_client.expects(:send_message).never
+
+    assert_no_difference "StandupResponse.count" do
+      StandupMessageJob.perform_now(@slack_id, @standup.id, standup_date.iso8601)
+    end
+  end
 end

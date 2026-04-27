@@ -58,10 +58,12 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "updates standup" do
-    patch api_standup_path(@standup),
-      params: { standup: { name: "Updated Name", active: false } },
-      headers: admin_headers,
-      as: :json
+    assert_difference "AuditLog.where(action: 'standup.update', actor_label: 'admin_api').count", 1 do
+      patch api_standup_path(@standup),
+        params: { standup: { name: "Updated Name", active: false } },
+        headers: admin_headers,
+        as: :json
+    end
 
     assert_response :success
     assert_equal "Updated Name", @standup.reload.name

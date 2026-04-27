@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Standup Bot</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="turbo-cache-control" content="no-preview">
+    <%= csrf_meta_tags %>
+    <%= javascript_include_tag "https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.23/dist/turbo.es2017-umd.js",
+      integrity: "sha384-2ePXINFSJiSCWUJkjFJGYdr2kyM132s7uBi9k+JISp4P+AjN9DXn4H/1enWEHu36",
+      crossorigin: "anonymous",
+      defer: true %>
+  </head>
+  <body>
+    <nav>
+      <%= link_to "Standup Bot", manager_standups_path, data: { turbo_frame: "_top" } %>
+      <% if current_user %>
+        <%= link_to "Slack integration", manager_slack_integration_path, data: { turbo_frame: "_top" } %>
+        <span><%= current_user.name %> (<%= current_user.role %>)</span>
+        <%= button_to "Sign out", session_path, method: :delete, form: { data: { turbo: false } } %>
+      <% end %>
+    </nav>
+    <main>
+      <%= yield %>
+    </main>
+  </body>
+</html>

@@ -13,9 +13,9 @@ class StandupMessageJob < ApplicationJob
     lock_record.with_lock do
       resolved_standup_date = resolve_standup_date(standup_date, participant)
 
-      if standup.holiday_on?(resolved_standup_date)
-        Rails.logger.info "Skipping standup #{standup_id} for #{resolved_standup_date}; configured holiday"
-        StandupMetrics.track("standup.skipped_holiday", standup_id: standup_id, slack_id: slack_id)
+      if standup.skips_occurrence_on?(resolved_standup_date)
+        Rails.logger.info "Skipping standup #{standup_id} for #{resolved_standup_date}; schedule exception or holiday"
+        StandupMetrics.track("standup.skipped_schedule_exception", standup_id: standup_id, slack_id: slack_id)
         return
       end
 
