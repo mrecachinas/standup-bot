@@ -35,10 +35,13 @@ class SlackCommands
 
   # Parse text and return command if matched
   def parse(text)
-    Rails.logger.debug "Parsing text for commands: #{text.truncate(30) if text}"
+    normalized_text = text.to_s.strip
+    return nil if normalized_text.blank?
+
+    Rails.logger.debug "Parsing text for Slack commands"
 
     COMMANDS.each do |command, config|
-      match = text.match(config[:pattern])
+      match = normalized_text.match(config[:pattern])
       if match
         Rails.logger.info "Matched command: #{command}"
         return { command: command, match: match }
@@ -82,7 +85,11 @@ class SlackCommands
     Rails.logger.info "Generating report for user: #{slack_id}"
 
     # Find standups the user is part of
-    participants = StandupParticipant.where(slack_id: slack_id, active: true)
+    participants = StandupParticipant
+      .joins(:standup)
+      .merge(Standup.active)
+      .where(slack_id: slack_id, active: true)
+      .distinct
 
     if participants.empty?
       Rails.logger.info "User #{slack_id} is not part of any standups"
@@ -93,9 +100,14 @@ class SlackCommands
 
     if participants.count == 1
       # If only one standup, generate its report
-      standup = participants.first.standup
+      participant = participants.first
+      standup = participant.standup
       Rails.logger.info "Scheduling report generation for standup: #{standup.id} - #{standup.name}"
-      StandupCollectionJob.perform_later(standup.id)
+      StandupCollectionJob.perform_later(
+        standup.id,
+        participant.standup_date_for(Time.current).iso8601,
+        participant.standup_time_zone.tzinfo.name
+      )
       @slack_client.send_message(channel, "Generating report for #{standup.name}. It will be posted to ##{standup.slack_channel} shortly.")
     else
       # If multiple standups, ask which one to report on
@@ -122,10 +134,7 @@ class SlackCommands
   def skip_current_question(slack_id, channel)
     Rails.logger.info "User #{slack_id} requested to skip current question"
 
-    standup_response = StandupResponse
-      .where(slack_id: slack_id, status: "pending")
-      .order(created_at: :desc)
-      .first
+    standup_response = pending_response_for(slack_id)
 
     if standup_response
       Rails.logger.info "Skipping question for standup response: #{standup_response.id}"
@@ -140,10 +149,7 @@ class SlackCommands
   def cancel_standup(slack_id, channel)
     Rails.logger.info "User #{slack_id} requested to cancel standup"
 
-    standup_response = StandupResponse
-      .where(slack_id: slack_id, status: "pending")
-      .order(created_at: :desc)
-      .first
+    standup_response = pending_response_for(slack_id)
 
     if standup_response
       Rails.logger.info "Cancelling standup response: #{standup_response.id}"
@@ -159,18 +165,23 @@ class SlackCommands
     Rails.logger.info "Setting user #{slack_id} away for #{days} days"
 
     # Find all active standup participants for this user
-    participants = StandupParticipant.where(slack_id: slack_id, active: true)
+    participants = StandupParticipant
+      .joins(:standup)
+      .merge(Standup.active)
+      .where(slack_id: slack_id, active: true)
+      .distinct
 
     if participants.any?
       # Track which participants we're deactivating so reactivation is precise
       participant_ids = participants.pluck(:id)
 
+      return_date = Date.today + days.days
+
       # Update all participants to inactive
-      count = participants.update_all(active: false)
+      count = StandupParticipant.where(id: participant_ids).update_all(active: false, vacation_until: return_date)
       Rails.logger.info "Set #{count} standup participants to inactive for user #{slack_id}"
 
       # Schedule reactivation with specific participant IDs
-      return_date = Date.today + days.days
       Rails.logger.info "Scheduling reactivation for #{slack_id} on #{return_date}"
       SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(slack_id, participant_ids)
 
@@ -188,15 +199,28 @@ class SlackCommands
     Rails.logger.info "Reactivating user #{slack_id}"
 
     # Find all inactive standup participants for this user
-    participants = StandupParticipant.where(slack_id: slack_id, active: false)
+    participants = StandupParticipant
+      .joins(:standup)
+      .merge(Standup.active)
+      .where(slack_id: slack_id, active: false)
+      .distinct
 
     if participants.any?
-      count = participants.update_all(active: true)
+      participant_ids = participants.pluck(:id)
+      count = StandupParticipant.where(id: participant_ids).update_all(active: true, vacation_until: nil)
       Rails.logger.info "Reactivated #{count} standup participants for user #{slack_id}"
       @slack_client.send_message(channel, "Welcome back! You'll now receive standup prompts again.")
     else
       Rails.logger.info "User #{slack_id} is already active in all standups"
       @slack_client.send_message(channel, "You're already active in all your standups.")
     end
+  end
+
+  def pending_response_for(slack_id)
+    StandupResponse
+      .authorized_for_slack_user(slack_id)
+      .where(status: "pending")
+      .order("standup_responses.created_at DESC")
+      .first
   end
 end

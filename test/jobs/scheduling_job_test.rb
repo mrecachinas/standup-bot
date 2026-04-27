@@ -12,11 +12,18 @@ class SchedulingJobTest < ActiveJob::TestCase
     @inactive_standup.update(active: false)
 
     # Associate participant with the active standup
-    @participant.update(standup_id: @active_standup.id, active: true)
+    @participant.update(
+      standup_id: @active_standup.id,
+      active: true,
+      cached_timezone: "UTC",
+      cached_timezone_updated_at: Time.current
+    )
 
     # Mock time calculation for consistency
     @scheduled_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
+    @standup_date = @scheduled_time.to_date
     StandupParticipant.any_instance.stubs(:calculate_send_time).returns(@scheduled_time)
+    StandupParticipant.any_instance.stubs(:standup_date_for).returns(@standup_date)
   end
 
   test "schedules messages for active standups only" do
@@ -25,7 +32,11 @@ class SchedulingJobTest < ActiveJob::TestCase
     StandupParticipant.where.not(id: [ @participant.id, @inactive_participant.id ]).delete_all
 
     # First test: active standup should have job scheduled
-    assert_enqueued_with(job: StandupMessageJob, at: @scheduled_time, args: [ @participant.slack_id, @active_standup.id ]) do
+    assert_enqueued_with(
+      job: StandupMessageJob,
+      at: @scheduled_time,
+      args: [ @participant.slack_id, @active_standup.id, @standup_date.iso8601 ]
+    ) do
       SchedulingJob.perform_now
     end
 
@@ -80,7 +91,45 @@ class SchedulingJobTest < ActiveJob::TestCase
     # Test that the job uses the participant's calculated send time
     send_at = @participant.calculate_send_time
 
-    assert_enqueued_with(job: StandupMessageJob, at: send_at, args: [ @participant.slack_id, @active_standup.id ]) do
+    assert_enqueued_with(
+      job: StandupMessageJob,
+      at: send_at,
+      args: [ @participant.slack_id, @active_standup.id, @standup_date.iso8601 ]
+    ) do
+      SchedulingJob.perform_now
+    end
+  end
+
+  test "does not schedule participants on vacation" do
+    StandupParticipant.where.not(id: @participant.id).delete_all
+    @participant.update!(vacation_until: @standup_date)
+
+    assert_no_enqueued_jobs(only: StandupMessageJob) do
+      SchedulingJob.perform_now
+    end
+  end
+
+  test "does not schedule standups on holidays" do
+    StandupParticipant.where.not(id: @participant.id).delete_all
+    Standup.any_instance.stubs(:holiday_on?).with(@standup_date).returns(true)
+
+    assert_no_enqueued_jobs(only: StandupMessageJob) do
+      SchedulingJob.perform_now
+    end
+  end
+
+  test "does not schedule duplicate when same-day response has nil standup date" do
+    StandupParticipant.where.not(id: @participant.id).delete_all
+    response = StandupResponse.create!(
+      standup: @active_standup,
+      slack_id: @participant.slack_id,
+      status: "pending",
+      answers: [],
+      created_at: @scheduled_time
+    )
+    response.update_column(:standup_date, nil)
+
+    assert_no_enqueued_jobs(only: StandupMessageJob) do
       SchedulingJob.perform_now
     end
   end

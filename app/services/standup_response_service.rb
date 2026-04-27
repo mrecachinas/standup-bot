@@ -5,9 +5,10 @@ class StandupResponseService
 
   def self.record_answer(standup_response, text)
     Rails.logger.info "Recording answer for standup response #{standup_response.id} from user #{standup_response.slack_id}"
+    answer_text = normalize_answer_text(text)
 
     # Check for skip command
-    if text.strip.downcase == "skip"
+    if answer_text.strip.downcase == "skip"
       Rails.logger.info "User requested to skip the question"
       return skip_question(standup_response)
     end
@@ -23,10 +24,10 @@ class StandupResponseService
     # Add the answer
     standup_response.answers << {
       question: standup.questions[current_question_idx],
-      answer: text,
+      answer: answer_text,
       timestamp: Time.current
     }
-    Rails.logger.debug "Answer recorded for question: '#{standup.questions[current_question_idx].truncate(30)}'"
+    Rails.logger.debug "Answer recorded for question #{current_question_idx + 1}"
 
     # Process the updated standup response
     process_answer_update(standup_response)
@@ -51,12 +52,40 @@ class StandupResponseService
       answer: "(skipped)",
       timestamp: Time.current
     }
-    Rails.logger.debug "Question marked as skipped: '#{standup.questions[current_question_idx].truncate(30)}'"
+    Rails.logger.debug "Question #{current_question_idx + 1} marked as skipped"
 
     # Process the updated standup response
     process_answer_update(standup_response)
 
     Rails.logger.info "Standup response #{standup_response.id} saved successfully after skip"
+  end
+
+  def self.skip_remaining_questions(standup_response, notify: true)
+    Rails.logger.info "Skipping remaining questions for standup response #{standup_response.id}"
+
+    standup = standup_response.standup
+    standup_response.answers ||= []
+
+    while standup_response.answers.size < standup.questions.size
+      current_question_idx = standup_response.answers.size
+      standup_response.answers << {
+        question: standup.questions[current_question_idx],
+        answer: "(skipped)",
+        timestamp: Time.current
+      }
+    end
+
+    standup_response.status = "skipped"
+    standup_response.save!
+
+    if notify
+      slack_client.send_message(
+        standup_response.slack_id,
+        "Your remaining #{standup.name} standup questions have been skipped."
+      )
+    end
+
+    Rails.logger.info "Standup response #{standup_response.id} marked as skipped"
   end
 
   def self.mark_completed(standup_response)
@@ -66,13 +95,20 @@ class StandupResponseService
     Rails.logger.info "Standup response #{standup_response.id} completed"
   end
 
-  def self.cancel_previous_pending_responses(slack_id, standup_id)
+  def self.cancel_previous_pending_responses(slack_id, standup_id, current_standup_date = nil, timezone = Time.zone)
     Rails.logger.info "Canceling previous pending responses for user #{slack_id} in standup #{standup_id}"
+    zone = Standup.resolve_time_zone(timezone)
+    standup_date = current_standup_date.present? ? StandupResponse.normalize_date(current_standup_date) : zone.today
+    day_start = zone.local(standup_date.year, standup_date.month, standup_date.day)
 
     # Find all pending responses for this user in this standup that are from previous days
     previous_pending = StandupResponse
       .where(slack_id: slack_id, standup_id: standup_id, status: "pending")
-      .where("created_at < ?", Date.today.beginning_of_day)
+      .where(
+        "standup_date < :standup_date OR (standup_date IS NULL AND created_at < :day_start)",
+        standup_date: standup_date,
+        day_start: day_start
+      )
 
     return if previous_pending.empty?
 
@@ -84,6 +120,14 @@ class StandupResponseService
     end
 
     Rails.logger.info "Successfully canceled #{previous_pending.count} previous pending responses"
+  end
+
+  def self.normalize_answer_text(text)
+    normalized_text = text.to_s
+    return normalized_text if normalized_text.length <= StandupResponse::MAX_ANSWER_LENGTH
+
+    Rails.logger.warn "Answer exceeds maximum length; truncating to #{StandupResponse::MAX_ANSWER_LENGTH} characters"
+    normalized_text.truncate(StandupResponse::MAX_ANSWER_LENGTH, omission: "")
   end
 
   # Helper method to process answer updates and determine next steps
@@ -199,7 +243,20 @@ class StandupResponseService
 
     # Check if all participants have completed their standups
     Rails.logger.info "Checking if all standup responses are complete"
-    check_if_all_responses_complete(standup)
+    check_if_all_responses_complete(standup, standup_response.standup_date, response_time_zone_for(standup_response))
+    StandupMetrics.track(
+      "standup.completed",
+      standup_id: standup.id,
+      slack_id: standup_response.slack_id,
+      response_id: standup_response.id,
+      duration_seconds: response_duration_seconds(standup_response)
+    )
+  end
+
+  def self.response_duration_seconds(standup_response)
+    return unless standup_response.created_at
+
+    (Time.current - standup_response.created_at).round
   end
 
   def self.send_next_question(standup_response)
@@ -269,17 +326,19 @@ class StandupResponseService
     Rails.logger.info "Successfully posted response to channel ##{standup.slack_channel}"
   end
 
-  def self.check_if_all_responses_complete(standup)
+  def self.check_if_all_responses_complete(standup, standup_date = nil, timezone = Time.zone)
     Rails.logger.info "Checking completion status for standup #{standup.id} - #{standup.name}"
+    zone = Standup.resolve_time_zone(timezone)
+    response_date = standup_date || zone.today
 
     # Count active participants
-    total_participants = standup.standup_participants.where(active: true).count
+    total_participants = standup.standup_participants.active.select { |participant| participant.available_on?(response_date) }.count
     Rails.logger.info "Total active participants: #{total_participants}"
 
-    # Count completed responses from today
+    # Count completed responses for the same standup date
     completed_responses = StandupResponse
       .where(standup_id: standup.id, status: "completed")
-      .where("created_at > ?", Date.today.beginning_of_day)
+      .for_date_in_timezone(response_date, zone)
       .count
 
     Rails.logger.info "Completed responses today: #{completed_responses}/#{total_participants}"
@@ -290,5 +349,9 @@ class StandupResponseService
     #   Rails.logger.info "All responses complete, scheduling summary collection"
     #   StandupCollectionJob.set(wait: 2.minutes).perform_later(standup.id)
     # end
+  end
+
+  def self.response_time_zone_for(standup_response)
+    standup_response.participant&.standup_time_zone || Time.zone
   end
 end

@@ -44,6 +44,26 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     end
   end
 
+  test "collects responses for explicit participant timezone date" do
+    StandupResponse.where(standup: @standup).delete_all
+    response_time = Time.new(2025, 4, 6, 20, 0, 0, "+00:00")
+    StandupResponse.create!(
+      standup: @standup,
+      slack_id: "ULOCAL",
+      status: "completed",
+      standup_date: Date.new(2025, 4, 6),
+      answers: [ { "question" => "Q?", "answer" => "A", "timestamp" => response_time } ],
+      created_at: response_time
+    )
+
+    @mock_slack_client.expects(:get_user_info).with("ULOCAL").returns({ "name" => "local_user" })
+    @mock_slack_client.expects(:send_standup_summary).with do |_channel, summary, _outro|
+      summary.include?("local_user")
+    end
+
+    StandupCollectionJob.perform_now(@standup.id, "2025-04-06", "America/Los_Angeles")
+  end
+
   test "aggregates multiple user responses with separator" do
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       StandupResponse.create!(

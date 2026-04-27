@@ -10,11 +10,20 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
 
     # Create a pending standup response for testing
     @standup = standups(:daily)
+    @participant = standup_participants(:inactive_daily)
+    @participant.update!(
+      standup: @standup,
+      active: true,
+      cached_timezone: "UTC",
+      cached_timezone_updated_at: Time.current
+    )
     @standup_response = StandupResponse.create!(
       slack_id: @slack_id,
       standup_id: @standup.id,
       status: "pending",
-      answers: []
+      answers: [],
+      created_at: 1.day.ago,
+      standup_date: 1.day.ago.to_date
     )
 
     # Mock the StandupResponseService for verification
@@ -134,6 +143,8 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
   end
 
   test "processes edited message for completed standup response" do
+    @standup_response.destroy!
+
     # Create a completed standup response
     completed_response = StandupResponse.create!(
       slack_id: @slack_id,
@@ -185,6 +196,46 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     assert_equal "I worked on feature X and also fixed bug Z", completed_response.answers[0]["answer"]
   end
 
+  test "processes edited completed response using participant timezone date" do
+    @participant.update!(cached_timezone: "America/Los_Angeles", cached_timezone_updated_at: Time.current)
+    @standup_response.destroy!
+
+    Timecop.freeze(Time.new(2025, 4, 7, 6, 30, 0, "+00:00")) do
+      completed_response = StandupResponse.create!(
+        slack_id: @slack_id,
+        standup_id: @standup.id,
+        status: "completed",
+        standup_date: Date.new(2025, 4, 6),
+        answers: [
+          {
+            "question" => "What did you accomplish yesterday?",
+            "answer" => "I worked on feature X",
+            "timestamp" => Time.current
+          }
+        ],
+        slack_message_ts: "1234567890.123456",
+        created_at: Time.new(2025, 4, 6, 20, 0, 0, "+00:00")
+      )
+
+      StandupResponseService.expects(:repost_response).with(completed_response)
+
+      event = {
+        "type" => "message",
+        "subtype" => "message_changed",
+        "channel" => @channel_id,
+        "message" => {
+          "user" => @slack_id,
+          "text" => "I worked on feature X and fixed bug Z",
+          "ts" => "1234567890.123456"
+        }
+      }
+
+      SlackEventProcessorJob.perform_now(event)
+
+      assert_equal "I worked on feature X and fixed bug Z", completed_response.reload.answers[0]["answer"]
+    end
+  end
+
   test "ignores edited message with no matching standup response" do
     # Delete all existing standup responses for this test
     StandupResponse.where(slack_id: @slack_id).delete_all
@@ -216,6 +267,8 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
   end
 
   test "skips update when no specific match found in completed response" do
+    @standup_response.destroy!
+
     # Create a completed standup response with answers that won't match the edited text
     completed_response = StandupResponse.create!(
       slack_id: @slack_id,

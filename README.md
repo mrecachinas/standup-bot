@@ -9,6 +9,9 @@ A Slack bot that automates daily standup meetings by scheduling personalized que
 - **Flexible Configuration**: Supports daily, weekdays, weekly, and custom schedules
 - **Interactive Responses**: Collects responses through Slack DMs and posts summaries to team channels
 - **Team Management**: Add/remove participants and manage multiple standup configurations
+- **Admin API**: Manage standups, participants, responses, stats, and analytics with bearer-token auth
+- **Observability**: Health checks, operational metrics, structured standup events, and job failure notifications
+- **Data Retention**: Scheduled cleanup for old responses and stale pending standups
 
 ## Architecture
 
@@ -18,7 +21,7 @@ This is a Ruby on Rails 8.0 API-only application that integrates with Slack's We
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Slack API     │◄──►│   Rails App      │◄──►│   SQLite DB     │
+│   Slack API     │◄──►│   Rails App      │◄──►│ MySQL/Postgres  │
 │                 │    │                  │    │                 │
 │ • Events API    │    │ • Controllers    │    │ • Standups      │
 │ • Web API       │    │ • Jobs           │    │ • Participants  │
@@ -37,6 +40,7 @@ This is a Ruby on Rails 8.0 API-only application that integrates with Slack's We
 - **SchedulingJob**: Processes active standups and schedules messages
 - **StandupMessageJob**: Sends initial standup questions to users
 - **SlackEventProcessorJob**: Handles incoming Slack events and responses
+- **DataCleanupJob**: Expires stale pending responses and deletes data beyond the retention window
 
 ## Configuration
 
@@ -51,8 +55,17 @@ SLACK_SIGNING_SECRET=your-signing-secret-here
 SLACK_CLIENT_ID=your-client-id-here
 SLACK_CLIENT_SECRET=your-client-secret-here
 
-# Optional: Database configuration (defaults to SQLite)
-DATABASE_URL=sqlite3:db/production.sqlite3
+# Production database configuration (PostgreSQL by default)
+DATABASE_URL=postgres://nerdbot:password@db/nerdbot_production
+
+# Admin API bearer token. Required for /api/* endpoints.
+ADMIN_API_TOKEN=replace-with-a-long-random-token
+
+# Optional operational notifications and retention tuning
+ADMIN_CHANNEL=C1234567890
+RESPONSE_RETENTION_DAYS=90
+STALE_PENDING_DAYS=7
+CLEANUP_BATCH_SIZE=1000
 
 # Optional: Rails configuration
 RAILS_ENV=production
@@ -103,7 +116,8 @@ participants:
 ### Prerequisites
 
 - Ruby 3.4.2 (see `.ruby-version`)
-- SQLite 3
+- MySQL 8 for the default local/test configuration
+- PostgreSQL 16 for production-style deployments
 - Bundler gem
 
 ### Development Setup
@@ -194,8 +208,8 @@ Under **OAuth & Permissions**, add these Bot Token Scopes:
 ### 5. Configure Slash Commands (Optional)
 
 Create slash commands under **Slash Commands**:
-- `/standup` - Trigger manual standup
-- `/standup-status` - Check standup status
+- `/standup` - Trigger manual standup, status, skip, report, history, and help actions. Request URL: `https://your-domain.com/slack/commands/standup`
+- `/standup-status` - Check standup status. Request URL: `https://your-domain.com/slack/commands/standup-status`
 
 ### 6. Test Your Integration
 
@@ -223,6 +237,24 @@ Once configured, the bot will:
 3. **Collect responses** through conversational interface
 4. **Post summaries** to the designated team channel
 5. **Handle timezone differences** automatically
+
+### Admin and Observability APIs
+
+Admin routes require `Authorization: Bearer $ADMIN_API_TOKEN`.
+
+```bash
+curl -H "Authorization: Bearer $ADMIN_API_TOKEN" http://localhost:3000/api/standups
+curl -H "Authorization: Bearer $ADMIN_API_TOKEN" http://localhost:3000/api/standups/1/stats
+curl -H "Authorization: Bearer $ADMIN_API_TOKEN" http://localhost:3000/api/standups/1/analytics
+```
+
+Health endpoints are unauthenticated for load balancers and monitors:
+
+```bash
+curl http://localhost:3000/health
+curl http://localhost:3000/health/detailed
+curl http://localhost:3000/health/metrics
+```
 
 ### Commands
 

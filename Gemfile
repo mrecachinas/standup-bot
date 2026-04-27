@@ -4,10 +4,13 @@ source "https://rubygems.org"
 gem "rails", "~> 8.1.3"
 # Use MySQL as the database for Active Record
 gem "mysql2", "~> 0.5"
+# Support PostgreSQL-backed production deployments.
+gem "pg", "~> 1.5"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 # gem "jbuilder"
+gem "benchmark"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
@@ -37,12 +40,16 @@ gem "thruster", require: false
 
 gem "slack-ruby-client", "~> 3.1.0"
 
+gem "rack-attack"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 
   # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
   gem "brakeman", require: false
+
+  gem "bundler-audit", require: false
 
   gem "mocha", require: false
 

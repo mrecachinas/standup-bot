@@ -16,7 +16,7 @@ class SlackEventProcessorJob < ApplicationJob
 
     # Regular message processing
     user_id = event["user"]
-    text = event["text"]
+    text = StandupResponseService.normalize_answer_text(event["text"])
     channel = event["channel"]
 
     return if user_id.blank? || text.blank?
@@ -36,8 +36,9 @@ class SlackEventProcessorJob < ApplicationJob
 
     # If not a command, process as a standup response
     standup_response = StandupResponse
-      .where(slack_id: user_id, status: "pending")
-      .order(created_at: :desc)
+      .authorized_for_slack_user(user_id)
+      .where(status: "pending")
+      .order("standup_responses.created_at DESC")
       .first
 
     if standup_response
@@ -54,14 +55,17 @@ class SlackEventProcessorJob < ApplicationJob
   def process_edited_message(event)
     # Extract required information from the edit event
     user_id = event.dig("message", "user") || event["user"]
-    text = event.dig("message", "text")
+    text = StandupResponseService.normalize_answer_text(event.dig("message", "text"))
     channel = event["channel"]
-    message_ts = event.dig("message", "ts")
 
     Rails.logger.info "Processing edited message from user: #{user_id} in channel: #{channel}"
 
     # First check for pending responses - easier case
-    pending_response = StandupResponse.where(slack_id: user_id, status: "pending").order(created_at: :desc).first
+    pending_response = StandupResponse
+      .authorized_for_slack_user(user_id)
+      .where(status: "pending")
+      .order("standup_responses.created_at DESC")
+      .first
 
     if pending_response && pending_response.answers.present?
       # Update the last answer in the pending response
@@ -70,11 +74,7 @@ class SlackEventProcessorJob < ApplicationJob
     end
 
     # Otherwise look for completed responses from today
-    completed_response = StandupResponse
-      .where(slack_id: user_id, status: "completed")
-      .where("created_at > ?", Date.today.beginning_of_day)
-      .order(created_at: :desc)
-      .first
+    completed_response = current_completed_response_for(user_id)
 
     if completed_response
       # Update the completed response and repost to channel
@@ -85,6 +85,7 @@ class SlackEventProcessorJob < ApplicationJob
   end
 
   def update_pending_response(standup_response, text)
+    text = StandupResponseService.normalize_answer_text(text)
     return if text.blank?
 
     Rails.logger.info "Updating pending standup response #{standup_response.id} with edited message"
@@ -102,6 +103,7 @@ class SlackEventProcessorJob < ApplicationJob
   end
 
   def update_completed_response(standup_response, text)
+    text = StandupResponseService.normalize_answer_text(text)
     return if text.blank?
 
     Rails.logger.info "Updating completed standup response #{standup_response.id} with edited message"
@@ -130,6 +132,24 @@ class SlackEventProcessorJob < ApplicationJob
     # Repost the updated response to the channel
     Rails.logger.info "Reposting updated standup response to channel"
     StandupResponseService.repost_response(standup_response)
+  end
+
+  def current_completed_response_for(user_id)
+    active_participants_for(user_id).filter_map do |participant|
+      StandupResponse
+        .where(slack_id: user_id, standup_id: participant.standup_id, status: "completed")
+        .for_standup_date(participant.standup_date_for(Time.current), participant.standup_time_zone)
+        .order(created_at: :desc)
+        .first
+    end.max_by(&:created_at)
+  end
+
+  def active_participants_for(user_id)
+    StandupParticipant
+      .joins(:standup)
+      .where(slack_id: user_id, active: true)
+      .merge(Standup.active)
+      .includes(:standup)
   end
 
   def slack_client

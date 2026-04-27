@@ -70,6 +70,38 @@ class StandupParticipantTest < ActiveSupport::TestCase
     assert_equal "UTC", @participant.timezone
   end
 
+  test "should use fresh cached timezone without fetching Slack info" do
+    @participant.update_columns(
+      cached_timezone: "America/Chicago",
+      cached_timezone_updated_at: Time.current
+    )
+    @participant.expects(:fetch_info).never
+
+    assert_equal "America/Chicago", @participant.timezone
+  end
+
+  test "should fall back to UTC for invalid Slack timezone" do
+    @participant.update_columns(cached_timezone: nil, cached_timezone_updated_at: nil)
+    @participant.expects(:fetch_info).returns({ "tz" => "Invalid/Zone" })
+
+    assert_equal "UTC", @participant.timezone
+    assert_equal "UTC", @participant.reload.cached_timezone
+  end
+
+  test "should reject invalid cached timezone" do
+    @participant.cached_timezone = "Invalid/Zone"
+
+    assert_not @participant.valid?
+    assert_includes @participant.errors[:cached_timezone], "is not a valid timezone"
+  end
+
+  test "should be unavailable through vacation_until date" do
+    @participant.update!(vacation_until: Date.new(2025, 4, 7))
+
+    assert_not @participant.available_on?(Date.new(2025, 4, 7))
+    assert @participant.available_on?(Date.new(2025, 4, 8))
+  end
+
   test "should calculate send time based on participant timezone when respecting timezone" do
     @standup.update(respect_timezone: true)
     timezone_name = "America/New_York"

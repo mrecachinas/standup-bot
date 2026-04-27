@@ -1,12 +1,26 @@
 class SlackClient
+  MAX_RATE_LIMIT_RETRIES = 3
+
   def initialize
     Rails.logger.info "Initializing SlackClient"
-    @client = Slack::Web::Client.new(token: Rails.application.config.slack[:bot_token])
+    @client = Slack::Web::Client.new(token: slack_bot_token)
   end
 
-  # Provide a shared instance for the application
-  def self.instance
-    @instance ||= new
+  class << self
+    # Provide a shared instance for the application
+    def instance
+      @instance ||= new
+    end
+
+    def reset!
+      @instance = nil
+    end
+
+    def rotate_token!
+      reset!
+      Rails.application.config.slack = Rails.application.config_for(:slack)
+      instance
+    end
   end
 
   # Send standup questions to a user
@@ -37,12 +51,14 @@ class SlackClient
 
     Rails.logger.debug "Sending message with #{blocks.size} blocks"
 
-    response = @client.chat_postMessage(
-      channel: slack_id,
-      blocks: blocks,
-      text: "Time for your daily standup!",
-      as_user: true
-    )
+    response = with_rate_limit_handling("send_standup_questions") do
+      @client.chat_postMessage(
+        channel: slack_id,
+        blocks: blocks,
+        text: "Time for your daily standup!",
+        as_user: true
+      )
+    end
 
     Rails.logger.info "Successfully sent standup questions to user: #{slack_id}, channel: #{response['channel']}"
 
@@ -56,35 +72,35 @@ class SlackClient
   # Send a simple text message
   def send_message(channel, text, blocks = nil)
     Rails.logger.info "Sending message to channel: #{channel}"
-    Rails.logger.debug "Message text: #{text.truncate(50) if text}"
+    Rails.logger.debug "Message text present: #{text.present?}"
     Rails.logger.debug "Using blocks: #{blocks ? 'yes' : 'no'}"
 
     begin
-      response = if blocks
-        Rails.logger.debug "Sending message with blocks"
-        @client.chat_postMessage(
-          channel: channel,
-          blocks: blocks,
-          text: text, # Fallback text
-          as_user: true
-        )
-      else
-        Rails.logger.debug "Sending simple text message"
-        @client.chat_postMessage(
-          channel: channel,
-          text: text,
-          as_user: true
-        )
+      response = with_rate_limit_handling("send_message") do
+        if blocks
+          Rails.logger.debug "Sending message with blocks"
+          @client.chat_postMessage(
+            channel: channel,
+            blocks: blocks,
+            text: text, # Fallback text
+            as_user: true
+          )
+        else
+          Rails.logger.debug "Sending simple text message"
+          @client.chat_postMessage(
+            channel: channel,
+            text: text,
+            as_user: true
+          )
+        end
       end
 
       Rails.logger.info "Successfully sent message to channel: #{channel}"
-      response
-    rescue Slack::Web::Api::Errors::TooManyRequestsError
-      # Re-raise to let ActiveJob retry handle rate limiting
-      Rails.logger.warn "Rate limited by Slack API, will retry via job framework"
-      raise
+      StandupMetrics.track("slack.message_sent", channel: channel, blocks: blocks.present?)
+      normalize_message_response(response)
     rescue => e
       Rails.logger.error "Error sending Slack message: #{e.class} - #{e.message}"
+      StandupMetrics.track("slack.message_failed", channel: channel, error_class: e.class.name)
       raise
     end
   end
@@ -124,7 +140,9 @@ class SlackClient
   # Get user info including timezone
   def get_user_info(slack_id)
     Rails.logger.info "Fetching user info for Slack ID: #{slack_id}"
-    response = @client.users_info(user: slack_id)
+    response = with_rate_limit_handling("get_user_info") do
+      @client.users_info(user: slack_id)
+    end
     user = response.user
     Rails.logger.info "Successfully retrieved info for user: #{user&.name || slack_id}"
 
@@ -138,6 +156,8 @@ class SlackClient
   rescue Slack::Web::Api::Errors::UserNotFound
     Rails.logger.error "User not found in Slack: #{slack_id}"
     nil
+  rescue Slack::Web::Api::Errors::TooManyRequestsError
+    raise
   rescue => e
     Rails.logger.error "Error fetching user info: #{e.class} - #{e.message}"
     nil
@@ -180,12 +200,14 @@ class SlackClient
       }
     ]
 
-    response = @client.chat_postMessage(
-      channel: channel,
-      blocks: blocks,
-      text: text,
-      as_user: true
-    )
+    response = with_rate_limit_handling("send_standup_selection") do
+      @client.chat_postMessage(
+        channel: channel,
+        blocks: blocks,
+        text: text,
+        as_user: true
+      )
+    end
 
     Rails.logger.info "Successfully sent standup selection menu to channel: #{channel}"
     response
@@ -225,12 +247,14 @@ class SlackClient
       }
     end
 
-    response = @client.chat_postMessage(
-      channel: channel,
-      blocks: blocks,
-      text: "Daily Standup Summary",
-      as_user: true
-    )
+    response = with_rate_limit_handling("send_standup_summary") do
+      @client.chat_postMessage(
+        channel: channel,
+        blocks: blocks,
+        text: "Daily Standup Summary",
+        as_user: true
+      )
+    end
 
     Rails.logger.info "Successfully sent standup summary to channel: #{channel}"
     response
@@ -241,23 +265,25 @@ class SlackClient
     Rails.logger.info "Updating message with timestamp #{message_ts} in channel: #{channel}"
 
     begin
-      response = if blocks
-        Rails.logger.debug "Updating message with blocks"
-        @client.chat_update(
-          channel: channel,
-          ts: message_ts,
-          blocks: blocks,
-          text: text, # Fallback text
-          as_user: true
-        )
-      else
-        Rails.logger.debug "Updating message with simple text"
-        @client.chat_update(
-          channel: channel,
-          ts: message_ts,
-          text: text,
-          as_user: true
-        )
+      response = with_rate_limit_handling("update_message") do
+        if blocks
+          Rails.logger.debug "Updating message with blocks"
+          @client.chat_update(
+            channel: channel,
+            ts: message_ts,
+            blocks: blocks,
+            text: text, # Fallback text
+            as_user: true
+          )
+        else
+          Rails.logger.debug "Updating message with simple text"
+          @client.chat_update(
+            channel: channel,
+            ts: message_ts,
+            text: text,
+            as_user: true
+          )
+        end
       end
 
       Rails.logger.info "Successfully updated message in channel: #{channel}"
@@ -266,5 +292,61 @@ class SlackClient
       Rails.logger.error "Error updating Slack message: #{e.class} - #{e.message}"
       raise
     end
+  end
+
+  private
+
+  def slack_bot_token
+    slack_config = Rails.application.config.slack || {}
+    token = slack_config[:bot_token] || slack_config["bot_token"]
+    Rails.logger.warn "Slack bot token is not configured" if token.blank?
+    token
+  end
+
+  def with_rate_limit_handling(operation)
+    retries = 0
+
+    begin
+      yield
+    rescue Slack::Web::Api::Errors::TooManyRequestsError => e
+      StandupMetrics.track("slack.rate_limited", operation: operation)
+
+      if retries < MAX_RATE_LIMIT_RETRIES
+        retry_after = retry_after_seconds(e, retries)
+        retries += 1
+        Rails.logger.warn "Slack API rate limited during #{operation}; retrying #{retries}/#{MAX_RATE_LIMIT_RETRIES} after #{retry_after}s"
+        sleep retry_after
+        retry
+      end
+
+      Rails.logger.error "Slack API rate limit retries exhausted during #{operation}"
+      raise
+    end
+  end
+
+  def retry_after_seconds(error, retries)
+    retry_after = error.retry_after if error.respond_to?(:retry_after)
+    if retry_after.blank? && error.respond_to?(:response)
+      retry_after = error.response&.headers&.[]("retry-after") ||
+        error.response&.headers&.[]("Retry-After")
+    end
+
+    retry_after.to_i.positive? ? retry_after.to_i : (2**retries)
+  end
+
+  def normalize_message_response(response)
+    return response if response.blank?
+
+    {
+      "ok" => response_value(response, "ok"),
+      "channel" => response_value(response, "channel"),
+      "ts" => response_value(response, "ts")
+    }.compact
+  end
+
+  def response_value(response, key)
+    response[key] || response[key.to_sym]
+  rescue NoMethodError
+    response.public_send(key) if response.respond_to?(key)
   end
 end

@@ -21,15 +21,16 @@ questions:
 outro: "Thanks for completing your standup! Have a productive day."
 
 participants:
-  - slack_id: "U01ABC123"
-    name: "Sarah Thompson"
+  # EXAMPLE ONLY - replace these placeholders with real Slack user IDs before importing.
+  - slack_id: "EXAMPLE_USER_1"
+    name: "Example User 1"
     active: true
-  - slack_id: "U02DEF456"
-    name: "Michael Chen"
+  - slack_id: "EXAMPLE_USER_2"
+    name: "Example User 2"
     active: true
-  - slack_id: "U03GHI789"
-    name: "Priya Patel"
+  - slack_id: "EXAMPLE_USER_3"
+    name: "Example User 3"
     active: true
-  - slack_id: "U04JKL012"
-    name: "David Rodriguez"
+  - slack_id: "EXAMPLE_USER_4"
+    name: "Example User 4"
     active: false # On vacation

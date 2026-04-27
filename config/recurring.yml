@@ -3,6 +3,16 @@ production:
     class: SchedulingJob
     queue: default
     schedule: every hour
+
+  standup_reminders:
+    class: StandupReminderJob
+    queue: default
+    schedule: every 15 minutes
+
+  daily_data_cleanup:
+    class: DataCleanupJob
+    queue: maintenance
+    schedule: at 3am every day
   
   # You can keep these example jobs commented out for reference
   # periodic_cleanup:

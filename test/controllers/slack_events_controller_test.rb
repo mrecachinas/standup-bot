@@ -26,6 +26,25 @@ class SlackEventsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "should reject invalid url verification challenge" do
+    post events_url, params: {
+      type: "url_verification",
+      challenge: "<script>alert(1)</script>"
+    }, as: :json
+
+    assert_response :bad_request
+  end
+
+  test "install endpoint is protected by slack verification" do
+    callback = SlackEventsController._process_action_callbacks.find do |registered_callback|
+      registered_callback.kind == :before && registered_callback.filter == :verify_slack_request
+    end
+
+    assert_not_nil callback
+    assert_empty Array(callback.instance_variable_get(:@if))
+    assert_empty Array(callback.instance_variable_get(:@unless))
+  end
+
   test "should enqueue event processor job for regular events" do
     Timecop.freeze(Time.new(2025, 4, 6, 10, 0, 0)) do
       event_data = {
@@ -114,5 +133,36 @@ class SlackEventsControllerTest < ActionDispatch::IntegrationTest
         Rails.logger = original_logger
       end
     end
+  end
+
+  test "should handle standup selection interactions" do
+    standup = standups(:daily)
+    participant = standup_participants(:one)
+    participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+    payload = {
+      type: "block_actions",
+      user: { id: participant.slack_id },
+      actions: [
+        {
+          action_id: "standup_selection",
+          selected_option: { value: standup.id.to_s }
+        }
+      ]
+    }
+
+    assert_enqueued_with(job: StandupCollectionJob, args: [ standup.id, participant.standup_date_for(Time.current).iso8601, "Etc/UTC" ]) do
+      post interactions_url, params: { payload: payload.to_json }
+    end
+
+    assert_response :success
+    response_body = JSON.parse(response.body)
+    assert_equal "ephemeral", response_body["response_type"]
+    assert_match(/Generating report/, response_body["text"])
+  end
+
+  test "should reject invalid interaction payload" do
+    post interactions_url, params: { payload: "not json" }
+
+    assert_response :bad_request
   end
 end
