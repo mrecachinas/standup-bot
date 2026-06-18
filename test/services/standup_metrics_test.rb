@@ -14,6 +14,7 @@ class StandupMetricsTest < ActiveSupport::TestCase
     Timecop.freeze(Time.zone.local(2026, 6, 9, 13, 20, 0)) do
       expected_timestamp = Time.current.iso8601
       StandupMetrics.track("standup.sent", standup_id: 42, slack_id: nil)
+      assert_equal expected_timestamp, StandupMetrics.last_seen("standup.sent")
     end
 
     payload = JSON.parse(log_output.string)
@@ -21,7 +22,6 @@ class StandupMetricsTest < ActiveSupport::TestCase
     assert_equal "standup.sent", payload["event"]
     assert_equal({ "standup_id" => 42 }, payload["tags"])
     assert_equal expected_timestamp, payload["timestamp"]
-    assert_equal expected_timestamp, StandupMetrics.last_seen("standup.sent")
   end
 
   test "track writes last seen timestamps with a seven day expiration" do
