@@ -4,6 +4,10 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+export MANAGER_ADMIN_EMAIL="${MANAGER_ADMIN_EMAIL:-admin@example.com}"
+export MANAGER_ADMIN_NAME="${MANAGER_ADMIN_NAME:-Local Admin}"
+export MANAGER_ADMIN_TOKEN="${MANAGER_ADMIN_TOKEN:-local-manager-token}"
+
 # Ensure MySQL is running
 check_mysql() {
   mysqladmin ping -h "${DB_HOST:-127.0.0.1}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" --silent 2>/dev/null
@@ -16,6 +20,9 @@ fi
 
 echo "==> Preparing database..."
 bin/rails db:prepare
+
+echo "==> Seeding local manager admin..."
+bin/rails db:seed
 
 echo "==> Starting server..."
 bin/rails server "$@"

@@ -23,6 +23,21 @@ class StandupParticipantImporterTest < ActiveSupport::TestCase
     assert_not bob.active
   end
 
+  test "imports participants by Slack username through resolver" do
+    resolver = mock("SlackUserResolver")
+    resolver.expects(:resolve)
+      .with("@alice", fallback_name: "Alice Import")
+      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UALICE", slack_name: "Alice Import", cached_timezone: "America/New_York"))
+    importer = StandupParticipantImporter.new(@standup, user_resolver: resolver)
+
+    result = importer.import_text("@alice,Alice Import,,true")
+
+    assert result.success?, result.errors.join(", ")
+    participant = @standup.standup_participants.find_by!(slack_id: "UALICE")
+    assert_equal "Alice Import", participant.slack_name
+    assert_equal "America/New_York", participant.cached_timezone
+  end
+
   test "updates existing participants and reports validation errors" do
     participant = standup_participants(:one)
     importer = StandupParticipantImporter.new(@standup)

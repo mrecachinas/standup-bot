@@ -77,6 +77,21 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     assert_equal "Discovered User", participant.slack_name
   end
 
+  test "manager adds Slack user by username" do
+    SlackUserResolver.any_instance.expects(:resolve)
+      .with("@discovered", fallback_name: nil)
+      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UDISC2", slack_name: "Discovered By Username", cached_timezone: "UTC"))
+    sign_in(@manager, "manager-access-token")
+
+    assert_difference "StandupParticipant.count", 1 do
+      post manager_standup_slack_setup_participants_path(@owned_standup),
+        params: { slack_user: "@discovered" }
+    end
+
+    assert_redirected_to manager_standup_slack_setup_path(@owned_standup, participant_added: "1")
+    assert_equal "Discovered By Username", @owned_standup.standup_participants.find_by!(slack_id: "UDISC2").slack_name
+  end
+
   test "manager removes participant and writes audit log" do
     sign_in(@manager, "manager-access-token")
 

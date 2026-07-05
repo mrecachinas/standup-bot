@@ -1,68 +1,71 @@
 <% standup = dashboard_item.standup %>
 
 <turbo-frame id="<%= dom_id(standup, :dashboard_card) %>">
-  <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+  <article class="standup-card">
+    <div class="standup-card-header">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">
-          <h2 class="text-xl font-semibold text-slate-900">
-            <%= link_to standup.name, manager_standup_path(standup), class: "hover:text-blue-700", data: { turbo_frame: "_top" } %>
+          <h2 class="standup-card-title">
+            <%= link_to standup.name, manager_standup_path(standup), data: { turbo_frame: "_top" } %>
           </h2>
-          <span class="rounded-full px-3 py-1 text-xs font-semibold <%= standup.active? ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800" %>">
+          <span class="status-badge <%= standup.active? ? "status-active" : "status-paused" %>">
             <%= dashboard_item.status_label %>
           </span>
         </div>
-        <p class="mt-1 text-sm text-slate-500">#<%= standup.slack_channel %></p>
+        <p class="mt-1 text-sm text-slate-500">Posting summaries to #<%= standup.slack_channel %></p>
       </div>
 
-      <div class="flex flex-wrap gap-2">
+      <div class="action-row">
         <% if standup.active? %>
           <%= button_to "Pause",
             pause_manager_standup_path(standup),
             method: :patch,
-            class: "rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50",
+            class: "button-warning button-small",
             form: { data: { turbo_frame: "_top" } } %>
         <% else %>
           <%= button_to "Resume",
             resume_manager_standup_path(standup),
             method: :patch,
-            class: "rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50",
+            class: "button-success button-small",
             form: { data: { turbo_frame: "_top" } } %>
         <% end %>
+        <%= link_to "Open", manager_standup_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
       </div>
     </div>
 
-    <dl class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-      <div>
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Cadence</dt>
-        <dd class="mt-1 text-sm text-slate-900"><%= dashboard_item.cadence_label %></dd>
-      </div>
-      <div>
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Timezone</dt>
-        <dd class="mt-1 text-sm text-slate-900"><%= dashboard_item.timezone_label %></dd>
-      </div>
-      <div>
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Participants</dt>
-        <dd class="mt-1 text-sm text-slate-900"><%= pluralize(dashboard_item.participant_count, "active participant") %></dd>
-      </div>
-      <div>
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Recent completion</dt>
-        <dd class="mt-1 text-sm text-slate-900"><%= dashboard_item.completion_rate %>% (<%= dashboard_item.completed_responses %>/<%= dashboard_item.expected_responses %>)</dd>
-      </div>
-      <div>
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Latest run</dt>
-        <dd class="mt-1 text-sm text-slate-900"><%= dashboard_item.latest_run_status %></dd>
-        <dd class="text-xs text-slate-500"><%= dashboard_item.latest_run_detail %></dd>
-      </div>
-    </dl>
+    <div class="standup-card-body">
+      <dl class="metadata-list lg:grid-cols-5">
+        <div class="metadata-item">
+          <dt>Cadence</dt>
+          <dd><%= dashboard_item.cadence_label %></dd>
+        </div>
+        <div class="metadata-item">
+          <dt>Timezone</dt>
+          <dd><%= dashboard_item.timezone_label %></dd>
+        </div>
+        <div class="metadata-item">
+          <dt>Participants</dt>
+          <dd><%= pluralize(dashboard_item.participant_count, "active participant") %></dd>
+        </div>
+        <div class="metadata-item">
+          <dt>Completion</dt>
+          <dd><%= dashboard_item.completion_rate %>% (<%= dashboard_item.completed_responses %>/<%= dashboard_item.expected_responses %>)</dd>
+        </div>
+        <div class="metadata-item">
+          <dt>Latest run</dt>
+          <dd><%= dashboard_item.latest_run_status %></dd>
+          <p class="mt-1 text-xs text-slate-500"><%= dashboard_item.latest_run_detail %></p>
+        </div>
+      </dl>
 
-    <nav class="mt-5 flex flex-wrap gap-2" aria-label="<%= standup.name %> navigation">
-      <%= link_to "Settings", edit_manager_standup_path(standup), class: "rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
-      <%= link_to "Schedule exceptions", manager_standup_schedule_exceptions_path(standup), class: "rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
-      <%= link_to "Participants", manager_standup_participants_path(standup), class: "rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
-      <%= link_to "Response history", manager_standup_responses_path(standup), class: "rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
-      <%= link_to "Analytics", manager_standup_analytics_path(standup), class: "rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
-      <%= link_to "Reports", manager_standup_report_path(standup), class: "rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
-    </nav>
+      <div class="action-row mt-5">
+        <%= link_to "Settings", edit_manager_standup_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
+        <%= link_to "Participants", manager_standup_participants_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
+        <%= link_to "Responses", manager_standup_responses_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
+        <%= link_to "Analytics", manager_standup_analytics_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
+        <%= link_to "Reports", manager_standup_report_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
+        <%= link_to "Exceptions", manager_standup_schedule_exceptions_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
+      </div>
+    </div>
   </article>
 </turbo-frame>

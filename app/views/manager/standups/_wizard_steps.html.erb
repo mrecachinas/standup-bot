@@ -1,0 +1,16 @@
+<aside class="wizard-progress" aria-label="Standup setup progress">
+  <% [
+    [ "1", "Basics", "Name and channel" ],
+    [ "2", "Schedule", "Cadence and preview" ],
+    [ "3", "Questions", "Prompts to answer" ],
+    [ "4", "Participants", "People to include" ]
+  ].each do |number, title, description| %>
+    <div class="wizard-step">
+      <span class="wizard-step-number"><%= number %></span>
+      <span>
+        <strong><%= title %></strong>
+        <span class="block text-sm text-slate-500"><%= description %></span>
+      </span>
+    </div>
+  <% end %>
+</aside>

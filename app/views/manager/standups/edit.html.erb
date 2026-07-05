@@ -1,9 +1,16 @@
 <section class="space-y-6">
-  <div>
-    <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Standup wizard</p>
-    <h1 class="mt-1 text-3xl font-bold text-slate-900">Edit <%= @standup.name %></h1>
-    <p class="mt-2 text-sm text-slate-600">Update recurrence, questions, and participants with a live schedule preview.</p>
+  <div class="page-hero">
+    <div>
+      <p class="page-kicker">Standup wizard</p>
+      <h1>Edit <%= @standup.name %></h1>
+      <p class="mt-4 text-lg">Adjust cadence, prompts, and participants with a live schedule preview before saving.</p>
+    </div>
   </div>
 
-  <%= render "form", standup: @standup %>
+  <div class="wizard-shell">
+    <%= render "wizard_steps" %>
+    <div>
+      <%= render "form", standup: @standup %>
+    </div>
+  </div>
 </section>

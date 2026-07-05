@@ -37,7 +37,11 @@
       <div class="mt-5 grid gap-4 md:grid-cols-3">
         <div>
           <%= form.label :schedule_type, "Recurrence", class: "block text-sm font-medium text-slate-700" %>
-          <%= form.select :schedule_type, Standup::SCHEDULE_TYPES.map { |type| [ type.titleize, type ] }, {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+          <%= form.select :schedule_type,
+            Standup::SCHEDULE_TYPES.map { |type| [ type.titleize, type ] },
+            {},
+            class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2",
+            data: { schedule_type_select: true } %>
         </div>
         <div>
           <%= label_tag "standup_send_time", "Send time", class: "block text-sm font-medium text-slate-700" %>
@@ -56,7 +60,7 @@
       </div>
 
       <div class="mt-5 grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <div>
+        <div data-weekday-schedule-section <%= "hidden" unless %w[custom weekly biweekly].include?(standup.schedule_type) %>>
           <span class="block text-sm font-medium text-slate-700">Weekdays</span>
           <%= hidden_field_tag "standup[schedule_days][]", "" %>
           <div class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -90,6 +94,49 @@
       <%= render "schedule_preview", occurrences: @schedule_preview, preview_timezone: @preview_timezone, schedule_preview_error: @schedule_preview_error %>
     </section>
 
+    <script>
+      (() => {
+        if (window.StandupScheduleVisibility) {
+          window.StandupScheduleVisibility.bind();
+          return;
+        }
+
+        const visibleScheduleTypes = new Set(["custom", "weekly", "biweekly"]);
+
+        const updateWeekdayScheduleSections = (root = document) => {
+          root.querySelectorAll("[data-schedule-type-select]").forEach((select) => {
+            const form = select.closest("form");
+            const section = form?.querySelector("[data-weekday-schedule-section]");
+            if (!section) return;
+
+            const visible = visibleScheduleTypes.has(select.value);
+            section.hidden = !visible;
+            section.querySelectorAll("input").forEach((input) => {
+              input.disabled = !visible;
+            });
+          });
+        };
+
+        const bindWeekdayScheduleSections = (root = document) => {
+          root.querySelectorAll("[data-schedule-type-select]").forEach((select) => {
+            if (select.dataset.weekdayScheduleBound === "true") return;
+
+            select.dataset.weekdayScheduleBound = "true";
+            select.addEventListener("change", () => updateWeekdayScheduleSections(select.closest("form") || document));
+          });
+          updateWeekdayScheduleSections(root);
+        };
+
+        window.StandupScheduleVisibility = {
+          bind: bindWeekdayScheduleSections
+        };
+
+        bindWeekdayScheduleSections();
+        document.addEventListener("turbo:load", () => bindWeekdayScheduleSections());
+        document.addEventListener("turbo:frame-load", (event) => bindWeekdayScheduleSections(event.target));
+      })();
+    </script>
+
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Step 3</p>
       <h2 class="mt-1 text-xl font-semibold text-slate-900">Questions</h2>
@@ -108,35 +155,37 @@
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Step 4</p>
       <h2 class="mt-1 text-xl font-semibold text-slate-900">Participants</h2>
-      <p class="mt-1 text-sm text-slate-600">Add Slack users during setup. Existing rows can be updated, paused, or removed.</p>
+    <p class="mt-1 text-sm text-slate-600">Add Slack users by @username, display name, user mention, or ID. Names and timezones are resolved from Slack automatically.</p>
 
       <div class="mt-5 overflow-hidden rounded-xl border border-slate-200">
-        <div class="hidden grid-cols-[1.1fr_1.2fr_1.2fr_0.7fr_0.7fr] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
-          <span>Slack ID</span>
-          <span>Name</span>
-          <span>Timezone</span>
-          <span>Active</span>
-          <span>Remove</span>
-        </div>
+      <div class="hidden grid-cols-[1.4fr_0.7fr_0.7fr] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
+          <span>Slack user</span>
+        <span>Active</span>
+        <span>Remove</span>
+      </div>
 
-        <div class="divide-y divide-slate-200">
-          <% @participant_rows.each_with_index do |participant, index| %>
-            <div class="grid gap-3 px-4 py-4 md:grid-cols-[1.1fr_1.2fr_1.2fr_0.7fr_0.7fr] md:items-center">
-              <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id] %>
+      <div class="divide-y divide-slate-200">
+        <% @participant_rows.each_with_index do |participant, index| %>
+          <div class="grid gap-3 px-4 py-4 md:grid-cols-[1.4fr_0.7fr_0.7fr] md:items-center">
+            <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id] %>
+            <%= hidden_field_tag "standup[participants][#{index}][slack_name]", participant[:slack_name] %>
+            <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone] %>
               <div>
-                <%= label_tag "standup_participants_#{index}_slack_id", "Slack ID", class: "block text-xs font-medium text-slate-500 md:hidden" %>
-                <%= text_field_tag "standup[participants][#{index}][slack_id]", participant[:slack_id], id: "standup_participants_#{index}_slack_id", placeholder: "U123ABC", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 md:mt-0" %>
-              </div>
-              <div>
-                <%= label_tag "standup_participants_#{index}_slack_name", "Name", class: "block text-xs font-medium text-slate-500 md:hidden" %>
-                <%= text_field_tag "standup[participants][#{index}][slack_name]", participant[:slack_name], id: "standup_participants_#{index}_slack_name", placeholder: "Ada Lovelace", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 md:mt-0" %>
-              </div>
-              <div>
-                <%= label_tag "standup_participants_#{index}_cached_timezone", "Timezone", class: "block text-xs font-medium text-slate-500 md:hidden" %>
-                <%= text_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone], id: "standup_participants_#{index}_cached_timezone", placeholder: "America/New_York", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 md:mt-0" %>
-              </div>
-              <label class="flex items-center gap-2 text-sm text-slate-700">
-                <%= hidden_field_tag "standup[participants][#{index}][active]", "0" %>
+                <%= label_tag "standup_participants_#{index}_slack_id", "Slack user", class: "block text-xs font-medium text-slate-500 md:hidden" %>
+                <%= text_field_tag "standup[participants][#{index}][slack_id]", participant[:slack_id], id: "standup_participants_#{index}_slack_id", placeholder: "@ada, Ada Lovelace, or U123ABC", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 md:mt-0" %>
+              <% if participant[:slack_name].present? || participant[:cached_timezone].present? %>
+                <p class="mt-1 text-xs text-slate-500">
+                  <%= participant[:slack_name].presence || participant[:slack_id] %>
+                  <% if participant[:cached_timezone].present? %>
+                    · <%= participant[:cached_timezone] %>
+                  <% end %>
+                </p>
+              <% else %>
+                <p class="mt-1 text-xs text-slate-500">Name and timezone will be pulled from Slack.</p>
+              <% end %>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+              <%= hidden_field_tag "standup[participants][#{index}][active]", "0" %>
                 <%= check_box_tag "standup[participants][#{index}][active]", "1", participant[:active], class: "rounded border-slate-300" %>
                 Active
               </label>

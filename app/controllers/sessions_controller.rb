@@ -1,6 +1,10 @@
 class SessionsController < Web::ApplicationController
   def new
-    redirect_to manager_standups_path, status: :see_other if current_user
+    if current_user
+      redirect_to manager_standups_path, status: :see_other
+    else
+      prepare_local_development_prefill
+    end
   end
 
   def create
@@ -20,5 +24,14 @@ class SessionsController < Web::ApplicationController
   def destroy
     reset_session
     redirect_to new_session_path, status: :see_other
+  end
+
+  private
+
+  def prepare_local_development_prefill
+    return unless Rails.env.development?
+
+    @email = ENV["MANAGER_ADMIN_EMAIL"].presence
+    @access_token = ENV["MANAGER_ADMIN_TOKEN"].presence
   end
 end

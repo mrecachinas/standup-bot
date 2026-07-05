@@ -8,7 +8,7 @@ module Manager
     end
 
     def create
-      @participant = @standup.standup_participants.new(participant_params)
+      @participant = @standup.standup_participants.new(resolved_participant_params)
 
       if @participant.save
         audit_manager_change!(
@@ -21,6 +21,11 @@ module Manager
         prepare_index
         render :index, status: :unprocessable_entity
       end
+    rescue SlackUserResolver::ResolutionError => error
+      @participant = @standup.standup_participants.new(participant_params)
+      @participant.errors.add(:base, error.message)
+      prepare_index
+      render :index, status: :unprocessable_entity
     end
 
     def update
@@ -50,7 +55,7 @@ module Manager
 
     def bulk_import
       @bulk_import_text = params[:participants_text]
-      result = StandupParticipantImporter.new(@standup).import_text(@bulk_import_text)
+      result = StandupParticipantImporter.new(@standup, user_resolver: slack_user_resolver).import_text(@bulk_import_text)
 
       if result.success?
         audit_import_result!(result, "standup_participant.bulk_import", "bulk_import")
@@ -127,6 +132,22 @@ module Manager
       permitted[:cached_timezone] = nil if permitted.key?(:cached_timezone) && permitted[:cached_timezone].blank?
       permitted[:vacation_until] = nil if permitted.key?(:vacation_until) && permitted[:vacation_until].blank?
       permitted
+    end
+
+    def resolved_participant_params
+      permitted = participant_params
+      identifier = permitted[:slack_id].to_s.strip
+      return permitted if identifier.blank?
+
+      resolved_user = slack_user_resolver.resolve(identifier, fallback_name: permitted[:slack_name])
+      permitted[:slack_id] = resolved_user.slack_id
+      permitted[:slack_name] = permitted[:slack_name].presence || resolved_user.slack_name
+      permitted[:cached_timezone] = permitted[:cached_timezone].presence || resolved_user.cached_timezone
+      permitted
+    end
+
+    def slack_user_resolver
+      @slack_user_resolver ||= SlackUserResolver.new
     end
 
     def audit_import_result!(result, summary_action, source)

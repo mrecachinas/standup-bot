@@ -23,9 +23,10 @@ class StandupParticipantImporter
 
   Change = Struct.new(:participant, :action, :metadata, keyword_init: true)
 
-  def initialize(standup, now: Time.current)
+  def initialize(standup, now: Time.current, user_resolver: nil)
     @standup = standup
     @now = now
+    @user_resolver = user_resolver
   end
 
   def import_text(text)
@@ -59,7 +60,7 @@ class StandupParticipantImporter
 
   private
 
-  attr_reader :standup, :now
+  attr_reader :standup, :now, :user_resolver
 
   def new_result
     Result.new(created: [], updated: [], unchanged: [], deactivated: [], errors: [], changes: [])
@@ -77,17 +78,15 @@ class StandupParticipantImporter
 
     values = parse_values(stripped)
     mention_id, mention_name = parse_slack_mention(values[0])
-    slack_id = normalize_slack_id(mention_id || values[0])
+    fallback_name = values[1].presence || mention_name
+    resolved_user = resolve_user_identifier(mention_id || values[0], fallback_name: fallback_name, result: result, label: "Line #{line_number}")
 
-    if slack_id.blank?
-      result.errors << "Line #{line_number}: Slack user ID is required."
-      return
-    end
+    return unless resolved_user
 
     {
-      slack_id: slack_id,
-      slack_name: values[1].presence || mention_name || slack_id,
-      cached_timezone: values[2].presence,
+      slack_id: resolved_user.slack_id,
+      slack_name: fallback_name.presence || resolved_user.slack_name,
+      cached_timezone: values[2].presence || resolved_user.cached_timezone,
       active: parse_active(values[3]),
       source: "bulk_import",
       line: line_number
@@ -111,6 +110,23 @@ class StandupParticipantImporter
 
   def normalize_slack_id(value)
     value.to_s.strip.delete_prefix("@").upcase
+  end
+
+  def resolve_user_identifier(identifier, fallback_name:, result:, label:)
+    if user_resolver
+      user_resolver.resolve(identifier, fallback_name: fallback_name)
+    else
+      slack_id = normalize_slack_id(identifier)
+      if slack_id.blank?
+        result.errors << "#{label}: Slack user is required."
+        return
+      end
+
+      SlackUserResolver::ResolvedUser.new(slack_id: slack_id, slack_name: fallback_name.presence || slack_id)
+    end
+  rescue SlackUserResolver::ResolutionError => error
+    result.errors << "#{label}: #{error.message}"
+    nil
   end
 
   def parse_active(value)

@@ -29,8 +29,9 @@ module Manager
     end
 
     def add_participant
-      slack_id = params[:slack_id].to_s.strip
-      slack_name = params[:slack_name].to_s.strip.presence || slack_id
+      resolved_user = resolve_slack_user(params[:slack_user].presence || params[:slack_id], fallback_name: params[:slack_name])
+      slack_id = resolved_user.slack_id
+      slack_name = resolved_user.slack_name
 
       if slack_id.blank?
         @participant_error = "Select a Slack user before adding a participant."
@@ -54,6 +55,10 @@ module Manager
         load_slack_setup
         render :show, status: :unprocessable_entity
       end
+    rescue SlackUserResolver::ResolutionError => error
+      @participant_error = error.message
+      load_slack_setup
+      render :show, status: :unprocessable_entity
     end
 
     def remove_participant
@@ -112,6 +117,14 @@ module Manager
 
     def slack_integration_service
       @slack_integration_service ||= SlackIntegrationService.new
+    end
+
+    def resolve_slack_user(identifier, fallback_name:)
+      slack_user_resolver.resolve(identifier, fallback_name: fallback_name.to_s.strip.presence)
+    end
+
+    def slack_user_resolver
+      @slack_user_resolver ||= SlackUserResolver.new(service: slack_integration_service)
     end
 
     def discovery_requested?(type, query)

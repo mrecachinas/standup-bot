@@ -31,6 +31,7 @@ module Nerdbot
 
     # The Slack and JSON API endpoints remain API-only, but the manager UI uses
     # cookie-backed sessions for browser authentication.
+    config.middleware.use Rack::MethodOverride
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::CookieStore, key: "_nerdbot_session", same_site: :lax
 

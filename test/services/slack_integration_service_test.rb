@@ -45,6 +45,43 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
     assert_equal channels, result.records
   end
 
+  test "resolves Slack username to exact user record" do
+    users = [
+      { "id" => "U123", "name" => "alice", "label" => "Alice Doe", "real_name" => "Alice Doe", "tz" => "America/New_York" },
+      { "id" => "U999", "name" => "malice", "label" => "Malice" }
+    ]
+    @client.expects(:list_users).with(query: "alice", limit: 200).returns(users)
+
+    result = service.resolve_user("@alice")
+
+    assert result.success?
+    assert_equal "U123", result.records.first["id"]
+    assert_equal "America/New_York", result.records.first["tz"]
+  end
+
+  test "resolves Slack IDs without requiring Slack API" do
+    @client.expects(:list_users).never
+
+    result = SlackIntegrationService.new(client: @client, config: {}).resolve_user("u123")
+
+    assert result.success?
+    assert_equal "U123", result.records.first["id"]
+  end
+
+  test "ambiguous Slack username resolution is actionable" do
+    users = [
+      { "id" => "U123", "name" => "alex", "label" => "Alex" },
+      { "id" => "U456", "display_name" => "alex", "label" => "Alex Backup" }
+    ]
+    @client.expects(:list_users).with(query: "alex", limit: 200).returns(users)
+
+    result = service.resolve_user("alex")
+
+    assert_not result.success?
+    assert_equal "ambiguous_user", result.error_code
+    assert_includes result.action, "more specific"
+  end
+
   test "missing bot token produces actionable configuration error" do
     @client.expects(:list_users).never
 
