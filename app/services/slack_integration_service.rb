@@ -68,6 +68,43 @@ class SlackIntegrationService
     failure_result(error, "discover Slack users")
   end
 
+  def resolve_user(identifier, limit: MAX_LIMIT)
+    lookup = normalize_user_lookup(identifier)
+    return Result.new(status: "error", message: "Enter a Slack username, display name, or user ID.", error_code: "missing_user") if lookup.blank?
+
+    if slack_user_id?(lookup)
+      return Result.new(status: "ok", records: [ { "id" => lookup.upcase, "label" => lookup.upcase } ], message: "Slack user ID accepted.")
+    end
+
+    return missing_config_result(:bot_token) unless configured?(:bot_token)
+
+    records = client.list_users(query: lookup, limit: normalized_limit(limit))
+    matches = exact_user_matches(records, lookup)
+    matches = records if matches.empty? && records.one?
+
+    case matches.size
+    when 1
+      Result.new(status: "ok", records: [ matches.first ], message: "Resolved Slack user.")
+    when 0
+      Result.new(
+        status: "error",
+        message: "No Slack user matched \"#{lookup}\".",
+        action: "Use a Slack @username, display name, real name, or paste a user mention from Slack.",
+        error_code: "user_not_found"
+      )
+    else
+      Result.new(
+        status: "error",
+        records: matches,
+        message: "\"#{lookup}\" matched multiple Slack users.",
+        action: "Use a more specific username or pick the user from Slack discovery.",
+        error_code: "ambiguous_user"
+      )
+    end
+  rescue StandardError => error
+    failure_result(error, "resolve Slack user")
+  end
+
   def test_message(standup)
     return missing_config_result(:bot_token) unless configured?(:bot_token)
 
@@ -134,6 +171,32 @@ class SlackIntegrationService
 
   def normalized_limit(limit)
     limit.to_i.clamp(1, MAX_LIMIT)
+  end
+
+  def normalize_user_lookup(identifier)
+    identifier.to_s.strip.delete_prefix("@")
+  end
+
+  def slack_user_id?(identifier)
+    value = identifier.to_s
+    normalized = value.upcase
+    (value == normalized && normalized.match?(StandupParticipant::SLACK_USER_ID_PATTERN)) ||
+      normalized.match?(/\A[UW][A-Z0-9]*\d[A-Z0-9]*\z/)
+  end
+
+  def exact_user_matches(records, lookup)
+    lookup_key = normalized_match_key(lookup)
+    Array(records).select do |record|
+      user_match_values(record).any? { |value| normalized_match_key(value) == lookup_key }
+    end
+  end
+
+  def user_match_values(record)
+    %w[id name display_name real_name label].filter_map { |key| record[key].presence }
+  end
+
+  def normalized_match_key(value)
+    value.to_s.strip.delete_prefix("@").downcase
   end
 
   def test_message_text(standup)

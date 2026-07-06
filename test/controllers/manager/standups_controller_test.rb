@@ -194,6 +194,17 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Preview schedule"
     assert_includes response.body, "standup[question_rows][]"
     assert_includes response.body, "standup[participants][0][slack_id]"
+    assert_match(/data-weekday-schedule-section\s+hidden/, response.body)
+    assert_includes response.body, "data-schedule-type-select"
+  end
+
+  test "weekly standup wizard initially shows weekday checkboxes" do
+    sign_in(@admin, "admin-access-token")
+
+    get edit_manager_standup_path(@unowned_standup)
+
+    assert_response :success
+    assert_match(/data-weekday-schedule-section(?!\s+hidden)/, response.body)
   end
 
   test "preview renders upcoming occurrences without saving" do
@@ -255,6 +266,34 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     audit_log = AuditLog.where(action: "standup.create").order(:created_at).last
     assert_equal @manager, audit_log.actor
     assert_equal [ "added", "added" ], audit_log.metadata.fetch("participants").map { |participant| participant.fetch("action") }
+  end
+
+  test "wizard resolves Slack usernames before creating participants" do
+    SlackUserResolver.any_instance.expects(:resolve)
+      .with("@wizard", fallback_name: "")
+      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UWIZ003", slack_name: "Wizard Resolved", cached_timezone: "America/Chicago"))
+    sign_in(@manager, "manager-access-token")
+
+    assert_difference [ "Standup.count", "StandupParticipant.count" ], 1 do
+      post manager_standups_path,
+        params: {
+          preview_timezone: "UTC",
+          standup: wizard_standup_params(
+            name: "Resolved Wizard Standup",
+            slack_channel: "#resolved-wizard",
+            question_rows: [ "Status?", "" ],
+            participants: {
+              "0" => { slack_id: "@wizard", slack_name: "", cached_timezone: "", active: "1" }
+            }
+          )
+        }
+    end
+
+    standup = Standup.find_by!(name: "Resolved Wizard Standup")
+    participant = standup.standup_participants.find_by!(slack_id: "UWIZ003")
+    assert_redirected_to manager_standup_path(standup)
+    assert_equal "Wizard Resolved", participant.slack_name
+    assert_equal "America/Chicago", participant.cached_timezone
   end
 
   test "wizard rejects invalid Slack channel and participant inputs without saving" do

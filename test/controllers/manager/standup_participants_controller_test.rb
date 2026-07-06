@@ -72,6 +72,29 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     assert_equal @owned_standup.id, audit_log.metadata["standup_id"]
   end
 
+  test "manager can create participant from Slack username" do
+    SlackUserResolver.any_instance.expects(:resolve)
+      .with("@created", fallback_name: "")
+      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UCREATE2", slack_name: "Created From Slack", cached_timezone: "America/New_York"))
+    sign_in(@manager, "manager-access-token")
+
+    assert_difference "StandupParticipant.count", 1 do
+      post manager_standup_participants_path(@owned_standup),
+        params: {
+          standup_participant: {
+            slack_id: "@created",
+            slack_name: "",
+            active: true
+          }
+        }
+    end
+
+    assert_redirected_to manager_standup_participants_path(@owned_standup)
+    participant = @owned_standup.standup_participants.find_by!(slack_id: "UCREATE2")
+    assert_equal "Created From Slack", participant.slack_name
+    assert_equal "America/New_York", participant.cached_timezone
+  end
+
   test "create renders validation errors" do
     sign_in(@manager, "manager-access-token")
 
@@ -163,6 +186,21 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     assert_redirected_to manager_standup_participants_path(@owned_standup)
     assert_equal "Alice Bulk", @owned_standup.standup_participants.find_by!(slack_id: "UBULK1").slack_name
     assert_not @owned_standup.standup_participants.find_by!(slack_id: "UBULK2").active
+  end
+
+  test "bulk import resolves Slack usernames" do
+    SlackUserResolver.any_instance.expects(:resolve)
+      .with("@bulk", fallback_name: "Bulk User")
+      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UBULK3", slack_name: "Bulk User", cached_timezone: "UTC"))
+    sign_in(@manager, "manager-access-token")
+
+    assert_difference "StandupParticipant.count", 1 do
+      post bulk_import_manager_standup_participants_path(@owned_standup),
+        params: { participants_text: "@bulk,Bulk User,,true" }
+    end
+
+    assert_redirected_to manager_standup_participants_path(@owned_standup)
+    assert_equal "Bulk User", @owned_standup.standup_participants.find_by!(slack_id: "UBULK3").slack_name
   end
 
   test "bulk import surfaces validation errors" do

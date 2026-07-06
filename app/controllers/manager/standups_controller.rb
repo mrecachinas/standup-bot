@@ -176,6 +176,7 @@ module Manager
 
     def valid_standup_form?(participant_rows)
       standup_valid = @standup.valid?
+      resolve_participant_rows(participant_rows)
       validate_participant_rows(participant_rows)
       standup_valid && @standup.errors.none?
     end
@@ -287,9 +288,10 @@ module Manager
 
     def sanitize_participant_row(row)
       attributes = row.to_h
+      slack_identifier = attributes["slack_id"].to_s.strip
       {
         id: attributes["id"].presence,
-        slack_id: attributes["slack_id"].to_s.strip.upcase,
+        slack_id: normalize_participant_identifier(slack_identifier),
         slack_name: attributes["slack_name"].to_s.strip,
         cached_timezone: attributes["cached_timezone"].to_s.strip.presence,
         active: boolean_param(attributes.key?("active") ? attributes["active"] : true),
@@ -343,6 +345,32 @@ module Manager
 
         @standup.errors.add(:base, "Participant #{index + 1} Slack ID is already in this standup")
       end
+    end
+
+    def normalize_participant_identifier(identifier)
+      normalized = identifier.delete_prefix("@")
+      upcased = normalized.upcase
+      looks_like_id = (normalized == upcased && upcased.match?(StandupParticipant::SLACK_USER_ID_PATTERN)) ||
+        upcased.match?(/\A[UW][A-Z0-9]*\d[A-Z0-9]*\z/)
+      looks_like_id ? upcased : identifier
+    end
+
+    def resolve_participant_rows(rows)
+      rows.each_with_index do |row, index|
+        next if blank_participant_row?(row) || row[:destroy] || row[:slack_id].blank?
+        next if row[:slack_id].match?(StandupParticipant::SLACK_USER_ID_PATTERN) && row[:slack_name].present?
+
+        resolved_user = slack_user_resolver.resolve(row[:slack_id], fallback_name: row[:slack_name])
+        row[:slack_id] = resolved_user.slack_id
+        row[:slack_name] = row[:slack_name].presence || resolved_user.slack_name
+        row[:cached_timezone] = row[:cached_timezone].presence || resolved_user.cached_timezone
+      rescue SlackUserResolver::ResolutionError => error
+        @standup.errors.add(:base, "Participant #{index + 1}: #{error.message}")
+      end
+    end
+
+    def slack_user_resolver
+      @slack_user_resolver ||= SlackUserResolver.new
     end
 
     def apply_participant_rows!(standup, rows)
