@@ -4,35 +4,46 @@
     <% paused_count = @dashboard_items.size - active_count %>
     <% participant_count = @dashboard_items.sum(&:participant_count) %>
     <% average_completion = @dashboard_items.any? ? (@dashboard_items.sum(&:completion_rate).to_f / @dashboard_items.size).round : 0 %>
+    <% paused_items = @dashboard_items.select { |item| !item.standup.active? } %>
 
-    <div class="page-hero">
-      <div>
-        <p class="page-kicker">Manager dashboard</p>
+    <div class="dashboard-summary">
+      <div class="dashboard-summary-copy">
+        <p class="dashboard-kicker">Manager dashboard</p>
         <h1>Managed standups</h1>
-        <p class="mt-4 text-lg">See which rituals are healthy, where participation needs attention, and what setup work is still pending.</p>
-        <div class="hero-actions mt-5">
+        <p class="dashboard-summary-copy-text">See which rituals need intervention, which are healthy, and what setup work is still pending.</p>
+        <div class="hero-actions">
           <%= link_to "New standup", new_manager_standup_path, class: "button-primary", data: { turbo_frame: "_top" } %>
           <%= link_to "Slack integration", manager_slack_integration_path, class: "button-ghost", data: { turbo_frame: "_top" } %>
         </div>
       </div>
 
-      <div class="hero-metrics">
-        <div class="hero-metric">
-          <span>Active</span>
-          <strong><%= active_count %></strong>
-        </div>
-        <div class="hero-metric">
-          <span>Paused</span>
-          <strong><%= paused_count %></strong>
-        </div>
-        <div class="hero-metric">
-          <span>Participants</span>
-          <strong><%= participant_count %></strong>
-        </div>
-        <div class="hero-metric">
-          <span>Avg completion</span>
-          <strong><%= average_completion %>%</strong>
-        </div>
+      <div class="dashboard-summary-panel">
+        <p class="dashboard-summary-panel-label">Current snapshot</p>
+        <dl class="dashboard-summary-stats">
+          <div class="dashboard-summary-stat">
+            <dt>Active</dt>
+            <dd><%= active_count %></dd>
+          </div>
+          <div class="dashboard-summary-stat">
+            <dt>Paused</dt>
+            <dd><%= paused_count %></dd>
+          </div>
+          <div class="dashboard-summary-stat">
+            <dt>Participants</dt>
+            <dd><%= participant_count %></dd>
+          </div>
+          <div class="dashboard-summary-stat">
+            <dt>Avg completion</dt>
+            <dd><%= average_completion %>%</dd>
+          </div>
+        </dl>
+        <p class="dashboard-summary-note">
+          <% if paused_count.positive? %>
+            Paused standups surface first so you can restart them before they drift.
+          <% else %>
+            No standups are paused right now.
+          <% end %>
+        </p>
       </div>
     </div>
 
@@ -49,15 +60,41 @@
       <p class="text-sm text-slate-600">Metrics use the latest <%= pluralize(@period_days, "day") %> of response history.</p>
     </div>
 
+    <% if paused_items.any? %>
+      <div class="dashboard-exceptions">
+        <div>
+          <p class="section-title">Paused standups</p>
+          <p class="section-copy">These rituals are offline and should be restarted before they fall further behind.</p>
+        </div>
+        <div class="exception-list">
+          <% paused_items.first(3).each do |item| %>
+            <article class="exception-item">
+              <div class="min-w-0">
+                <%= link_to item.standup.name, manager_standup_path(item.standup), class: "exception-item-link", data: { turbo_frame: "_top" } %>
+                <p class="exception-item-meta">Posting summaries to #<%= item.standup.slack_channel %> · <%= item.latest_run_status %></p>
+              </div>
+              <span class="status-badge status-paused">Paused</span>
+            </article>
+          <% end %>
+          <% if paused_items.size > 3 %>
+            <p class="exception-item-more"><%= paused_items.size - 3 %> more paused standups</p>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
     <% if @dashboard_items.any? %>
       <div class="grid gap-4">
         <%= render partial: "standup_card", collection: @dashboard_items, as: :dashboard_item %>
       </div>
     <% else %>
       <div class="empty-state">
-        <h2 class="text-lg font-semibold text-slate-900">No standups found</h2>
-        <p class="mt-2 text-sm text-slate-600">No <%= @visibility == "all" ? "" : @visibility %> standups are assigned to you yet.</p>
-        <%= link_to "Create the first standup", new_manager_standup_path, class: "button-primary mt-4", data: { turbo_frame: "_top" } %>
+        <h2 class="text-lg font-semibold text-slate-900">Nothing to manage yet</h2>
+        <p class="mt-2 text-sm text-slate-600">Create a standup to start collecting responses and seeing operational signals.</p>
+        <div class="hero-actions mt-4">
+          <%= link_to "Create the first standup", new_manager_standup_path, class: "button-primary", data: { turbo_frame: "_top" } %>
+          <%= link_to "Connect Slack", manager_slack_integration_path, class: "button-secondary", data: { turbo_frame: "_top" } %>
+        </div>
       </div>
     <% end %>
   </section>

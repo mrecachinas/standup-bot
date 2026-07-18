@@ -12,24 +12,27 @@
             <%= dashboard_item.status_label %>
           </span>
         </div>
-        <p class="mt-1 text-sm text-slate-500">Posting summaries to #<%= standup.slack_channel %></p>
+        <p class="standup-card-meta">Posting summaries to #<%= standup.slack_channel %></p>
       </div>
 
-      <div class="action-row">
+      <div class="standup-card-actions">
         <% if standup.active? %>
           <%= button_to "Pause",
             pause_manager_standup_path(standup),
             method: :patch,
             class: "button-warning button-small",
-            form: { data: { turbo_frame: "_top" } } %>
+            form: { data: { turbo_frame: "_top" } },
+            data: { turbo_submits_with: "Pausing..." },
+            aria: { label: "Pause #{standup.name}" } %>
         <% else %>
           <%= button_to "Resume",
             resume_manager_standup_path(standup),
             method: :patch,
             class: "button-success button-small",
-            form: { data: { turbo_frame: "_top" } } %>
+            form: { data: { turbo_frame: "_top" } },
+            data: { turbo_submits_with: "Resuming..." },
+            aria: { label: "Resume #{standup.name}" } %>
         <% end %>
-        <%= link_to "Open", manager_standup_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
       </div>
     </div>
 
@@ -58,14 +61,17 @@
         </div>
       </dl>
 
-      <div class="action-row mt-5">
-        <%= link_to "Settings", edit_manager_standup_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
-        <%= link_to "Participants", manager_standup_participants_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
-        <%= link_to "Responses", manager_standup_responses_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
-        <%= link_to "Analytics", manager_standup_analytics_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
-        <%= link_to "Reports", manager_standup_report_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
-        <%= link_to "Exceptions", manager_standup_schedule_exceptions_path(standup), class: "button-secondary button-small", data: { turbo_frame: "_top" } %>
-      </div>
+      <details class="standup-card-more">
+        <summary class="button-secondary button-small">More</summary>
+        <div class="standup-card-more-panel">
+          <%= link_to "Settings", edit_manager_standup_path(standup), class: "standup-card-more-link", data: { turbo_frame: "_top" } %>
+          <%= link_to "Participants", manager_standup_participants_path(standup), class: "standup-card-more-link", data: { turbo_frame: "_top" } %>
+          <%= link_to "Responses", manager_standup_responses_path(standup), class: "standup-card-more-link", data: { turbo_frame: "_top" } %>
+          <%= link_to "Analytics", manager_standup_analytics_path(standup), class: "standup-card-more-link", data: { turbo_frame: "_top" } %>
+          <%= link_to "Reports", manager_standup_report_path(standup), class: "standup-card-more-link", data: { turbo_frame: "_top" } %>
+          <%= link_to "Exceptions", manager_standup_schedule_exceptions_path(standup), class: "standup-card-more-link", data: { turbo_frame: "_top" } %>
+        </div>
+      </details>
     </div>
   </article>
 </turbo-frame>

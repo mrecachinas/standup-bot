@@ -55,6 +55,16 @@
           </header>
 
           <main class="app-main">
+            <% if flash.any? %>
+              <div class="flash-stack">
+                <% flash.each do |type, message| %>
+                  <% next if message.blank? %>
+                  <% flash_class = type.to_s == "notice" ? "alert-success" : (type.to_s == "alert" ? "alert-danger" : "alert-warning") %>
+                  <% flash_role = type.to_s == "alert" ? "alert" : "status" %>
+                <div class="alert <%= flash_class %>" role="<%= flash_role %>"><%= message %></div>
+                <% end %>
+              </div>
+            <% end %>
             <%= yield %>
           </main>
         </div>
