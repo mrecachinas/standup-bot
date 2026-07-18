@@ -111,6 +111,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to manager_standups_path
+    assert_equal "Daily Standup was paused.", flash[:notice]
     assert_not @owned_standup.reload.active?
     pause_log = AuditLog.order(:created_at).last
     assert_equal @manager, pause_log.actor
@@ -122,6 +123,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to manager_standups_path
+    assert_equal "Daily Standup was resumed.", flash[:notice]
     assert @owned_standup.reload.active?
     resume_log = AuditLog.order(:created_at).last
     assert_equal [ false, true ], resume_log.metadata.dig("changes", "active")
@@ -182,6 +184,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     standup = Standup.find_by!(name: "New Manager Standup")
     assert standup.manageable_by?(@manager)
     assert_redirected_to manager_standup_path(standup)
+    assert_equal "New Manager Standup was created.", flash[:notice]
   end
 
   test "new standup wizard renders schedule preview questions and participants" do

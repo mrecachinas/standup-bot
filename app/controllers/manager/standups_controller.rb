@@ -56,7 +56,7 @@ module Manager
             }
           )
         end
-        redirect_to manager_standup_path(@standup), status: :see_other
+        redirect_to manager_standup_path(@standup), status: :see_other, notice: "#{@standup.name} was created."
       else
         prepare_wizard(participant_rows: participant_rows)
         render :new, status: :unprocessable_entity
@@ -87,7 +87,7 @@ module Manager
             }
           )
         end
-        redirect_to manager_standup_path(@standup), status: :see_other
+        redirect_to manager_standup_path(@standup), status: :see_other, notice: "#{@standup.name} was updated."
       else
         prepare_wizard(participant_rows: participant_rows)
         render :edit, status: :unprocessable_entity
@@ -115,7 +115,7 @@ module Manager
       snapshot = audited_standup_attributes(@standup)
       @standup.destroy!
       audit_manager_change!("standup.destroy", auditable: @standup, metadata: { attributes: snapshot })
-      redirect_to manager_standups_path, status: :see_other
+      redirect_to manager_standups_path, status: :see_other, notice: "#{snapshot["name"]} was deleted."
     end
 
     def pause
@@ -497,9 +497,11 @@ module Manager
 
     def change_active_state!(active, action)
       previous_active = @standup.active?
+      notice = nil
 
       if previous_active != active
         @standup.update!(active: active)
+        notice = active ? "#{@standup.name} was resumed." : "#{@standup.name} was paused."
         audit_manager_change!(
           action,
           auditable: @standup,
@@ -507,7 +509,9 @@ module Manager
         )
       end
 
-      redirect_back fallback_location: manager_standups_path, status: :see_other
+      redirect_options = { fallback_location: manager_standups_path, status: :see_other }
+      redirect_options[:notice] = notice if notice.present?
+      redirect_back(**redirect_options)
     end
 
     def split_lines(value)
