@@ -31,6 +31,17 @@ npm run lint                                  # ESLint
 npm run build                                 # build into public/app
 ```
 
+End-to-end tests drive the built console in Chromium, in light and dark mode, against a real Rails server. That server runs in development mode (so CSRF and sessions behave as in production) against a throwaway `nerdbot_e2e` database loaded with the test fixtures. They need MySQL running.
+
+```bash
+cd frontend
+npm run build
+npx playwright install chromium               # first time only
+npm run e2e                                   # starts script/e2e-server on port 3100
+```
+
+They cover signing in and out, creating, editing, pausing and resuming a standup, importing people, every standup tab, access rules, and the admin pages, and they fail on console errors. The member area isn't covered, because getting into it takes a Slack or Microsoft sign-in.
+
 ## Linting and security checks
 
 These are the same checks that CI runs, along with the console checks above:

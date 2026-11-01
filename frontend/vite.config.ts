@@ -27,6 +27,7 @@ export default defineConfig(({ command }) => ({
   appType: "spa",
   test: {
     environment: "jsdom",
+    include: ["src/**/*.test.{ts,tsx}"],
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,

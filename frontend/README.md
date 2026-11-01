@@ -10,11 +10,12 @@ serves `public/app/index.html` at every console URL (`/manager/...`, `/me/...`,
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Vite dev server on http://localhost:5173. Proxies `/api` and `/auth` to Rails on :3000, so run `bin/rails s` too. |
+| `npm run dev` | Vite dev server on http://localhost:5173. Proxies `/api` and `/auth` to Rails on :3000. `bin/dev` in the repo root runs both. |
 | `npm run build` | Type-checks, then builds into `../public/app/` (assets under `/app/`). |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint (typescript-eslint + react-hooks), no warnings allowed |
-| `npm test` / `npm run test:watch` | Vitest + React Testing Library (jsdom) |
+| `npm test` / `npm run test:watch` | Vitest + React Testing Library (jsdom), for `src/**/*.test.tsx` |
+| `npm run e2e` | Playwright tests in `e2e/` against `script/e2e-server` (build first; see `docs/development.md`) |
 
 ## Layout
 

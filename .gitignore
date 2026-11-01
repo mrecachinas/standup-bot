@@ -36,3 +36,6 @@
 # Built console (frontend/ → vite build) and its dependencies.
 /public/app
 /frontend/node_modules
+/frontend/test-results
+/frontend/playwright-report
+/frontend/e2e/.auth
