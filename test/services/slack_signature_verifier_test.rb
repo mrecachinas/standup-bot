@@ -6,47 +6,74 @@ class SlackSignatureVerifierTest < ActiveSupport::TestCase
     @request_body = "request_body"
     @timestamp = Time.now.to_i.to_s
 
-    # Mock the Rails config
     Rails.application.config.slack ||= {}
+    @original_signing_secret = Rails.application.config.slack[:signing_secret]
     Rails.application.config.slack[:signing_secret] = @signing_secret
   end
 
-  test "should return true for valid signature" do
-    # Create valid signature
-    sig_basestring = "v0:#{@timestamp}:#{@request_body}"
-    valid_signature = "v0=" + OpenSSL::HMAC.hexdigest("SHA256", @signing_secret, sig_basestring)
-
-    assert SlackSignatureVerifier.verify(@request_body, @timestamp, valid_signature)
+  teardown do
+    Rails.application.config.slack[:signing_secret] = @original_signing_secret
   end
 
-  test "should return false for invalid signature" do
-    invalid_signature = "v0=invalid_signature"
-
-    refute SlackSignatureVerifier.verify(@request_body, @timestamp, invalid_signature)
+  test "accepts a validly signed request" do
+    assert SlackSignatureVerifier.verify(slack_request(signature: sign(@timestamp)))
   end
 
-  test "should return false for expired timestamp" do
+  test "rejects an invalid signature" do
+    refute SlackSignatureVerifier.verify(slack_request(signature: "v0=invalid_signature"))
+  end
+
+  test "rejects a signature computed over a different body" do
+    request = slack_request(body: "tampered", signature: sign(@timestamp))
+
+    refute SlackSignatureVerifier.verify(request)
+  end
+
+  test "rejects an expired timestamp" do
     old_timestamp = (Time.now - 6.minutes).to_i.to_s
-    sig_basestring = "v0:#{old_timestamp}:#{@request_body}"
-    valid_signature = "v0=" + OpenSSL::HMAC.hexdigest("SHA256", @signing_secret, sig_basestring)
 
-    refute SlackSignatureVerifier.verify(@request_body, old_timestamp, valid_signature)
+    refute SlackSignatureVerifier.verify(slack_request(timestamp: old_timestamp, signature: sign(old_timestamp)))
   end
 
-  test "should return false when signing secret is missing" do
+  test "rejects a non-numeric timestamp" do
+    refute SlackSignatureVerifier.verify(slack_request(timestamp: "abc", signature: sign("abc")))
+  end
+
+  test "rejects when the signing secret is missing" do
     Rails.application.config.slack[:signing_secret] = nil
 
-    sig_basestring = "v0:#{@timestamp}:#{@request_body}"
-    signature = "v0=" + OpenSSL::HMAC.hexdigest("SHA256", @signing_secret, sig_basestring)
-
-    refute SlackSignatureVerifier.verify(@request_body, @timestamp, signature)
+    refute SlackSignatureVerifier.verify(slack_request(signature: sign(@timestamp)))
   end
 
-  test "should return false for missing headers" do
-    refute SlackSignatureVerifier.verify(@request_body, nil, nil)
+  test "rejects when the signing secret is blank" do
+    Rails.application.config.slack[:signing_secret] = ""
+
+    refute SlackSignatureVerifier.verify(slack_request(signature: sign(@timestamp)))
   end
 
-  test "should return false for malformed signature" do
-    refute SlackSignatureVerifier.verify(@request_body, @timestamp, "invalid")
+  test "rejects missing headers" do
+    refute SlackSignatureVerifier.verify(slack_request(timestamp: nil, signature: nil))
+  end
+
+  test "rejects a missing signature header" do
+    refute SlackSignatureVerifier.verify(slack_request(signature: nil))
+  end
+
+  test "rejects a malformed signature" do
+    refute SlackSignatureVerifier.verify(slack_request(signature: "invalid"))
+  end
+
+  private
+
+  def sign(timestamp, body = @request_body)
+    "v0=" + OpenSSL::HMAC.hexdigest("SHA256", @signing_secret, "v0:#{timestamp}:#{body}")
+  end
+
+  def slack_request(signature:, timestamp: @timestamp, body: @request_body)
+    headers = {
+      "HTTP_X_SLACK_REQUEST_TIMESTAMP" => timestamp,
+      "HTTP_X_SLACK_SIGNATURE" => signature
+    }.compact
+    ActionDispatch::Request.new(Rack::MockRequest.env_for("/slack/events", method: "POST", input: body, **headers))
   end
 end
