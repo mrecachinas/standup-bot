@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_030000) do
   create_table "audit_logs", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "action", null: false
     t.string "actor_email"
@@ -183,15 +183,4 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_010000) do
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["role"], name: "index_users_on_role"
   end
-
-  add_foreign_key "audit_logs", "users", column: "actor_id"
-  add_foreign_key "report_configurations", "standups"
-  add_foreign_key "report_generations", "report_configurations"
-  add_foreign_key "report_generations", "standups"
-  add_foreign_key "report_generations", "users", column: "actor_id"
-  add_foreign_key "standup_ownerships", "standups"
-  add_foreign_key "standup_ownerships", "users"
-  add_foreign_key "standup_participants", "standups"
-  add_foreign_key "standup_schedule_exceptions", "standups"
-  add_foreign_key "user_identities", "users"
 end

@@ -129,6 +129,8 @@ erDiagram
 | `StandupOwnership` | Links managers to the standups they can manage |
 | `AuditLog` | A record of changes managers and admins make |
 
+The app doesn't use database foreign key constraints. Models own referential cleanup through `dependent:` options on their associations (for example, deleting a standup destroys its participants and reports, and deleting a user nullifies `actor_id` on their audit logs and report generations). A test checks that no foreign keys creep back into the app schema. Solid Queue's own tables keep the foreign keys that ship with the gem.
+
 Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custom`. You can also list holidays that apply to every standup in `config/holidays.yml`.
 
 ## Background jobs
