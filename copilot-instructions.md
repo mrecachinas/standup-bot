@@ -1,11 +1,11 @@
 # Copilot Instructions for Standup Bot
 
 ## Project Overview
-Ruby on Rails 8.0.2 Slack standup bot that schedules meetings, asks participants questions, and collects responses in Slack channels.
+Ruby on Rails 8.1 Slack standup bot that schedules meetings, asks participants questions, and collects responses in Slack channels.
 
 ## Tech Stack
-- **Ruby**: 3.4.2, **Rails**: 8.0.2
-- **Database**: MySQL 8.0 (all environments; local dev/test via docker-compose)
+- **Ruby**: 4.0.2, **Rails**: 8.1.4
+- **Database**: MySQL 8.0 in development/test (via docker compose), PostgreSQL in production
 - **Background Jobs**: Solid Queue, **Cache**: Solid Cache, **WebSockets**: Solid Cable  
 - **Testing**: Minitest with Mocha, **Linting**: RuboCop Rails Omakase, **Security**: Brakeman
 - **Deployment**: Kamal, **Slack**: slack-ruby-client gem
@@ -57,7 +57,7 @@ bin/rails standups:validate # Validate config/standups/*.yml
 
 ### Code Style
 - **Ruby**: Rails Omakase styling via RuboCop (`.rubocop.yml`)
-- **Services**: End class names with `Service`, use `self.call` pattern
+- **Services**: Plain Ruby objects in `app/services`; there is no single naming or call convention, so match neighboring code
 - **Controllers**: Keep thin, delegate to services
 - **Naming**: Follow Rails conventions, use descriptive method names
 
@@ -99,19 +99,6 @@ bin/rails standups:validate # Validate config/standups/*.yml
 - Import with `bin/rails standups:import`
 
 ## Common Patterns
-
-### Service Object Pattern
-```ruby
-class MyService
-  def self.call(*args) = new(*args).call
-  
-  def initialize(param) = @param = param
-  
-  def call
-    # Implementation
-  end
-end
-```
 
 ### Error Handling
 - Use Rails conventions, log appropriately, return proper HTTP status codes
