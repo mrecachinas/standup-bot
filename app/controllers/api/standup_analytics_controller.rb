@@ -11,15 +11,5 @@ module Api
         )
       }
     end
-
-    private
-
-    def set_standup
-      @standup = Standup.find(params[:standup_id])
-    end
-
-    def period_days
-      params.fetch(:period_days, 30).to_i.clamp(1, 365)
-    end
   end
 end

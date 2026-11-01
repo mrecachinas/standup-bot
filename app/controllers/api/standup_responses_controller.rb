@@ -16,10 +16,6 @@ module Api
 
     private
 
-    def set_standup
-      @standup = Standup.find(params[:standup_id])
-    end
-
     def limit
       requested_limit = params.fetch(:limit, 100).to_i
       requested_limit.clamp(1, 500)
