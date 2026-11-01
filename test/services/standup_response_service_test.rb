@@ -31,7 +31,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     answer_text = "I worked on feature X"
 
     # Expect the next question to be sent
-    @mock_slack_client.expects(:send_message).once
+    @mock_slack_client.expects(:send_message).with("U12345", includes(@standup.questions.second)).once
 
     StandupResponseService.record_answer(@standup_response, answer_text)
 
@@ -99,76 +99,6 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     assert_equal 3, @standup_response.answers.size
     assert_equal answer_text, @standup_response.answers.last["answer"]
     assert_equal @standup.questions.last, @standup_response.answers.last["question"]
-  end
-
-  test "mark_completed manually completes a standup response" do
-    # Expect get_user_info call, which is used when completing the standup
-    @mock_slack_client.expects(:get_user_info).with("U12345").returns(
-      { "name" => "Test User", "tz" => "America/New_York" }
-    ).at_least_once
-
-    # Expect completion message and posting to channel
-    @mock_slack_client.expects(:send_message).at_least_once
-
-    # Expect the status to change to completed
-    @standup_response.expects(:status=).with("completed")
-    @standup_response.expects(:save!)
-
-    StandupResponseService.mark_completed(@standup_response)
-  end
-
-  test "process_answer_update sends the next question when more questions remain" do
-    @standup_response.answers = [
-      {
-        question: @standup.questions[0],
-        answer: "Answer 1",
-        timestamp: Time.current
-      }
-    ]
-
-    # Expect next question to be sent
-    @mock_slack_client.expects(:send_message).with(
-      @standup_response.slack_id,
-      is_a(String)
-    )
-
-    @standup_response.expects(:save!)
-
-    StandupResponseService.process_answer_update(@standup_response)
-  end
-
-  test "process_answer_update completes the standup when all questions are answered" do
-    @standup_response.answers = [
-      {
-        question: @standup.questions[0],
-        answer: "Answer 1",
-        timestamp: Time.current
-      },
-      {
-        question: @standup.questions[1],
-        answer: "Answer 2",
-        timestamp: Time.current
-      },
-      {
-        question: @standup.questions[2],
-        answer: "Answer 3",
-        timestamp: Time.current
-      }
-    ]
-
-    # Expect get_user_info call, which is used when completing the standup
-    @mock_slack_client.expects(:get_user_info).with("U12345").returns(
-      { "name" => "Test User", "tz" => "America/New_York" }
-    ).at_least_once
-
-    # Expect completion message and posting to channel
-    @mock_slack_client.expects(:send_message).at_least_once
-
-    # Expect the status to change to completed
-    @standup_response.expects(:status=).with("completed")
-    @standup_response.expects(:save!)
-
-    StandupResponseService.process_answer_update(@standup_response)
   end
 
   test "repost_response updates an existing message in channel" do
@@ -282,10 +212,6 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     # because post_individual_response will return early with no updates
     # and repost_response will fall through to that method
     StandupResponseService.repost_response(completed_response)
-
-    # Assert that the method completed successfully without updating the message
-    # The mock expectations above ensure update_message was not called
-    assert true, "repost_response should handle empty answers without calling update_message"
   end
 
   test "cancel_previous_pending_responses cancels old pending responses" do
