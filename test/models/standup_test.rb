@@ -149,6 +149,12 @@ class StandupTest < ActiveSupport::TestCase
 
     assert @daily_standup.valid?
     assert_equal [ "Keep me" ], @daily_standup.questions
+
+    [ [ "", "  " ], nil ].each do |questions|
+      @daily_standup.questions = questions
+      assert_not @daily_standup.valid?, "expected #{questions.inspect} questions to be invalid"
+      assert_includes @daily_standup.errors[:questions], "can't be blank"
+    end
   end
 
   test "previews upcoming occurrences without persisting" do

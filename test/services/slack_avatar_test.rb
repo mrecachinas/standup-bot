@@ -6,4 +6,12 @@ class SlackAvatarTest < ActiveSupport::TestCase
 
     assert_equal "https://avatars.slack-edge.com/small.png", SlackAvatar.url_from(profile)
   end
+
+  test "skips unsafe URLs and falls back to the next safe size" do
+    safe = "https://avatars.slack-edge.com/48.png"
+
+    assert_equal safe, SlackAvatar.url_from({ "image_72" => "javascript:alert(1)", "image_48" => safe })
+    assert_equal safe, SlackAvatar.url_from({ "image_72" => "http://example.com/a.png", "image_48" => safe })
+    assert_nil SlackAvatar.url_from(nil)
+  end
 end

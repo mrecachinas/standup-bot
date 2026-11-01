@@ -7,7 +7,11 @@ class ChartsHelperTest < ActionView::TestCase
       { date: Date.new(2026, 10, 2), expected: 4, completed: 2, skipped: 0, pending: 0, missed: 2, completion_rate: 50.0 }
     ]
 
-    assert_equal 2, run_breakdown_chart(runs).scan('class="bar-group"').size
+    html = run_breakdown_chart(runs, width: 480)
+
+    assert_includes html, 'viewBox="0 0 480 '
+    assert_equal 2, html.scan('class="bar-group"').size
+    assert_includes html, "Oct 2, 2026: 2 completed, 0 skipped, 2 missed (50%)"
   end
 
   test "charts show an empty state without data" do
