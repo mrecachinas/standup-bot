@@ -53,6 +53,7 @@ class Api::ScheduleExceptionsTest < ActionDispatch::IntegrationTest
     assert_equal "Scheduled", first["status_label"]
     assert_equal "success", first["status_tone"]
     assert first["can_skip"]
+    assert_not first["can_unskip"]
     assert_nil first["note"]
 
     holiday = upcoming.find { |occurrence| occurrence["standup_date"] == "2026-04-28" }
@@ -60,6 +61,7 @@ class Api::ScheduleExceptionsTest < ActionDispatch::IntegrationTest
     assert_equal "warning", holiday["status_tone"]
     assert_equal "Company holiday", holiday["note"]
     assert_not holiday["can_skip"]
+    assert_not holiday["can_unskip"]
 
     moved = upcoming.find { |occurrence| occurrence["standup_date"] == "2026-04-29" }
     assert_equal "info", moved["status_tone"]
@@ -76,6 +78,22 @@ class Api::ScheduleExceptionsTest < ActionDispatch::IntegrationTest
     assert_nil exceptions.first["scheduled_at_label"]
     assert_equal "14:45", exceptions.last["rescheduled_time"]
     assert_equal "Wed, Apr 29 at 2:45 PM UTC", exceptions.last["scheduled_at_label"]
+  end
+
+  test "only skipped dates can be unskipped from their row" do
+    skip_exception = @owned_standup.standup_schedule_exceptions.create!(exception_type: "skipped_date", original_date: Date.new(2026, 4, 28), reason: "Skipped")
+    sign_in(@manager, "manager-access-token")
+
+    Timecop.freeze(Time.zone.local(2026, 4, 27, 8, 0, 0)) do
+      get api_standup_schedule_exceptions_path(@owned_standup, preview_timezone: "UTC"), as: :json
+    end
+
+    assert_response :success
+    skipped = response.parsed_body["upcoming_occurrences"].find { |occurrence| occurrence["standup_date"] == "2026-04-28" }
+    assert_equal "skipped", skipped["status"]
+    assert_equal skip_exception.id, skipped["exception_id"]
+    assert skipped["can_unskip"]
+    assert_not skipped["can_skip"]
   end
 
   test "preview timezone shifts local times and falls back to UTC when invalid" do

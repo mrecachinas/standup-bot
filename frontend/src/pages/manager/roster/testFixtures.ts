@@ -131,6 +131,7 @@ export function occurrence(overrides: Partial<ScheduleOccurrence> = {}): Schedul
     note: null,
     exception_id: null,
     can_skip: true,
+    can_unskip: false,
     ...overrides,
   };
 }

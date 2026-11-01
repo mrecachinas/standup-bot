@@ -27,7 +27,8 @@ class ScheduleExceptionOccurrenceSerializer
       blocked: @occurrence.blocked?,
       note: exception&.reason.presence || ("No prompts will be sent" if @occurrence.blocked?),
       exception_id: exception&.id,
-      can_skip: @occurrence.sendable? && exception.nil?
+      can_skip: @occurrence.sendable? && exception.nil?,
+      can_unskip: exception.present? && exception.skipped_date?
     }
   end
 

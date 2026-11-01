@@ -4,7 +4,6 @@ import { Button } from "@primer/react";
 import { del, post } from "../../api/client";
 import type { Standup } from "../../api/types";
 import type {
-  ScheduleException,
   ScheduleExceptionParams,
   ScheduleExceptionResult,
   ScheduleExceptionsPayload,
@@ -38,7 +37,7 @@ export function ScheduleExceptionsPage() {
     onSuccess: () => reload(),
   });
   const [removing, setRemoving] = useState<number | null>(null);
-  const remove = useMutation((exception: ScheduleException) => del<ScheduleExceptionResult>(`${base}/${exception.id}`), {
+  const remove = useMutation((exceptionId: number) => del<ScheduleExceptionResult>(`${base}/${exceptionId}`), {
     onSuccess: () => reload(),
   });
 
@@ -54,10 +53,10 @@ export function ScheduleExceptionsPage() {
     return create.run({ exception_type: "cancelled", original_date: next.standup_date, reason: "One-off cancellation" });
   };
 
-  const handleRemove = async (exception: ScheduleException) => {
+  const handleRemove = async (exceptionId: number) => {
     create.reset();
-    setRemoving(exception.id);
-    await remove.run(exception);
+    setRemoving(exceptionId);
+    await remove.run(exceptionId);
     setRemoving(null);
   };
 
@@ -97,8 +96,10 @@ export function ScheduleExceptionsPage() {
             onPreviewTimezoneChange={handlePreviewTimezone}
             skipping={skipping}
             onSkip={(occurrence) => void handleSkip(occurrence)}
+            removing={removing}
+            onUnskip={(exceptionId) => void handleRemove(exceptionId)}
           />
-          <ExceptionsTable exceptions={data.schedule_exceptions} removing={removing} onRemove={(exception) => void handleRemove(exception)} />
+          <ExceptionsTable exceptions={data.schedule_exceptions} removing={removing} onRemove={(exception) => void handleRemove(exception.id)} />
         </div>
 
         <aside className={styles.stack} aria-label="Schedule changes">

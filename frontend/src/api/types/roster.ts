@@ -128,6 +128,8 @@ export interface ScheduleOccurrence {
   note: string | null;
   exception_id: number | null;
   can_skip: boolean;
+  /** A skipped date that can be put back on the schedule by removing `exception_id`. */
+  can_unskip: boolean;
 }
 
 /** ScheduleExceptionSerializer. */

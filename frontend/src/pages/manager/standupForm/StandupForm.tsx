@@ -191,10 +191,12 @@ export function StandupForm({ payload, onPlatformChange }: StandupFormProps) {
                 <div className={styles.dayPicker}>
                   <CheckboxGroup aria-describedby={daysError ? ids.days : undefined}>
                     <CheckboxGroup.Label>Days</CheckboxGroup.Label>
-                    <div className={styles.inlineChoices}>
+                    <div className={styles.dayPills}>
                       {payload.weekday_options.map((day) => (
-                        <FormControl key={day.value} className={styles.dayChoice}>
-                          <Checkbox
+                        <label key={day.value} className={styles.dayPill}>
+                          <input
+                            type="checkbox"
+                            className={styles.dayPillInput}
                             value={String(day.value)}
                             checked={state.days.includes(day.value)}
                             onChange={(event) =>
@@ -205,11 +207,9 @@ export function StandupForm({ payload, onPlatformChange }: StandupFormProps) {
                               })
                             }
                           />
-                          <FormControl.Label>
-                            <span aria-hidden="true">{day.short_label}</span>
-                            <VisuallyHidden>{day.label}</VisuallyHidden>
-                          </FormControl.Label>
-                        </FormControl>
+                          <span aria-hidden="true">{day.short_label}</span>
+                          <VisuallyHidden>{day.label}</VisuallyHidden>
+                        </label>
                       ))}
                     </div>
                   </CheckboxGroup>
