@@ -41,6 +41,7 @@ class SlackSignIn
     info = Slack::Web::Client.new(token: token["access_token"]).openid_connect_userInfo
     identity = build_identity(info)
     verify_team!(identity)
+    verify_full_member!(identity)
     identity
   rescue Slack::Web::Api::Errors::SlackError, Faraday::Error => error
     Rails.logger.warn("Slack sign-in failed: #{error.class}: #{error.message}")
@@ -70,6 +71,15 @@ class SlackSignIn
     return if identity.team_id == expected_team
 
     raise Error, "That Slack workspace isn't connected to Standup Bot."
+  end
+
+  # Guests can't sign in: anyone who can sign in can create standups and use
+  # the bot's workspace lookups. Fail closed if Slack can't confirm the account.
+  def verify_full_member!(identity)
+    info = SlackClient.new.get_user_info(identity.slack_id)
+    raise Error, "Slack sign-in couldn't confirm your account. Please try again." if info.nil?
+    raise Error, "Guest accounts can't sign in to Standup Bot." if info["is_restricted"] || info["is_ultra_restricted"]
+    raise Error, "That Slack account can't sign in to Standup Bot." if info["deleted"] || info["is_bot"]
   end
 
   def bot_team_id

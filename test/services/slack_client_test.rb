@@ -105,7 +105,7 @@ class SlackClientTest < ActiveSupport::TestCase
       .returns(user_info)
 
     result = @slack_client.get_user_info(slack_id)
-    assert_equal({ "name" => "John Doe", "tz" => "America/New_York", "tz_offset" => -18000, "profile" => {} }, result)
+    assert_equal({ "name" => "John Doe", "tz" => "America/New_York", "tz_offset" => -18000, "profile" => {} }, result.slice("name", "tz", "tz_offset", "profile"))
   end
 
   test "get_user_info handles user not found" do

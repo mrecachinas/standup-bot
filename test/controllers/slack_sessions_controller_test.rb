@@ -47,28 +47,64 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, standups(:daily).name
   end
 
-  test "signs a manager with a matching verified email into the console" do
+  test "links an existing account by verified email and lands owners in the console" do
     sign_in_with_slack(slack_id: "U999999", email: users(:manager).email)
 
     assert_redirected_to manager_standups_path
+    assert_equal "U999999", users(:manager).reload.slack_user_id
     follow_redirect!
     assert_response :success
   end
 
   test "does not link accounts when Slack hasn't verified the email" do
-    sign_in_with_slack(slack_id: "U123456", email: users(:admin).email, email_verified: false)
+    assert_difference "User.count", 1 do
+      sign_in_with_slack(slack_id: "U123456", email: users(:admin).email, email_verified: false)
+    end
 
     assert_redirected_to me_root_path
+    assert_nil users(:admin).reload.slack_user_id
     get admin_root_path
-    assert_redirected_to me_root_path
+    assert_response :forbidden
   end
 
-  test "refuses people who aren't in a standup and have no account" do
-    sign_in_with_slack(slack_id: "UNOBODY", email: "nobody@example.com")
+  test "anyone in the workspace can sign in and start a standup" do
+    assert_difference "User.count", 1 do
+      sign_in_with_slack(slack_id: "UVTEAM1", email: "lead@example.com")
+    end
+
+    user = User.find_by!(slack_user_id: "UVTEAM1")
+    assert_equal "manager", user.role
+    assert_redirected_to manager_standups_path
+    follow_redirect!
+    assert_includes response.body, "Create your first standup"
+  end
+
+  test "returning users are matched by Slack user ID" do
+    users(:other_manager).update!(slack_user_id: "URETURN")
+
+    assert_no_difference "User.count" do
+      sign_in_with_slack(slack_id: "URETURN", email: "changed@example.com")
+    end
+    assert_redirected_to manager_standups_path
+  end
+
+  test "turned-off accounts can't sign in with Slack" do
+    users(:inactive_manager).update!(slack_user_id: "UOFF")
+
+    sign_in_with_slack(slack_id: "UOFF", email: users(:inactive_manager).email)
 
     assert_redirected_to new_session_path
     follow_redirect!
-    assert_includes response.body, "not part of any standups"
+    assert_includes response.body, "turned off"
+  end
+
+  test "refuses to relink an email that belongs to another Slack account" do
+    users(:manager).update!(slack_user_id: "UORIGINAL")
+
+    sign_in_with_slack(slack_id: "UIMPOSTER", email: users(:manager).email)
+
+    assert_redirected_to new_session_path
+    assert_equal "UORIGINAL", users(:manager).reload.slack_user_id
   end
 
   private

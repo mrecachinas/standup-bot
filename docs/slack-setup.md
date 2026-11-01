@@ -71,13 +71,15 @@ Team members, managers, and admins can sign in to the web console with their Sla
 2. Under **Basic Information**, copy the **Client ID** and **Client Secret** and set them as `SLACK_CLIENT_ID` and `SLACK_CLIENT_SECRET`.
 3. Optionally set `SLACK_TEAM_ID` (it starts with `T`). Sign-in is always limited to one workspace: this one, or the bot token's workspace if `SLACK_TEAM_ID` isn't set.
 
-When someone signs in with Slack:
+Anyone in the workspace can sign in with Slack, except guests (single- and multi-channel guests):
 
-- If Slack has verified their email and it matches an active manager or admin account, they get the manager console.
-- If they're in at least one standup, they get **My standups**, where they can see their check-ins, their past answers, and set time away.
-- Anyone else is turned away.
+- If they don't have an account yet, they get one automatically. They can then create standups, for example for a virtual team, and manage the ones they own.
+- An existing account is linked by Slack user ID, or by email when Slack has verified it. Admins keep their admin access.
+- People in at least one standup also get **My standups**, where they can see their check-ins, their past answers, and set time away.
 
-Managers and admins can still sign in with their email and access token.
+Because anyone can sign in, some Slack lookups are limited for non-admins. Channel search only shows public channels, and "Sync from a Slack channel" only works for channels the person is in. Admins can do both for any channel.
+
+Email and access token sign-in still works.
 
 ## 4. Try it out
 

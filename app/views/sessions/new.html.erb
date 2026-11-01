@@ -46,7 +46,7 @@
         <% end %>
         <% if slack_enabled %>
           <details class="token-sign-in" <%= "open" if token_failed || @access_token.present? %>>
-            <summary class="small muted">Managers: sign in with an access token</summary>
+            <summary class="small muted">Sign in with an access token instead</summary>
             <%= token_form %>
           </details>
         <% else %>

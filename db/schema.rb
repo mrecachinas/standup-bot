@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_27_110500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_01_170000) do
   create_table "audit_logs", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "action", null: false
     t.string "actor_email"
@@ -154,8 +154,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_110500) do
     t.string "name", null: false
     t.string "role", default: "manager", null: false
     t.datetime "updated_at", null: false
+    t.string "slack_user_id"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["role"], name: "index_users_on_role"
+    t.index ["slack_user_id"], name: "index_users_on_slack_user_id", unique: true
   end
 
   add_foreign_key "audit_logs", "users", column: "actor_id"

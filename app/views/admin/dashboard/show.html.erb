@@ -76,7 +76,7 @@
     <div class="stat">
       <dt>Users</dt>
       <dd><%= @users.count(&:active?) %></dd>
-      <span class="stat-sub"><%= @users.count(&:admin?) %> admin · <%= @users.count(&:manager?) %> manager</span>
+      <span class="stat-sub"><%= pluralize(@users.count(&:admin?), "admin") %> · <%= @owned_standup_counts.keys.size %> running standups</span>
     </div>
   </dl>
 
@@ -117,15 +117,15 @@
   <section class="card card-flush">
     <div class="card-header">
       <h2>Users</h2>
-      <span class="hint">Create users with <code>bin/rails db:seed</code> or the Rails console</span>
+      <span class="hint">Anyone who signs in with Slack gets an account</span>
     </div>
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
             <th>Name</th>
-            <th>Role</th>
-            <th class="num">Standups</th>
+            <th>Access</th>
+            <th class="num">Owns</th>
             <th>Last sign-in</th>
             <th>Status</th>
           </tr>
@@ -138,11 +138,11 @@
                   <%= avatar(user.name) %>
                   <div>
                     <div class="cell-title"><%= user.name %></div>
-                    <div class="cell-sub"><%= user.email %></div>
+                    <div class="cell-sub"><%= user.email.end_with?("@#{User::SLACK_PLACEHOLDER_EMAIL_DOMAIN}") ? "Slack #{user.slack_user_id}" : user.email %></div>
                   </div>
                 </div>
               </td>
-              <td><%= status_badge(user.role.capitalize, user.admin? ? "accent" : nil) %></td>
+              <td><%= user.admin? ? status_badge("Admin", "accent") : status_badge("Member") %></td>
               <td class="num"><%= user.admin? ? "All" : @owned_standup_counts.fetch(user.id, 0) %></td>
               <td><%= relative_time(user.last_signed_in_at) %></td>
               <td><%= user.active? ? status_badge("Active", "success") : status_badge("Disabled") %></td>

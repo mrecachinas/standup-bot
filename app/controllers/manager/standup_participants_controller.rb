@@ -71,6 +71,13 @@ module Manager
     def sync
       @sync_channel = params[:channel].presence || @standup.slack_channel
       @deactivate_missing = ActiveModel::Type::Boolean.new.cast(params[:deactivate_missing])
+      unless current_user.admin? || channel_member?(@sync_channel)
+        @sync_errors = [ "You can only sync people from a channel you're in." ]
+        prepare_index
+        render :index, status: :unprocessable_entity
+        return
+      end
+
       profiles = SlackClient.instance.channel_member_profiles(@sync_channel)
       result = StandupParticipantImporter.new(@standup).sync_profiles(profiles, deactivate_missing: @deactivate_missing)
 
@@ -95,6 +102,13 @@ module Manager
     def set_standup
       @standup = Standup.find(params[:standup_id])
       authorize_standup!(@standup)
+    end
+
+    # Non-admins can only pull in members of channels they belong to, so the
+    # bot can't be used to list the members of someone else's private channel.
+    def channel_member?(channel)
+      current_user.slack_user_id.present? &&
+        SlackClient.instance.channel_members(channel).include?(current_user.slack_user_id)
     end
 
     def set_participant

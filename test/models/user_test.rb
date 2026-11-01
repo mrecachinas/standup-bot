@@ -34,4 +34,23 @@ class UserTest < ActiveSupport::TestCase
     assert_equal Standup.count, Standup.manageable_by(users(:admin)).count
     assert_empty Standup.manageable_by(nil)
   end
+  test "creates a standard account for a new Slack identity" do
+    identity = SlackSignIn::Identity.new(slack_id: "UNEW1", email: "new@example.com", email_verified: true, name: "New Person")
+
+    user = User.from_slack_identity(identity)
+
+    assert user.persisted?
+    assert_equal "manager", user.role
+    assert_equal "new@example.com", user.email
+    assert_equal "UNEW1", user.slack_user_id
+  end
+
+  test "uses a placeholder email when Slack hasn't verified it" do
+    identity = SlackSignIn::Identity.new(slack_id: "UNEW2", email: users(:admin).email, email_verified: false, name: "Someone")
+
+    user = User.from_slack_identity(identity)
+
+    assert_equal "unew2@#{User::SLACK_PLACEHOLDER_EMAIL_DOMAIN}", user.email
+    assert_not user.admin?
+  end
 end

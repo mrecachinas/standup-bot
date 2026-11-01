@@ -96,9 +96,13 @@ bin/rails standups:import     # creates or updates standups and participants
 
 See [`config/standups/myteam.yml`](../config/standups/myteam.yml) for a full example.
 
-## Manager accounts
+## Accounts
 
-People sign in to the web console with an email and an access token. Only a SHA-256 digest of the token is stored, so save the raw token somewhere safe when you create it. There's no UI for creating users yet, so use the Rails console:
+Anyone can run a standup. It doesn't matter whether they're a manager on the org chart or leading a virtual team.
+
+With [Sign in with Slack](slack-setup.md#sign-in-with-slack-optional) turned on, anyone in your workspace can sign in. They get an account automatically and can create standups right away.
+
+Without Slack sign-in, people use an email and an access token. Only a SHA-256 digest of the token is stored, so save the raw token somewhere safe when you create it. Create these accounts in the Rails console:
 
 ```ruby
 token = SecureRandom.hex(32)
@@ -106,4 +110,7 @@ User.create!(email: "lead@example.com", name: "Team Lead", role: "manager", acce
 puts token # share this once with the manager
 ```
 
-Admins can manage every standup and can open the **Admin** page to check installation health and see every user. Managers can only manage standups they own, and any standup a manager creates is theirs automatically. See [Architecture](architecture.md#web-console-personas-and-permissions) for more.
+There are two roles:
+
+- `manager` is the standard role. People with it can create standups and manage the ones they own. Any standup someone creates is theirs automatically.
+- `admin` can manage every standup and can open the **Admin** page to check installation health and see every user. See [Architecture](architecture.md#web-console-personas-and-permissions) for more.

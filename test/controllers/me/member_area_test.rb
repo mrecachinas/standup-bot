@@ -30,12 +30,12 @@ class Me::MemberAreaTest < ActionDispatch::IntegrationTest
     assert_select "##{ActionView::RecordIdentifier.dom_id(@daily, :member)}", count: 0
   end
 
-  test "members can't open the manager console" do
+  test "members can't manage standups they don't own" do
     sign_in_member("U123456")
 
     get manager_standup_path(@daily)
 
-    assert_redirected_to me_root_path
+    assert_response :forbidden
   end
 
   test "members see their own answers, filtered by standup" do

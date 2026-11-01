@@ -227,12 +227,14 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     existing = StandupParticipant.create!(standup: standup, slack_id: "USYNC1", slack_name: "Old Sync", active: true)
     missing = StandupParticipant.create!(standup: standup, slack_id: "USYNC2", slack_name: "Missing Sync", active: true)
 
+    @manager.update!(slack_user_id: "UMGRSYNC")
     slack_client = mock("SlackClient")
+    slack_client.expects(:channel_members).with("sync-channel").returns([ "UMGRSYNC", existing.slack_id ])
     slack_client.expects(:channel_member_profiles).with("sync-channel").returns([
       { "slack_id" => existing.slack_id, "slack_name" => "Synced User", "cached_timezone" => "America/Los_Angeles" },
       { "slack_id" => "USYNC3", "slack_name" => "New Sync", "cached_timezone" => "UTC" }
     ])
-    SlackClient.expects(:instance).returns(slack_client)
+    SlackClient.stubs(:instance).returns(slack_client)
 
     sign_in(@manager, "manager-access-token")
 
@@ -251,9 +253,11 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "sync surfaces Slack lookup errors without auditing" do
+    @manager.update!(slack_user_id: "UMGRSYNC")
     slack_client = mock("SlackClient")
+    slack_client.expects(:channel_members).with("empty-channel").returns([ "UMGRSYNC" ])
     slack_client.expects(:channel_member_profiles).with("empty-channel").returns([])
-    SlackClient.expects(:instance).returns(slack_client)
+    SlackClient.stubs(:instance).returns(slack_client)
     sign_in(@manager, "manager-access-token")
 
     assert_no_difference "AuditLog.count" do
@@ -263,6 +267,22 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
 
     assert_response :unprocessable_entity
     assert_includes response.body, "No Slack members were returned for that channel."
+  end
+
+  test "managers can only sync people from channels they're in" do
+    @manager.update!(slack_user_id: "UOUTSIDER")
+    slack_client = mock("SlackClient")
+    slack_client.expects(:channel_members).with("secret-channel").returns([ "USOMEONE" ])
+    slack_client.expects(:channel_member_profiles).never
+    SlackClient.stubs(:instance).returns(slack_client)
+    sign_in(@manager, "manager-access-token")
+
+    assert_no_difference "StandupParticipant.count" do
+      post sync_manager_standup_participants_path(@owned_standup), params: { channel: "secret-channel" }
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "only sync people from a channel you&#39;re in"
   end
 
   private

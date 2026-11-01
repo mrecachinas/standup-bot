@@ -96,9 +96,50 @@
     });
   };
 
+  const currentTheme = () => {
+    try { return localStorage.getItem("theme") || "system"; } catch (_) { return "system"; }
+  };
+
+  const applyTheme = (theme) => {
+    if (theme === "light" || theme === "dark") {
+      document.documentElement.dataset.theme = theme;
+    } else {
+      delete document.documentElement.dataset.theme;
+    }
+    document.querySelectorAll("[data-theme-value]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.themeValue === theme));
+    });
+  };
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-theme-value]");
+    if (!button) return;
+    const theme = button.dataset.themeValue;
+    try {
+      if (theme === "system") localStorage.removeItem("theme"); else localStorage.setItem("theme", theme);
+    } catch (_) {}
+    applyTheme(theme);
+  });
+
+  // New standups preview in the creator's timezone when the server doesn't know it.
+  const detectPreviewTimezone = (root) => {
+    root.querySelectorAll("select[data-detect-timezone]").forEach((select) => {
+      select.removeAttribute("data-detect-timezone");
+      let zone;
+      try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) { return; }
+      const option = zone && select.querySelector(`option[data-iana="${CSS.escape(zone)}"]`);
+      if (!option || option.selected) return;
+      select.value = option.value;
+      const form = select.closest("form");
+      if (form) schedulePreview(form);
+    });
+  };
+
   const init = (root) => {
     syncScheduleFields(root);
+    detectPreviewTimezone(root);
     dismissFlashes();
+    applyTheme(currentTheme());
   };
 
   document.addEventListener("DOMContentLoaded", () => init(document));

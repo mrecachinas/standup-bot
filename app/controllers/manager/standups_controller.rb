@@ -4,6 +4,7 @@ module Manager
 
     PREVIEW_OCCURRENCE_COUNT = 5
     OVERVIEW_PERIOD_DAYS = 14
+    BLANK_TEMPLATE_ATTRIBUTES = { schedule_type: "weekdays", schedule_days: [], default_hour: 9, default_minute: 30, questions: [] }.freeze
     MIN_QUESTION_ROWS = 3
     BLANK_PARTICIPANT_ROWS = 1
     TEMPLATES = {
@@ -70,9 +71,12 @@ module Manager
 
     def new
       @template_key = params[:template].presence_in(TEMPLATES.keys + [ "blank" ]) || "daily"
-      template_attributes = TEMPLATES.dig(@template_key, :attributes) || { schedule_type: "daily", questions: [] }
+      template_attributes = TEMPLATES.dig(@template_key, :attributes) || BLANK_TEMPLATE_ATTRIBUTES
       @standup = Standup.new(respect_timezone: true, active: true, **template_attributes)
-      prepare_wizard
+      creator_rows = creator_participant_rows
+      @default_preview_timezone = rails_time_zone_name(creator_rows.first&.dig(:cached_timezone))
+      @detect_preview_timezone = @default_preview_timezone.nil?
+      prepare_wizard(participant_rows: creator_rows)
     end
 
     def edit
@@ -203,7 +207,7 @@ module Manager
         question_rows: [],
         questions: [],
         schedule_days: [],
-        participants: [ :id, :slack_id, :slack_name, :cached_timezone, :active, :_destroy ]
+        participants: [ :id, :slack_id, :original_slack_id, :slack_name, :cached_timezone, :active, :_destroy ]
       )
       attrs = permitted.to_h
       attrs.delete("participants")
@@ -234,7 +238,7 @@ module Manager
       @question_rows = padded_question_rows(Array(@standup.questions))
       @participant_rows = padded_participant_rows(participant_rows || participant_rows_for(@standup))
       @preview_timezone = preview_timezone_param
-      @time_zone_options = ActiveSupport::TimeZone.all.map(&:name)
+      @time_zone_options = ActiveSupport::TimeZone.all.map { |zone| [ zone.name, zone.name, { data: { iana: zone.tzinfo.identifier } } ] }
       prepare_schedule_preview
     end
 
@@ -284,7 +288,29 @@ module Manager
     end
 
     def preview_timezone_param
-      params[:preview_timezone].presence || DEFAULT_PREVIEW_TIMEZONE
+      params[:preview_timezone].presence || @default_preview_timezone || DEFAULT_PREVIEW_TIMEZONE
+    end
+
+    # Whoever creates a standup usually takes part in it, so start with them on the roster.
+    def creator_participant_rows
+      slack_id = current_user.slack_user_id.presence || session[:slack_id].presence
+      return [] unless slack_id
+
+      known = StandupParticipant.where(slack_id: slack_id).order(Arel.sql("cached_timezone IS NULL"), updated_at: :desc).first
+      [ {
+        id: nil,
+        slack_id: slack_id,
+        slack_name: known&.slack_name.presence || current_user.name,
+        cached_timezone: known&.cached_timezone,
+        active: true,
+        destroy: false
+      } ]
+    end
+
+    def rails_time_zone_name(iana_name)
+      return if iana_name.blank?
+
+      ActiveSupport::TimeZone.all.find { |zone| zone.tzinfo.identifier == iana_name }&.name
     end
 
     def padded_question_rows(rows)
@@ -315,7 +341,7 @@ module Manager
       return [] unless params[:standup].present?
 
       raw_rows = params.require(:standup).permit(
-        participants: [ :id, :slack_id, :slack_name, :cached_timezone, :active, :_destroy ]
+        participants: [ :id, :slack_id, :original_slack_id, :slack_name, :cached_timezone, :active, :_destroy ]
       )[:participants]
 
       ordered_participant_rows(raw_rows).map { |row| sanitize_participant_row(row) }
@@ -336,12 +362,16 @@ module Manager
 
     def sanitize_participant_row(row)
       attributes = row.to_h
-      slack_identifier = attributes["slack_id"].to_s.strip
+      slack_id = normalize_participant_identifier(attributes["slack_id"].to_s.strip)
+      # If someone typed a different person into a pre-filled row, the cached
+      # name and timezone belong to the old person, so look the new one up instead.
+      original_slack_id = attributes["original_slack_id"].to_s.strip
+      replaced = original_slack_id.present? && slack_id != normalize_participant_identifier(original_slack_id)
       {
         id: attributes["id"].presence,
-        slack_id: normalize_participant_identifier(slack_identifier),
-        slack_name: attributes["slack_name"].to_s.strip,
-        cached_timezone: attributes["cached_timezone"].to_s.strip.presence,
+        slack_id: slack_id,
+        slack_name: replaced ? "" : attributes["slack_name"].to_s.strip,
+        cached_timezone: replaced ? nil : attributes["cached_timezone"].to_s.strip.presence,
         active: boolean_param(attributes.key?("active") ? attributes["active"] : true),
         destroy: boolean_param(attributes["_destroy"])
       }

@@ -4,6 +4,12 @@
     <title><%= [ content_for(:title), "Standup Bot" ].compact_blank.join(" · ") %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="turbo-cache-control" content="no-preview">
+    <script>
+      try {
+        const theme = localStorage.getItem("theme");
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch (_) {}
+    </script>
     <%= csrf_meta_tags %>
     <link rel="stylesheet" href="/application.css?v=<%= File.mtime(Rails.root.join("public/application.css")).to_i %>">
     <%= javascript_include_tag "https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.23/dist/turbo.es2017-umd.js",
@@ -70,11 +76,16 @@
           <% end %>
 
           <div class="sidebar-footer">
+            <div class="theme-switch" role="group" aria-label="Theme" data-theme-switch>
+              <% [ [ "system", "Auto", :monitor ], [ "light", "Light", :sun ], [ "dark", "Dark", :moon ] ].each do |value, label, icon_name| %>
+                <button type="button" data-theme-value="<%= value %>" aria-pressed="false" title="<%= label %> theme"><%= icon(icon_name) %><span><%= label %></span></button>
+              <% end %>
+            </div>
             <div class="user">
               <%= avatar(display_name) %>
               <div class="user-meta">
                 <div class="user-name truncate"><%= display_name %></div>
-                <div class="user-role"><%= current_user&.role || "Member" %></div>
+                <div class="user-role"><%= current_user&.admin? ? "Admin" : "Member" %></div>
               </div>
               <%= button_to session_path,
                 method: :delete,

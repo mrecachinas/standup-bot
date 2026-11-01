@@ -114,6 +114,15 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
     assert_equal({ "channel" => "C123", "ts" => "123.456" }, result.metadata)
   end
 
+  test "private channels only show up in discovery for admins" do
+    records = [ { "id" => "C1", "label" => "#general", "is_private" => false }, { "id" => "G1", "label" => "#secret-project", "is_private" => true } ]
+    client = stub(list_channels: records)
+    service = SlackIntegrationService.new(client: client, config: { bot_token: "xoxb-test" })
+
+    assert_equal [ "C1" ], service.discover_channels(query: nil, include_private: false).records.map { |record| record["id"] }
+    assert_equal 2, service.discover_channels(query: nil).records.size
+  end
+
   private
 
   def service

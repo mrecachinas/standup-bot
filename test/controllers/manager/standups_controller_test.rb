@@ -85,6 +85,30 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='standup[schedule_days][]'][value='5'][checked]"
   end
 
+  test "new standups start with the creator on the roster and their timezone in the preview" do
+    standup_participants(:one).update!(cached_timezone: "America/New_York")
+    @manager.update!(slack_user_id: standup_participants(:one).slack_id)
+    sign_in(@manager, "manager-access-token")
+
+    get new_manager_standup_path
+
+    assert_response :success
+    assert_select "input[name='standup[participants][0][slack_id]'][value='#{standup_participants(:one).slack_id}']"
+    assert_select "select[name='preview_timezone'] option[selected][value='Eastern Time (US & Canada)']"
+    assert_select "select[name='preview_timezone'][data-detect-timezone]", count: 0
+  end
+
+  test "new standups detect the browser timezone when the creator's is unknown" do
+    sign_in(@manager, "manager-access-token")
+
+    get new_manager_standup_path(template: "blank")
+
+    assert_response :success
+    assert_select "select[name='preview_timezone'][data-detect-timezone]"
+    assert_select "select[name='standup[schedule_type]'] option[selected][value='weekdays']"
+    assert_select "input[name='standup[send_time]'][value='09:30']"
+  end
+
   test "standup overview shows stats, recent runs, and upcoming schedule" do
     sign_in(@manager, "manager-access-token")
 
@@ -295,6 +319,28 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     audit_log = AuditLog.where(action: "standup.create").order(:created_at).last
     assert_equal @manager, audit_log.actor
     assert_equal [ "added", "added" ], audit_log.metadata.fetch("participants").map { |participant| participant.fetch("action") }
+  end
+
+  test "replacing the pre-filled creator row looks up the new person instead of keeping the creator's details" do
+    SlackUserResolver.any_instance.expects(:resolve)
+      .with("UNEWGUY", fallback_name: "")
+      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UNEWGUY", slack_name: "New Guy", cached_timezone: "Europe/Berlin"))
+    sign_in(@manager, "manager-access-token")
+
+    post manager_standups_path,
+      params: {
+        preview_timezone: "UTC",
+        standup: wizard_standup_params(
+          name: "Replaced Creator Standup",
+          participants: {
+            "0" => { slack_id: "UNEWGUY", original_slack_id: "UCREATOR", slack_name: "Creator Name", cached_timezone: "America/New_York", active: "1" }
+          }
+        )
+      }
+
+    participant = Standup.find_by!(name: "Replaced Creator Standup").standup_participants.sole
+    assert_equal "New Guy", participant.slack_name
+    assert_equal "Europe/Berlin", participant.cached_timezone
   end
 
   test "wizard resolves Slack usernames before creating participants" do

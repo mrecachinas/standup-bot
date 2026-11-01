@@ -50,10 +50,11 @@ class SlackIntegrationService
     failure_result(error, "validate the Slack API connection")
   end
 
-  def discover_channels(query: nil, limit: DEFAULT_LIMIT)
+  def discover_channels(query: nil, limit: DEFAULT_LIMIT, include_private: true)
     return missing_config_result(:bot_token) unless configured?(:bot_token)
 
     records = client.list_channels(query: query, limit: normalized_limit(limit))
+    records = records.reject { |record| record["is_private"] } unless include_private
     Result.new(status: "ok", records: records, message: "Found #{records.size} Slack channel(s).")
   rescue StandardError => error
     failure_result(error, "discover Slack channels")

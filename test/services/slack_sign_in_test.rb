@@ -3,6 +3,7 @@ require "test_helper"
 class SlackSignInTest < ActiveSupport::TestCase
   setup do
     Rails.application.config.stubs(:slack).returns({ client_id: "123.456", client_secret: "client-secret", team_id: "T123" })
+    SlackClient.any_instance.stubs(:get_user_info).returns("name" => "john", "is_restricted" => false, "is_ultra_restricted" => false, "deleted" => false, "is_bot" => false)
   end
 
   test "exchanges the code and reads the Slack identity" do
@@ -77,5 +78,32 @@ class SlackSignInTest < ActiveSupport::TestCase
       SlackSignIn.new.identity_for(code: "abc", redirect_uri: "https://app.example.com/auth/slack/callback")
     end
     assert_match "SLACK_TEAM_ID", error.message
+  end
+
+  test "rejects Slack guests" do
+    SlackClient.any_instance.stubs(:get_user_info).returns("name" => "guest", "is_restricted" => true)
+    Slack::Web::Client.any_instance.stubs(:openid_connect_token).returns("access_token" => "xoxp-user")
+    Slack::Web::Client.any_instance.stubs(:openid_connect_userInfo).returns(
+      "https://slack.com/user_id" => "UGUEST",
+      "https://slack.com/team_id" => "T123"
+    )
+
+    error = assert_raises(SlackSignIn::Error) do
+      SlackSignIn.new.identity_for(code: "abc", redirect_uri: "https://app.example.com/auth/slack/callback")
+    end
+    assert_match "Guest", error.message
+  end
+
+  test "refuses sign-in when Slack can't confirm the account" do
+    SlackClient.any_instance.stubs(:get_user_info).returns(nil)
+    Slack::Web::Client.any_instance.stubs(:openid_connect_token).returns("access_token" => "xoxp-user")
+    Slack::Web::Client.any_instance.stubs(:openid_connect_userInfo).returns(
+      "https://slack.com/user_id" => "U123456",
+      "https://slack.com/team_id" => "T123"
+    )
+
+    assert_raises(SlackSignIn::Error) do
+      SlackSignIn.new.identity_for(code: "abc", redirect_uri: "https://app.example.com/auth/slack/callback")
+    end
   end
 end
