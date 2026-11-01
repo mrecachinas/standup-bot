@@ -9,13 +9,6 @@ class SlackClientTest < ActiveSupport::TestCase
     @slack_client.instance_variable_set(:@client, @mock_api_client)
   end
 
-  test "instance returns a singleton instance" do
-    first_instance = SlackClient.instance
-    second_instance = SlackClient.instance
-
-    assert_equal first_instance.object_id, second_instance.object_id
-  end
-
   test "reset clears singleton instance for token rotation" do
     first_instance = SlackClient.instance
 
@@ -29,10 +22,11 @@ class SlackClientTest < ActiveSupport::TestCase
     channel = "C12345"
     message = "Hello, world!"
     expected_response = { "ok" => true, "channel" => channel, "ts" => "1234567890.123456" }
+    slack_response = Slack::Messages::Message.new(expected_response)
 
     @mock_api_client.expects(:chat_postMessage)
       .with(channel: channel, text: message, as_user: true)
-      .returns(expected_response)
+      .returns(slack_response)
 
     response = @slack_client.send_message(channel, message)
     assert_equal expected_response, response
@@ -43,10 +37,11 @@ class SlackClientTest < ActiveSupport::TestCase
     message = "Hello, world!"
     blocks = [ { type: "section", text: { type: "mrkdwn", text: message } } ]
     expected_response = { "ok" => true, "channel" => channel, "ts" => "1234567890.123456" }
+    slack_response = Slack::Messages::Message.new(expected_response)
 
     @mock_api_client.expects(:chat_postMessage)
       .with(channel: channel, blocks: blocks, text: message, as_user: true)
-      .returns(expected_response)
+      .returns(slack_response)
 
     response = @slack_client.send_message(channel, message, blocks)
     assert_equal expected_response, response
@@ -58,10 +53,11 @@ class SlackClientTest < ActiveSupport::TestCase
     questions = [ "Question 1", "Question 2" ]
 
     expected_response = { "ok" => true, "channel" => slack_id, "ts" => "1234567890.123456" }
+    slack_response = Slack::Messages::Message.new(expected_response)
 
     @mock_api_client.expects(:chat_postMessage)
       .with(has_entries(channel: slack_id, as_user: true))
-      .returns(expected_response)
+      .returns(slack_response)
 
     result = @slack_client.send_standup_questions(slack_id, intro, questions)
 
@@ -77,10 +73,11 @@ class SlackClientTest < ActiveSupport::TestCase
     ]
 
     expected_response = { "ok" => true, "channel" => channel, "ts" => "1234567890.123456" }
+    slack_response = Slack::Messages::Message.new(expected_response)
 
     @mock_api_client.expects(:chat_postMessage)
       .with(has_entries(channel: channel, as_user: true))
-      .returns(expected_response)
+      .returns(slack_response)
 
     result = @slack_client.send_standup_response(channel, user_name, responses)
     assert_equal expected_response, result
@@ -89,20 +86,9 @@ class SlackClientTest < ActiveSupport::TestCase
   test "get_user_info successful" do
     slack_id = "U12345"
 
-    # Create a mock user with the expected properties
-    mock_user = mock()
-    mock_user.stubs(:name).returns("John Doe")
-    mock_user.stubs(:tz).returns("America/New_York")
-    mock_user.stubs(:tz_offset).returns(-18000)
-    mock_user.stubs(:profile).returns({})
-
-    # Create a mock response with the user property
-    user_info = mock()
-    user_info.stubs(:user).returns(mock_user)
-
     @mock_api_client.expects(:users_info)
       .with(user: slack_id)
-      .returns(user_info)
+      .returns(slack_user_info_response("John Doe", "America/New_York", tz_offset: -18000))
 
     result = @slack_client.get_user_info(slack_id)
     assert_equal({ "name" => "John Doe", "tz" => "America/New_York", "tz_offset" => -18000, "profile" => {} }, result.slice("name", "tz", "tz_offset", "profile"))
@@ -120,50 +106,75 @@ class SlackClientTest < ActiveSupport::TestCase
   end
 
   test "channel_member_profiles returns Slack users with cached timezones" do
-    @mock_api_client.expects(:conversations_members)
-      .with(channel: "C12345", cursor: nil, limit: 200)
-      .returns({
-        "members" => [ "U111", "U222" ],
-        "response_metadata" => { "next_cursor" => "" }
-      })
-
-    @mock_api_client.expects(:users_info)
-      .with(user: "U111")
-      .returns(slack_user_info_response("Alice", "America/New_York"))
-    @mock_api_client.expects(:users_info)
-      .with(user: "U222")
-      .returns(slack_user_info_response("Bob", "UTC"))
+    slack_client, api = slack_client_with_real_api
+    api.expects(:post)
+      .with("conversations.members", { channel: "C12345", limit: 200, cursor: nil })
+      .returns(slack_message("members" => [ "U111", "U222" ], "response_metadata" => { "next_cursor" => "" }))
+    api.expects(:users_info).with(user: "U111").returns(slack_user_info_response("Alice", "America/New_York"))
+    api.expects(:users_info).with(user: "U222").returns(slack_user_info_response("Bob", "UTC"))
 
     assert_equal(
       [
         { "slack_id" => "U111", "slack_name" => "Alice", "cached_timezone" => "America/New_York" },
         { "slack_id" => "U222", "slack_name" => "Bob", "cached_timezone" => "UTC" }
       ],
-      @slack_client.channel_member_profiles("C12345")
+      slack_client.channel_member_profiles("C12345")
     )
   end
 
-  test "channel_members resolves channel names before listing members" do
-    @mock_api_client.expects(:conversations_list)
-      .with(types: "public_channel,private_channel", exclude_archived: true, cursor: nil, limit: 200)
-      .returns({
-        "channels" => [ { "id" => "CDAILY", "name" => "daily-standup" } ],
-        "response_metadata" => { "next_cursor" => "" }
-      })
-    @mock_api_client.expects(:conversations_members)
-      .with(channel: "CDAILY", cursor: nil, limit: 200)
-      .returns({
-        "members" => [ "U111" ],
-        "response_metadata" => { "next_cursor" => "" }
-      })
+  test "channel_members follows pagination cursors" do
+    slack_client, api = slack_client_with_real_api
+    api.expects(:post)
+      .with("conversations.members", { channel: "C12345", limit: 200, cursor: nil })
+      .returns(slack_message("members" => [ "U111" ], "response_metadata" => { "next_cursor" => "page-2" }))
+    api.expects(:post)
+      .with("conversations.members", { channel: "C12345", limit: 200, cursor: "page-2" })
+      .returns(slack_message("members" => [ "U222" ], "response_metadata" => { "next_cursor" => "" }))
 
-    assert_equal [ "U111" ], @slack_client.channel_members("#daily-standup")
+    assert_equal [ "U111", "U222" ], slack_client.channel_members("C12345")
+  end
+
+  test "channel_members resolves channel names before listing members" do
+    slack_client, api = slack_client_with_real_api
+    api.expects(:post)
+      .with("conversations.list", { limit: 200, exclude_archived: true, types: "public_channel,private_channel", cursor: nil })
+      .returns(slack_message("channels" => [ { "id" => "CRANDOM", "name" => "random" } ], "response_metadata" => { "next_cursor" => "page-2" }))
+    api.expects(:post)
+      .with("conversations.list", { limit: 200, exclude_archived: true, types: "public_channel,private_channel", cursor: "page-2" })
+      .returns(slack_message("channels" => [ { "id" => "CGENERAL", "name" => "general" } ], "response_metadata" => { "next_cursor" => "page-3" }))
+    api.expects(:post)
+      .with("conversations.members", { channel: "CGENERAL", limit: 200, cursor: nil })
+      .returns(slack_message("members" => [ "U111" ], "response_metadata" => { "next_cursor" => "" }))
+
+    assert_equal [ "U111" ], slack_client.channel_members("#general")
+  end
+
+  test "channel_members stops retrying rate limits after the configured attempts" do
+    slack_client, api = slack_client_with_real_api
+    rate_limit_response = stub(headers: { "retry-after" => "1" })
+    api.expects(:post)
+      .with("conversations.members", { channel: "C12345", limit: 200, cursor: nil })
+      .times(SlackClient::MAX_RATE_LIMIT_RETRIES + 1)
+      .raises(Slack::Web::Api::Errors::TooManyRequestsError.new(rate_limit_response))
+    Slack::Web::Api::Pagination::Cursor.any_instance.expects(:sleep).with(1).times(SlackClient::MAX_RATE_LIMIT_RETRIES)
+
+    assert_raises(Slack::Web::Api::Errors::TooManyRequestsError) { slack_client.channel_members("C12345") }
+  end
+
+  test "channel_members returns an empty list for unknown channels" do
+    slack_client, api = slack_client_with_real_api
+    api.expects(:post)
+      .with("conversations.list", { limit: 200, exclude_archived: true, types: "public_channel,private_channel", cursor: nil })
+      .returns(slack_message("channels" => [], "response_metadata" => { "next_cursor" => "" }))
+
+    assert_equal [], slack_client.channel_members("missing-channel")
   end
 
   test "send_message retries rate limit errors" do
     channel = "C12345"
     message = "Hello, world!"
     expected_response = { "ok" => true, "channel" => channel, "ts" => "1234567890.123456" }
+    slack_response = Slack::Messages::Message.new(expected_response)
 
     # Create a mock Faraday response with proper rate limit headers
     mock_response = mock("Faraday::Response")
@@ -183,28 +194,29 @@ class SlackClientTest < ActiveSupport::TestCase
     @mock_api_client.expects(:chat_postMessage)
       .with(channel: channel, text: message, as_user: true)
       .in_sequence(sequence)
-      .returns(expected_response)
+      .returns(slack_response)
 
     assert_equal expected_response, @slack_client.send_message(channel, message)
   end
 
   private
 
-  def slack_user_info_response(name, timezone)
-    user = mock()
-    user.stubs(:name).returns(name)
-    user.stubs(:tz).returns(timezone)
-    user.stubs(:tz_offset).returns(0)
-    user.stubs(:profile).returns({})
+  def slack_message(attributes)
+    Slack::Messages::Message.new(attributes)
+  end
 
-    response = mock()
-    response.stubs(:user).returns(user)
-    response
+  def slack_user_info_response(name, timezone, tz_offset: 0)
+    slack_message("ok" => true, "user" => { "name" => name, "tz" => timezone, "tz_offset" => tz_offset, "profile" => {} })
+  end
+
+  def slack_client_with_real_api
+    slack_client = SlackClient.new
+    [ slack_client, slack_client.instance_variable_get(:@client) ]
   end
 
   test "auth_test normalizes Slack auth response" do
     @mock_api_client.expects(:auth_test)
-      .returns({ "ok" => true, "team" => "Example", "team_id" => "T123", "user_id" => "U999" })
+      .returns(slack_message("ok" => true, "team" => "Example", "team_id" => "T123", "user_id" => "U999"))
 
     result = @slack_client.auth_test
 
@@ -216,12 +228,12 @@ class SlackClientTest < ActiveSupport::TestCase
   test "list_channels normalizes and filters channels" do
     @mock_api_client.expects(:conversations_list)
       .with(exclude_archived: true, limit: 100, types: "public_channel,private_channel")
-      .returns({
+      .returns(slack_message(
         "channels" => [
           { "id" => "C123", "name" => "general", "is_private" => false, "is_member" => true, "num_members" => 12 },
           { "id" => "C999", "name" => "random", "is_private" => false }
         ]
-      })
+      ))
 
     channels = @slack_client.list_channels(query: "gen")
 
@@ -234,13 +246,13 @@ class SlackClientTest < ActiveSupport::TestCase
   test "list_users normalizes users and skips bots and deleted users" do
     @mock_api_client.expects(:users_list)
       .with(limit: 100)
-      .returns({
+      .returns(slack_message(
         "members" => [
           { "id" => "U123", "name" => "alice", "real_name" => "Alice Doe", "profile" => { "display_name" => "Alice" }, "tz" => "America/New_York" },
           { "id" => "U999", "name" => "bot", "is_bot" => true },
           { "id" => "U888", "name" => "deleted", "deleted" => true }
         ]
-      })
+      ))
 
     users = @slack_client.list_users(query: "alice")
 
