@@ -183,8 +183,6 @@ class SlackSlashCommandsController < ApplicationController
       "• #{standup.name}: in progress (#{answered}/#{standup.questions.size} questions answered)"
     when "completed"
       "• #{standup.name}: complete ✅"
-    when "skipped", "cancelled"
-      "• #{standup.name}: #{response.status}"
     else
       "• #{standup.name}: #{response.status}"
     end

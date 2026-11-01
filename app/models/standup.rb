@@ -106,7 +106,6 @@ class Standup < ApplicationRecord
       .first(count)
   end
 
-  # Calculate the next occurrence of this standup in the given timezone
   def next_occurrence_in_timezone(timezone)
     next_occurrence_detail_in_timezone(timezone)&.scheduled_at
   end

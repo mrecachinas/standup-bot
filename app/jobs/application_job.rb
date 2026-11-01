@@ -6,7 +6,6 @@ class ApplicationJob < ActiveJob::Base
   retry_on Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED,
            wait: :exponentially_longer, attempts: 3
 
-  # Discard jobs where the record no longer exists
   discard_on ActiveRecord::RecordNotFound
 
   def self.slack_client

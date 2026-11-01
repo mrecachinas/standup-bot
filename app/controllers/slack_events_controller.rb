@@ -9,8 +9,6 @@ class SlackEventsController < ApplicationController
   end
 
   def interactions
-    Rails.logger.info "Received Slack interaction payload"
-
     payload = parse_interaction_payload
     return if performed?
 
@@ -26,9 +24,7 @@ class SlackEventsController < ApplicationController
   end
 
   def events
-    # Handle URL verification challenge from Slack
     if params[:type] == "url_verification"
-      Rails.logger.info "Handling Slack URL verification challenge"
       challenge = params[:challenge].to_s
 
       unless valid_slack_challenge?(challenge)
@@ -48,10 +44,9 @@ class SlackEventsController < ApplicationController
 
     Rails.logger.info "Received Slack event=#{event_type} subtype=#{subtype} from user=#{user_id} in channel=#{channel}"
 
-    # Process the event asynchronously
     SlackEventProcessorJob.perform_later(event_params.to_h)
 
-    # Acknowledge receipt right away (Slack expects a quick response)
+    # Slack retries events that aren't acknowledged within 3 seconds.
     head :ok
   end
 

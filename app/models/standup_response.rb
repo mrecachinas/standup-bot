@@ -15,7 +15,6 @@ class StandupResponse < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validate :answers_length_valid
 
-  # Scopes
   scope :pending, -> { where(status: "pending") }
   scope :completed, -> { where(status: "completed") }
   scope :skipped, -> { where(status: "skipped") }
