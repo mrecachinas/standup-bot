@@ -5,7 +5,6 @@ class StandupMessageJob < ApplicationJob
     Rails.logger.info "Sending standup message to user #{slack_id} for standup #{standup_id}"
 
     standup = Standup.find(standup_id)
-    Rails.logger.info "Found standup: #{standup.name}"
 
     participant = standup.standup_participants.find_by(slack_id: slack_id)
     lock_record = participant || standup
@@ -31,7 +30,6 @@ class StandupMessageJob < ApplicationJob
         return
       end
 
-      # Cancel any previous pending responses for this user in this standup
       StandupResponseService.cancel_previous_pending_responses(
         slack_id,
         standup_id,
@@ -39,27 +37,12 @@ class StandupMessageJob < ApplicationJob
         response_time_zone_for(participant)
       )
 
-      # Format intro with the first question
-      first_question = standup.questions.first
-      formatted_question = StandupFormatter.format_question(
-        first_question,
-        1,
-        standup.questions.size
-      )
+      formatted_question = StandupFormatter.format_question(standup.questions.first, 1, standup.questions.size)
+      message_text = [ standup.intro, "", formatted_question ].join("\n")
 
-      message_text = [
-        standup.intro,
-        "",
-        formatted_question
-      ].join("\n")
-
-      # Use the inherited slack_client
-      Rails.logger.info "Sending initial standup question to user #{slack_id}"
       message_response = slack_client.send_message(slack_id, message_text)
       message_channel = response_value(message_response, "channel") || slack_id
-      Rails.logger.info "Message sent successfully to channel: #{message_channel}"
 
-      # Create a pending standup response record
       standup_response = StandupResponse.create!(
         slack_id: slack_id,
         standup_id: standup_id,
@@ -68,7 +51,6 @@ class StandupMessageJob < ApplicationJob
         standup_date: resolved_standup_date,
         answers: []
       )
-      Rails.logger.info "Created pending standup response with ID: #{standup_response.id}"
       StandupMetrics.track("standup.sent", standup_id: standup_id, slack_id: slack_id, response_id: standup_response.id)
     end
   end

@@ -9,12 +9,10 @@ class ApplicationJob < ActiveJob::Base
   # Discard jobs where the record no longer exists
   discard_on ActiveRecord::RecordNotFound
 
-  # Provide a memoized slack client for all job classes
   def self.slack_client
     SlackClient.instance
   end
 
-  # Allow instance methods to access the class method
   delegate :slack_client, to: :class
 
   private
