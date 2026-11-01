@@ -1,0 +1,201 @@
+<% content_for :title, "Admin" %>
+<% checks = @health[:checks] %>
+<% standups = @metrics[:standups] %>
+<% recent = @metrics[:recent_activity] %>
+<% status_counts = @metrics[:responses] %>
+<% status_total = status_counts.values.sum %>
+<% overall_tone = { "healthy" => "success", "degraded" => "warning", "unhealthy" => "danger" }[@health[:status]] %>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-text">
+      <div class="title-row">
+        <h1>Admin</h1>
+        <%= status_badge(@health[:status].to_s.capitalize, overall_tone) %>
+      </div>
+      <p class="page-subtitle">Installation health, usage, and recent changes. Checked <%= relative_time(Time.zone.parse(@health[:timestamp])) %>.</p>
+    </div>
+    <%= link_to admin_root_path, class: "btn" do %>
+      <%= icon(:refresh) %> Refresh
+    <% end %>
+  </div>
+
+  <div class="grid grid-3">
+    <% [
+      [ :database, "Database", :database ],
+      [ :job_queue, "Job queue", :layers ],
+      [ :slack_api, "Slack", :hash ]
+    ].each do |key, label, icon_name| %>
+      <% check = checks[key] || {} %>
+      <% state = check[:status].to_s.presence || "warn" %>
+      <section class="card health health-<%= state %> card-body" id="health-<%= key.to_s.dasherize %>">
+        <span class="health-icon"><%= icon(icon_name) %></span>
+        <div class="grow stack-sm">
+          <div class="flex items-center justify-between gap-2">
+            <h2><%= label %></h2>
+            <% state_label = key == :slack_api && state == "warn" && !check[:configured] ? "Not configured" : { "ok" => "Operational", "warn" => "Degraded", "error" => "Down" }.fetch(state, state) %>
+            <%= status_badge(state_label, { "ok" => "success", "warn" => "warning", "error" => "danger" }[state]) %>
+          </div>
+          <dl class="kv small">
+            <% case key %>
+            <% when :database %>
+              <dt>Adapter</dt><dd><%= check[:adapter] || "—" %></dd>
+              <dt>Latency</dt><dd><%= check[:latency_ms] ? "#{check[:latency_ms]} ms" : check[:message] %></dd>
+            <% when :job_queue %>
+              <dt>Adapter</dt><dd><%= check[:adapter] %></dd>
+              <dt>Pending</dt><dd><%= check[:pending_jobs] || "—" %></dd>
+              <dt>Failed</dt><dd class="<%= "strong" if check[:failed_jobs].to_i.positive? %>"><%= check[:failed_jobs] || "—" %></dd>
+              <% if check[:message].present? %><dt>Error</dt><dd><%= check[:message] %></dd><% end %>
+            <% when :slack_api %>
+              <dt>Bot token</dt><dd><%= check[:bot_token_configured] ? "Configured" : "Missing" %></dd>
+              <dt>Signing secret</dt><dd><%= check[:signing_secret_configured] ? "Configured" : "Missing" %></dd>
+              <dt>Last message</dt><dd><%= check[:last_successful_message_at].present? ? relative_time(Time.zone.parse(check[:last_successful_message_at].to_s)) : "—" %></dd>
+            <% end %>
+          </dl>
+        </div>
+      </section>
+    <% end %>
+  </div>
+
+  <dl class="stats">
+    <div class="stat">
+      <dt>Standups</dt>
+      <dd><%= standups[:active] + standups[:inactive] %></dd>
+      <span class="stat-sub"><%= standups[:active] %> active · <%= standups[:inactive] %> paused</span>
+    </div>
+    <div class="stat">
+      <dt>Participants</dt>
+      <dd><%= standups[:active_participants] %></dd>
+      <span class="stat-sub"><%= standups[:participants] %> total</span>
+    </div>
+    <div class="stat">
+      <dt>Responses (24h)</dt>
+      <dd><%= recent[:responses_last_24h] %></dd>
+      <span class="stat-sub"><%= recent[:completed_last_24h] %> completed</span>
+    </div>
+    <div class="stat">
+      <dt>Users</dt>
+      <dd><%= @users.count(&:active?) %></dd>
+      <span class="stat-sub"><%= @users.count(&:admin?) %> admin · <%= @users.count(&:manager?) %> manager</span>
+    </div>
+  </dl>
+
+  <div class="grid grid-main-aside">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>Response activity</h2>
+          <p class="hint">Last <%= Admin::DashboardController::ACTIVITY_DAYS %> days, all standups</p>
+        </div>
+        <%= run_legend(pending: @daily_activity.any? { |row| row[:pending].positive? }) %>
+      </div>
+      <div class="card-body">
+        <%= run_breakdown_chart(@daily_activity, height: 200, label: "Responses per day across the installation") %>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h2>All-time responses</h2></div>
+      <div class="card-body stack-sm">
+        <% if status_total.positive? %>
+          <% status_counts.sort_by { |_status, count| -count }.each do |status, count| %>
+            <div>
+              <div class="flex justify-between small">
+                <span><%= status.to_s.titleize %></span>
+                <span class="tabular muted"><%= number_with_delimiter(count) %></span>
+              </div>
+              <%= progress_bar(count * 100.0 / status_total, tone: { "completed" => "success", "expired" => "warning", "cancelled" => "danger" }[status.to_s]) %>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="muted">No responses yet.</p>
+        <% end %>
+      </div>
+    </section>
+  </div>
+
+  <section class="card card-flush">
+    <div class="card-header">
+      <h2>Users</h2>
+      <span class="hint">Create users with <code>bin/rails db:seed</code> or the Rails console</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Role</th>
+            <th class="num">Standups</th>
+            <th>Last sign-in</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @users.each do |user| %>
+            <tr>
+              <td>
+                <div class="person">
+                  <%= avatar(user.name) %>
+                  <div>
+                    <div class="cell-title"><%= user.name %></div>
+                    <div class="cell-sub"><%= user.email %></div>
+                  </div>
+                </div>
+              </td>
+              <td><%= status_badge(user.role.capitalize, user.admin? ? "accent" : nil) %></td>
+              <td class="num"><%= user.admin? ? "All" : @owned_standup_counts.fetch(user.id, 0) %></td>
+              <td><%= relative_time(user.last_signed_in_at) %></td>
+              <td><%= user.active? ? status_badge("Active", "success") : status_badge("Disabled") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="grid grid-2">
+    <section class="card card-flush">
+      <div class="card-header"><h2>Recent changes</h2></div>
+      <% if @audit_logs.any? %>
+        <ul class="list">
+          <% @audit_logs.each do |log| %>
+            <% actor = log.actor&.name || log.actor_label || log.actor_email || "System" %>
+            <li>
+              <%= avatar(actor, size: "sm") %>
+              <div class="grow">
+                <div class="small"><span class="strong"><%= actor %></span> <span class="muted"><%= log.action.tr("._", "  ") %></span></div>
+                <div class="cell-sub"><%= log.auditable_type.to_s.titleize %> #<%= log.auditable_id %></div>
+              </div>
+              <span class="xsmall muted nowrap"><%= relative_time(log.created_at) %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="empty-inline">No changes recorded yet.</p>
+      <% end %>
+    </section>
+
+    <section class="card card-flush">
+      <div class="card-header"><h2>Failed reports</h2></div>
+      <% if @failed_reports.any? %>
+        <ul class="list">
+          <% @failed_reports.each do |report| %>
+            <li>
+              <span class="dot dot-danger"></span>
+              <div class="grow">
+                <%= link_to report.standup.name, manager_standup_report_path(report.standup), class: "cell-title" %>
+                <div class="cell-sub"><%= report.error_message.presence || "Unknown error" %></div>
+              </div>
+              <span class="xsmall muted nowrap"><%= relative_time(report.requested_at) %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <div class="empty">
+          <span class="empty-icon"><%= icon(:check) %></span>
+          <p>No failed report deliveries.</p>
+        </div>
+      <% end %>
+    </section>
+  </div>
+</div>

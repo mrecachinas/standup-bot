@@ -53,7 +53,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
     follow_redirect!
     assert_response :success
-    assert_includes response.body, "Manager sign in"
+    assert_includes response.body, "<h1>Sign in</h1>"
   end
 
   private

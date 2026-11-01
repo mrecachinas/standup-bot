@@ -1,101 +1,147 @@
-<turbo-frame id="standups_dashboard">
-  <section class="space-y-6">
-    <% active_count = @dashboard_items.count { |item| item.standup.active? } %>
-    <% paused_count = @dashboard_items.size - active_count %>
-    <% participant_count = @dashboard_items.sum(&:participant_count) %>
-    <% average_completion = @dashboard_items.any? ? (@dashboard_items.sum(&:completion_rate).to_f / @dashboard_items.size).round : 0 %>
-    <% paused_items = @dashboard_items.select { |item| !item.standup.active? } %>
+<% content_for :title, "Overview" %>
+<% items = @dashboard_items %>
+<% active_count = items.count { |item| item.standup.active? } %>
+<% paused_count = items.size - active_count %>
+<% participant_total = items.sum(&:participant_count) %>
+<% expected_total = items.sum(&:expected_responses) %>
+<% completed_total = items.sum(&:completed_responses) %>
+<% overall_rate = expected_total.positive? ? (completed_total * 100.0 / expected_total) : nil %>
+<% daily = @dashboard.daily_totals %>
+<% attention = items.select(&:needs_attention?) %>
 
-    <div class="dashboard-summary">
-      <div class="dashboard-summary-copy">
-        <p class="dashboard-kicker">Manager dashboard</p>
-        <h1>Managed standups</h1>
-        <p class="dashboard-summary-copy-text">See which rituals need intervention, which are healthy, and what setup work is still pending.</p>
-        <div class="hero-actions">
-          <%= link_to "New standup", new_manager_standup_path, class: "button-primary", data: { turbo_frame: "_top" } %>
-          <%= link_to "Slack integration", manager_slack_integration_path, class: "button-ghost", data: { turbo_frame: "_top" } %>
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-text">
+      <h1>Overview</h1>
+      <p class="page-subtitle">How your standups are doing over the last <%= pluralize(@period_days, "day") %>.</p>
+    </div>
+    <%= link_to new_manager_standup_path, class: "btn btn-primary", data: { turbo_frame: "_top" } do %>
+      <%= icon(:plus) %> New standup
+    <% end %>
+  </div>
+
+  <turbo-frame id="standups_dashboard">
+    <div class="stack-lg">
+      <% if items.empty? && @visibility == "all" %>
+        <div class="card">
+          <div class="empty">
+            <span class="empty-icon"><%= icon(:message) %></span>
+            <h2>Create your first standup</h2>
+            <p>Pick a schedule and a few questions. Standup Bot will DM your team in Slack and collect the answers.</p>
+            <div class="btn-row">
+              <%= link_to "New standup", new_manager_standup_path, class: "btn btn-primary", data: { turbo_frame: "_top" } %>
+              <%= link_to "Connect Slack", manager_slack_integration_path, class: "btn", data: { turbo_frame: "_top" } %>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div class="dashboard-summary-panel">
-        <p class="dashboard-summary-panel-label">Current snapshot</p>
-        <dl class="dashboard-summary-stats">
-          <div class="dashboard-summary-stat">
-            <dt>Active</dt>
+      <% else %>
+        <dl class="stats">
+          <div class="stat">
+            <dt>Active standups</dt>
             <dd><%= active_count %></dd>
+            <span class="stat-sub"><%= paused_count.positive? ? "#{paused_count} paused" : "None paused" %></span>
           </div>
-          <div class="dashboard-summary-stat">
-            <dt>Paused</dt>
-            <dd><%= paused_count %></dd>
-          </div>
-          <div class="dashboard-summary-stat">
+          <div class="stat">
             <dt>Participants</dt>
-            <dd><%= participant_count %></dd>
+            <dd><%= participant_total %></dd>
+            <span class="stat-sub">Across <%= pluralize(items.size, "standup") %></span>
           </div>
-          <div class="dashboard-summary-stat">
-            <dt>Avg completion</dt>
-            <dd><%= average_completion %>%</dd>
+          <div class="stat">
+            <dt>Completion rate</dt>
+            <dd><%= percent(overall_rate) %></dd>
+            <span class="stat-sub"><%= number_with_delimiter(completed_total) %> of <%= number_with_delimiter(expected_total) %> expected</span>
+          </div>
+          <div class="stat">
+            <dt>Needs attention</dt>
+            <dd><%= attention.size %></dd>
+            <span class="stat-sub"><%= attention.any? ? "See list below" : "Everything looks healthy" %></span>
           </div>
         </dl>
-        <p class="dashboard-summary-note">
-          <% if paused_count.positive? %>
-            Paused standups surface first so you can restart them before they drift.
-          <% else %>
-            No standups are paused right now.
-          <% end %>
-        </p>
-      </div>
-    </div>
 
-    <div class="toolbar">
-      <nav class="segmented-control" aria-label="Standup visibility">
-        <% [["all", "All"], ["active", "Active"], ["paused", "Paused"]].each do |visibility, label| %>
-          <% selected = @visibility == visibility %>
-          <%= link_to label,
-            manager_standups_path(visibility: visibility, period_days: @period_days),
-            class: "segment #{selected ? "is-active" : ""}",
-            data: { turbo_frame: "standups_dashboard" } %>
-        <% end %>
-      </nav>
-      <p class="text-sm text-slate-600">Metrics use the latest <%= pluralize(@period_days, "day") %> of response history.</p>
-    </div>
-
-    <% if paused_items.any? %>
-      <div class="dashboard-exceptions">
-        <div>
-          <p class="section-title">Paused standups</p>
-          <p class="section-copy">These rituals are offline and should be restarted before they fall further behind.</p>
-        </div>
-        <div class="exception-list">
-          <% paused_items.first(3).each do |item| %>
-            <article class="exception-item">
-              <div class="min-w-0">
-                <%= link_to item.standup.name, manager_standup_path(item.standup), class: "exception-item-link", data: { turbo_frame: "_top" } %>
-                <p class="exception-item-meta">Posting summaries to #<%= item.standup.slack_channel %> · <%= item.latest_run_status %></p>
+        <div class="grid grid-main-aside">
+          <section class="card">
+            <div class="card-header">
+              <div>
+                <h2>Responses by day</h2>
+                <p class="hint">All standups combined</p>
               </div>
-              <span class="status-badge status-paused">Paused</span>
-            </article>
-          <% end %>
-          <% if paused_items.size > 3 %>
-            <p class="exception-item-more"><%= paused_items.size - 3 %> more paused standups</p>
-          <% end %>
-        </div>
-      </div>
-    <% end %>
+              <%= run_legend(pending: daily.any? { |row| row[:pending].positive? }) %>
+            </div>
+            <div class="card-body">
+              <%= run_breakdown_chart(daily, height: 220, label: "Responses by day across all standups") %>
+            </div>
+          </section>
 
-    <% if @dashboard_items.any? %>
-      <div class="grid gap-4">
-        <%= render partial: "standup_card", collection: @dashboard_items, as: :dashboard_item %>
-      </div>
-    <% else %>
-      <div class="empty-state">
-        <h2 class="text-lg font-semibold text-slate-900">Nothing to manage yet</h2>
-        <p class="mt-2 text-sm text-slate-600">Create a standup to start collecting responses and seeing operational signals.</p>
-        <div class="hero-actions mt-4">
-          <%= link_to "Create the first standup", new_manager_standup_path, class: "button-primary", data: { turbo_frame: "_top" } %>
-          <%= link_to "Connect Slack", manager_slack_integration_path, class: "button-secondary", data: { turbo_frame: "_top" } %>
+          <section class="card">
+            <div class="card-header">
+              <h2>Needs attention</h2>
+            </div>
+            <% if attention.any? %>
+              <ul class="list">
+                <% attention.first(6).each do |item| %>
+                  <li>
+                    <span class="dot <%= item.standup.active? ? "dot-danger" : "dot-warning" %>"></span>
+                    <div class="grow">
+                      <%= link_to item.standup.name, manager_standup_path(item.standup), class: "cell-title", data: { turbo_frame: "_top" } %>
+                      <div class="cell-sub"><%= item.attention_reason %></div>
+                    </div>
+                    <% unless item.standup.active? %>
+                      <%= button_to "Resume", resume_manager_standup_path(item.standup),
+                        method: :patch,
+                        class: "btn btn-sm",
+                        form: { data: { turbo_frame: "_top" } },
+                        "aria-label": "Resume #{item.standup.name}" %>
+                    <% end %>
+                  </li>
+                <% end %>
+              </ul>
+            <% else %>
+              <div class="empty">
+                <span class="empty-icon"><%= icon(:check) %></span>
+                <p>All standups are running and above 60% completion.</p>
+              </div>
+            <% end %>
+          </section>
         </div>
-      </div>
-    <% end %>
-  </section>
-</turbo-frame>
+
+        <section class="card card-flush">
+          <div class="card-header">
+            <h2>Standups</h2>
+            <nav class="segmented" aria-label="Filter standups">
+              <% [ [ "all", "All" ], [ "active", "Active" ], [ "paused", "Paused" ] ].each do |visibility, label| %>
+                <%= link_to label,
+                  manager_standups_path(visibility: visibility, period_days: @period_days),
+                  class: (@visibility == visibility ? "is-active" : nil),
+                  "aria-current": (@visibility == visibility ? "true" : nil),
+                  data: { turbo_frame: "standups_dashboard", turbo_action: "advance" } %>
+              <% end %>
+            </nav>
+          </div>
+
+          <% if items.any? %>
+            <div class="table-wrap">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Standup</th>
+                    <th class="hide-sm">Schedule</th>
+                    <th class="hide-sm">Participants</th>
+                    <th>Completion</th>
+                    <th class="hide-sm">Trend</th>
+                    <th class="hide-sm">Latest run</th>
+                    <th><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= render partial: "standup_row", collection: items, as: :dashboard_item %>
+                </tbody>
+              </table>
+            </div>
+          <% else %>
+            <p class="empty-inline">No <%= @visibility %> standups.</p>
+          <% end %>
+        </section>
+      <% end %>
+    </div>
+  </turbo-frame>
+</div>

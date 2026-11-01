@@ -1,156 +1,165 @@
+<% content_for :title, "Participants · #{@standup.name}" %>
+<% active_count = @participants.count(&:active?) %>
+<% stale_count = @participants.count { |participant| participant.timezone_cache_status != "fresh" } %>
+<% holiday_today = @standup.holiday_on?(Date.current) %>
+
 <turbo-frame id="standup_participants">
-  <div class="space-y-6">
-    <header>
-      <%= link_to "← Back to #{@standup.name}", manager_standup_path(@standup), data: { turbo_frame: "_top" }, class: "text-sm text-blue-700" %>
-      <h1 class="text-2xl font-semibold">Participants for <%= @standup.name %></h1>
-      <p class="text-sm text-slate-600">
-        <%= pluralize(@participants.count, "participant") %> ·
-        <%= pluralize(@participants.count(&:active?), "active") %> ·
-        <%= pluralize(@participants.count { |participant| participant.timezone_cache_status != "fresh" }, "timezone needing sync") %>
-      </p>
-    </header>
+  <div class="page">
+    <%= render "manager/shared/standup_header", standup: @standup, active: :participants %>
 
-    <% if @participant&.errors&.any? %>
-      <section class="rounded border border-red-300 bg-red-50 p-3 text-red-800">
-        <h2 class="font-semibold"><%= pluralize(@participant.errors.count, "error") %> prevented saving this participant:</h2>
-        <ul class="list-disc pl-5">
-          <% @participant.errors.full_messages.each do |message| %>
+    <% [
+      [ @participant&.errors&.any? ? @participant.errors.full_messages : nil, "#{pluralize(@participant&.errors&.count.to_i, "error")} prevented saving this participant" ],
+      [ @bulk_import_errors.presence, "Import needs attention" ],
+      [ @sync_errors.presence, "Slack sync needs attention" ]
+    ].each do |messages, heading| %>
+      <% next if messages.blank? %>
+      <section class="form-errors" role="alert">
+        <h2><%= heading %></h2>
+        <ul>
+          <% messages.each do |message| %>
             <li><%= message %></li>
           <% end %>
         </ul>
       </section>
     <% end %>
 
-    <% if @bulk_import_errors.present? %>
-      <section class="rounded border border-red-300 bg-red-50 p-3 text-red-800">
-        <h2 class="font-semibold">Bulk import needs attention:</h2>
-        <ul class="list-disc pl-5">
-          <% @bulk_import_errors.each do |message| %>
-            <li><%= message %></li>
-          <% end %>
-        </ul>
-      </section>
-    <% end %>
-
-    <% if @sync_errors.present? %>
-      <section class="rounded border border-red-300 bg-red-50 p-3 text-red-800">
-        <h2 class="font-semibold">Slack sync needs attention:</h2>
-        <ul class="list-disc pl-5">
-          <% @sync_errors.each do |message| %>
-            <li><%= message %></li>
-          <% end %>
-        </ul>
-      </section>
-    <% end %>
-
-    <section class="rounded border border-slate-200 p-4">
-      <h2 class="text-lg font-semibold">Add participant</h2>
-      <p class="text-sm text-slate-600">Enter a Slack @username, display name, mention, or user ID. Name and timezone are pulled from Slack automatically.</p>
-      <%= form_with model: @new_participant, url: manager_standup_participants_path(@standup), data: { turbo_frame: "standup_participants" }, class: "mt-3 grid gap-3 md:grid-cols-3" do |form| %>
+    <section class="card">
+      <div class="card-header">
         <div>
-          <%= form.label :slack_id, "Slack user", class: "block text-sm font-medium" %>
-          <%= form.text_field :slack_id, required: true, placeholder: "@jane, Jane Doe, or U123ABC", class: "w-full rounded border p-2" %>
+          <h2>Add people</h2>
+          <p class="hint">Use a Slack @username, display name, mention, or user ID. Name and timezone are looked up in Slack.</p>
         </div>
-        <div>
-          <%= form.label :vacation_until, "Vacation until", class: "block text-sm font-medium" %>
-          <%= form.date_field :vacation_until, class: "w-full rounded border p-2" %>
-        </div>
-        <div class="flex items-end gap-3">
-          <label class="flex items-center gap-2 text-sm">
-            <%= form.checkbox :active %>
-            Active
-          </label>
-          <%= form.submit "Add", class: "rounded bg-blue-700 px-4 py-2 text-white" %>
-        </div>
-      <% end %>
-    </section>
-
-    <section class="grid gap-4 md:grid-cols-2">
-      <div class="rounded border border-slate-200 p-4">
-        <h2 class="text-lg font-semibold">Bulk import</h2>
-        <p class="text-sm text-slate-600">One participant per line: Slack username, mention, or ID. Optional name/timezone columns are still accepted for offline imports, but Slack lookup fills them by default.</p>
-        <%= form_with url: bulk_import_manager_standup_participants_path(@standup), method: :post, data: { turbo_frame: "standup_participants" }, class: "space-y-3" do |form| %>
-          <%= form.text_area :participants_text, value: @bulk_import_text, rows: 6, placeholder: "@alice,Alice,America/New_York,true\n<@U456|Bob>,Bob,UTC,false", class: "w-full rounded border p-2 font-mono text-sm" %>
-          <%= form.submit "Import participants", class: "rounded bg-slate-800 px-4 py-2 text-white" %>
-        <% end %>
       </div>
-
-      <div class="rounded border border-slate-200 p-4">
-        <h2 class="text-lg font-semibold">Sync from Slack channel</h2>
-        <p class="text-sm text-slate-600">Adds or updates members returned by Slack and refreshes cached timezones when Slack exposes them.</p>
-        <%= form_with url: sync_manager_standup_participants_path(@standup), method: :post, data: { turbo_frame: "standup_participants" }, class: "space-y-3" do |form| %>
-          <div>
-            <%= form.label :channel, "Channel ID or name", class: "block text-sm font-medium" %>
-            <%= form.text_field :channel, value: @sync_channel, class: "w-full rounded border p-2" %>
+      <div class="card-body">
+        <%= form_with model: @new_participant, url: manager_standup_participants_path(@standup), data: { turbo_frame: "standup_participants" } do |form| %>
+          <%= form.hidden_field :active, value: "1" %>
+          <div class="input-group">
+            <%= form.label :slack_id, "Slack user", class: "sr-only" %>
+            <%= form.text_field :slack_id, required: true, placeholder: "@jane, Jane Doe, or U123ABC" %>
+            <%= form.submit "Add", class: "btn btn-primary" %>
           </div>
-          <label class="flex items-center gap-2 text-sm">
-            <%= form.checkbox :deactivate_missing, checked: @deactivate_missing %>
-            Mark active participants missing from the channel inactive
-          </label>
-          <%= form.submit "Sync channel", class: "rounded bg-slate-800 px-4 py-2 text-white" %>
         <% end %>
       </div>
+
+      <details class="disclosure" <%= "open" if @bulk_import_errors.present? %>>
+        <summary>
+          <span class="flex items-center gap-2"><%= icon(:upload) %><span class="strong">Import a list</span><span class="muted small">One person per line</span></span>
+        </summary>
+        <div class="card-body">
+          <%= form_with url: bulk_import_manager_standup_participants_path(@standup), method: :post, data: { turbo_frame: "standup_participants" }, class: "stack" do |form| %>
+            <div class="field">
+              <%= form.label :participants_text, "Participants" %>
+              <%= form.text_area :participants_text, value: @bulk_import_text, rows: 5, placeholder: "@alice\n<@U456|Bob>\nU789,Carol,Europe/London,true", class: "mono" %>
+              <span class="hint">Slack username, mention, or ID. Optional extra columns: name, timezone, active.</span>
+            </div>
+            <%= form.submit "Import participants", class: "btn" %>
+          <% end %>
+        </div>
+      </details>
+
+      <details class="disclosure" <%= "open" if @sync_errors.present? %>>
+        <summary>
+          <span class="flex items-center gap-2"><%= icon(:refresh) %><span class="strong">Sync from a Slack channel</span><span class="muted small">Adds members and refreshes timezones</span></span>
+        </summary>
+        <div class="card-body">
+          <%= form_with url: sync_manager_standup_participants_path(@standup), method: :post, data: { turbo_frame: "standup_participants" }, class: "stack" do |form| %>
+            <div class="field max-w-md">
+              <%= form.label :channel, "Channel ID or name" %>
+              <%= form.text_field :channel, value: @sync_channel %>
+            </div>
+            <label class="check">
+              <%= form.checkbox :deactivate_missing, checked: @deactivate_missing %>
+              Mark people who aren't in the channel as inactive
+            </label>
+            <%= form.submit "Sync channel", class: "btn" %>
+          <% end %>
+        </div>
+      </details>
     </section>
 
-    <section>
-      <h2 class="text-lg font-semibold">Current participants</h2>
+    <section class="card card-flush">
+      <div class="card-header">
+        <h2>People</h2>
+        <span class="hint">
+          <%= pluralize(@participants.count, "participant") %> · <%= active_count %> active
+          <% if stale_count.positive? %>· <%= pluralize(stale_count, "timezone") %> needing sync<% end %>
+        </span>
+      </div>
       <% if @participants.any? %>
-        <div class="space-y-3">
-          <% @participants.each do |participant| %>
-            <turbo-frame id="<%= dom_id(participant) %>">
-              <article class="rounded border border-slate-200 p-4">
-                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 class="font-semibold"><%= participant.slack_name %></h3>
-                    <p class="font-mono text-sm text-slate-600"><%= participant.slack_id %></p>
-                  </div>
-                  <div class="flex flex-wrap gap-2 text-sm">
-                    <span class="rounded px-2 py-1 <%= participant.active? ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-700' %>">
-                      <%= participant.active? ? "Active" : "Inactive" %>
-                    </span>
-                    <span class="rounded bg-slate-100 px-2 py-1 text-slate-700">
-                      <%= participant.vacation_status_on %>
-                    </span>
-                    <span class="rounded bg-slate-100 px-2 py-1 text-slate-700">
-                      <%= participant.holiday_status_on %>
-                    </span>
-                  </div>
-                </div>
-
-                <p class="mb-3 text-sm text-slate-600">
-                  Timezone:
-                  <strong><%= participant.cached_timezone.presence || "Not cached" %></strong>
-                  · <%= participant.timezone_cache_status %>
-                  · <%= participant.timezone_cache_status_description %>
-                </p>
-
-                <div class="grid gap-3 lg:grid-cols-[1fr_auto]">
-                  <%= form_with model: participant, url: manager_standup_participant_path(@standup, participant), data: { turbo_frame: "standup_participants" }, class: "grid gap-3 md:grid-cols-3" do |form| %>
-                    <div>
-                      <%= form.label :vacation_until, "Vacation until", class: "block text-sm font-medium" %>
-                      <%= form.date_field :vacation_until, class: "w-full rounded border p-2" %>
+        <div class="table-wrap">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th class="hide-sm">Timezone</th>
+                <th class="hide-sm">Availability</th>
+                <th><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @participants.each do |participant| %>
+                <tr id="<%= dom_id(participant) %>">
+                  <td>
+                    <div class="person">
+                      <%= avatar(participant.slack_name.presence || participant.slack_id) %>
+                      <div>
+                        <div class="cell-title"><%= participant.slack_name %></div>
+                        <div class="cell-sub mono"><%= participant.slack_id %></div>
+                      </div>
                     </div>
-                    <div class="flex items-end">
-                      <label class="flex items-center gap-2 text-sm">
-                        <%= form.checkbox :active %>
-                        Active
-                      </label>
+                  </td>
+                  <td><%= participant.active? ? status_badge("Active", "success") : status_badge("Inactive") %></td>
+                  <td class="hide-sm">
+                    <div><%= participant.cached_timezone.presence || "Unknown" %></div>
+                    <div class="cell-sub" title="<%= participant.timezone_cache_status_description %>">
+                      <% if participant.timezone_cache_status == "fresh" %>
+                        Synced
+                      <% else %>
+                        <span class="badge badge-warning badge-plain">Needs sync</span>
+                      <% end %>
                     </div>
-                    <div class="flex items-end">
-                      <%= form.submit "Save", class: "rounded bg-blue-700 px-4 py-2 text-white" %>
-                    </div>
-                  <% end %>
-
-                  <div class="flex items-end">
-                    <%= button_to "Remove", manager_standup_participant_path(@standup, participant), method: :delete, form: { data: { turbo_frame: "standup_participants" } }, class: "rounded border border-red-300 px-4 py-2 text-red-700" %>
-                  </div>
-                </div>
-              </article>
-            </turbo-frame>
-          <% end %>
+                  </td>
+                  <td class="hide-sm">
+                    <div><%= participant.vacation_status_on %></div>
+                    <% if holiday_today %>
+                      <div class="cell-sub"><%= participant.holiday_status_on %></div>
+                    <% end %>
+                  </td>
+                  <td class="text-right">
+                    <details class="menu">
+                      <summary class="btn btn-ghost btn-sm" aria-label="Edit <%= participant.slack_name %>"><%= icon(:edit) %> Edit</summary>
+                      <div class="menu-panel menu-panel-wide">
+                        <%= form_with model: participant, url: manager_standup_participant_path(@standup, participant), data: { turbo_frame: "standup_participants" }, class: "stack-sm card-body" do |form| %>
+                          <div class="field">
+                            <%= form.label :vacation_until, "Away until", for: "vacation_until_#{participant.id}" %>
+                            <%= form.date_field :vacation_until, id: "vacation_until_#{participant.id}" %>
+                          </div>
+                          <label class="check small">
+                            <%= form.checkbox :active, id: "active_#{participant.id}" %>
+                            Active
+                          </label>
+                          <%= form.submit "Save", class: "btn btn-primary btn-sm w-full" %>
+                        <% end %>
+                        <hr>
+                        <%= button_to "Remove from standup", manager_standup_participant_path(@standup, participant),
+                          method: :delete,
+                          class: "danger",
+                          form: { data: { turbo_frame: "standup_participants", turbo_confirm: "Remove #{participant.slack_name} from #{@standup.name}?" } } %>
+                      </div>
+                    </details>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
         </div>
       <% else %>
-        <p>No participants have been added yet.</p>
+        <div class="empty">
+          <span class="empty-icon"><%= icon(:users) %></span>
+          <h3>No participants yet</h3>
+          <p>Add people above, or sync everyone from a Slack channel.</p>
+        </div>
       <% end %>
     </section>
   </div>

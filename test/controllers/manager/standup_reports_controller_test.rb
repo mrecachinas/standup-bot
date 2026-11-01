@@ -28,7 +28,7 @@ class Manager::StandupReportsControllerTest < ActionDispatch::IntegrationTest
     get manager_standup_report_path(@owned_standup)
 
     assert_response :success
-    assert_includes response.body, "Report configuration"
+    assert_includes response.body, "Delivery settings"
     assert_includes response.body, "Generate report now"
     assert_includes response.body, "Slack API timeout"
     assert_includes response.body, "Failed"

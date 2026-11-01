@@ -178,4 +178,57 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     assert_equal 0, holiday_summary[:expected_responses]
     assert_equal @standup.standup_participants.active.count, rescheduled_summary[:expected_responses]
   end
+  test "participants who responded before a later vacation still count as expected" do
+    participant = @standup.standup_participants.active.first
+    @standup.standup_responses.delete_all
+
+    Timecop.freeze(Time.zone.local(2025, 4, 10, 12, 0, 0)) do
+      @standup.standup_responses.create!(slack_id: participant.slack_id, status: "completed", standup_date: Date.new(2025, 4, 9), answers: [])
+      participant.update!(vacation_until: Date.new(2025, 4, 20))
+
+      analytics = StandupAnalyticsService.new(@standup, start_date: "2025-04-09", end_date: "2025-04-09")
+      stat = analytics.participant_stats.find { |entry| entry[:slack_id] == participant.slack_id }
+
+      assert_equal 1, stat[:expected]
+      assert_in_delta 100.0, stat[:completion_rate]
+      assert_operator analytics.completion_rate, :<=, 100
+    end
+  end
+
+  test "run breakdown lists each scheduled run with status counts" do
+    participants = @standup.standup_participants.active.order(:slack_id).to_a
+    @standup.standup_responses.delete_all
+    @standup.standup_responses.create!(slack_id: participants[0].slack_id, status: "completed", standup_date: Date.new(2025, 4, 9), answers: [])
+    @standup.standup_responses.create!(slack_id: participants[1].slack_id, status: "skipped", standup_date: Date.new(2025, 4, 9), answers: [])
+
+    runs = StandupAnalyticsService.new(@standup, start_date: "2025-04-08", end_date: "2025-04-09").run_breakdown
+    run = runs.find { |entry| entry[:date] == Date.new(2025, 4, 9) }
+
+    assert_equal [ Date.new(2025, 4, 8), Date.new(2025, 4, 9) ], runs.map { |entry| entry[:date] }
+    assert_equal 1, run[:completed]
+    assert_equal 1, run[:skipped]
+    assert_equal participants.size - 2, run[:missed]
+  end
+  test "completion stays at or below 100 percent after a responder is deactivated" do
+    participants = @standup.standup_participants.active.order(:slack_id).first(2)
+    @standup.standup_responses.delete_all
+    [ Date.new(2025, 4, 8), Date.new(2025, 4, 9) ].each do |date|
+      participants.each do |participant|
+        @standup.standup_responses.create!(slack_id: participant.slack_id, status: "completed", standup_date: date, answers: [])
+      end
+    end
+    participants.last.update!(active: false)
+
+    analytics = StandupAnalyticsService.new(@standup, start_date: "2025-04-08", end_date: "2025-04-09")
+
+    assert_operator analytics.completion_rate, :<=, 100
+    assert(analytics.run_breakdown.all? { |run| run[:completion_rate] <= 100 })
+    assert_equal 4, analytics.summary[:completed_responses]
+  end
+
+  test "reports whether any responses exist in the range" do
+    @standup.standup_responses.delete_all
+
+    assert_not StandupAnalyticsService.new(@standup, start_date: "2025-04-08", end_date: "2025-04-09").responses?
+  end
 end

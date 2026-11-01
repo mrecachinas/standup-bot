@@ -1,16 +1,24 @@
-<section class="space-y-6">
-  <div class="page-hero">
-    <div>
-      <p class="page-kicker">Standup wizard</p>
-      <h1>Create a standup</h1>
-      <p class="mt-4 text-lg">Design the ritual, preview the first sends, and add the initial Slack roster in one pass.</p>
-    </div>
-  </div>
+<% content_for :title, "New standup" %>
+<div class="page page-narrow">
+  <header class="stack-sm">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <%= link_to "Standups", manager_standups_path %>
+      <span aria-hidden="true">/</span>
+      <span>New</span>
+    </nav>
+    <h1>Create a standup</h1>
+    <p class="page-subtitle">Start from a template or from scratch. You can change everything later.</p>
+  </header>
 
-  <div class="wizard-shell">
-    <%= render "wizard_steps" %>
-    <div>
-      <%= render "form", standup: @standup %>
-    </div>
-  </div>
-</section>
+  <nav class="templates" aria-label="Templates">
+    <% Manager::StandupsController::TEMPLATES.each do |key, template| %>
+      <%= link_to new_manager_standup_path(template: key), class: [ "template", @template_key == key && "is-active" ].compact_blank.join(" "), "aria-current": (@template_key == key ? "true" : nil) do %>
+        <span class="template-title"><%= template[:label] %></span>
+        <span class="template-meta"><%= template[:description] %> · <%= pluralize(template[:attributes][:questions].size, "question") %></span>
+      <% end %>
+    <% end %>
+  </nav>
+  <p class="small muted">Or <%= link_to "start from scratch", new_manager_standup_path(template: "blank") %>.</p>
+
+  <%= render "form", standup: @standup %>
+</div>

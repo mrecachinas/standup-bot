@@ -8,10 +8,12 @@ module Manager
       respond_to do |format|
         format.html do
           @summary = @analytics.summary
-          @response_trends = @analytics.response_trends
-          @frequent_non_responders = @analytics.frequent_non_responders(limit: 5)
+          @runs = @analytics.run_breakdown
+          @participant_stats = @summary[:participant_stats].sort_by { |stat| [ stat[:completion_rate], stat[:slack_name].to_s.downcase ] }
           @question_summaries = @analytics.question_summaries(limit: 3)
           @blocker_keywords = @analytics.blocker_keywords(limit: 10)
+          previous = previous_period_analytics
+          @previous_completion_rate = previous.completion_rate if previous.responses?
         end
         format.csv do
           send_data @analytics.to_csv,
@@ -24,8 +26,13 @@ module Manager
 
     private
 
+    def previous_period_analytics
+      span = (@analytics.end_date - @analytics.start_date).to_i + 1
+      StandupAnalyticsService.new(@standup, start_date: @analytics.start_date - span, end_date: @analytics.start_date - 1)
+    end
+
     def set_standup
-      @standup = Standup.find(params[:standup_id])
+      @standup = Standup.includes(:standup_schedule_exceptions).find(params[:standup_id])
       authorize_standup!(@standup)
     end
 

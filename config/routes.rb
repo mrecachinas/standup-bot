@@ -39,6 +39,10 @@ Rails.application.routes.draw do
     end
   end
 
+  namespace :admin do
+    root "dashboard#show"
+  end
+
   post "/slack/install", to: "slack_events#install", as: :install
   post "/slack/events", to: "slack_events#events", as: :events
   post "slack/interactions", to: "slack_events#interactions", as: :interactions

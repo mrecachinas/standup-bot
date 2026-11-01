@@ -1,0 +1,70 @@
+<%# locals: (standup:, active:) %>
+<% participant_count = standup.standup_participants.active.count %>
+<% display_name = (standup.persisted? && standup.name_in_database.presence) || standup.name %>
+<header class="stack-sm">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <%= link_to "Standups", manager_standups_path, data: { turbo_frame: "_top" } %>
+    <span aria-hidden="true">/</span>
+    <span><%= display_name %></span>
+  </nav>
+
+  <div class="page-header">
+    <div class="page-header-text">
+      <div class="title-row">
+        <h1><%= display_name %></h1>
+        <%= standup_status_badge(standup) %>
+      </div>
+      <div class="meta-row">
+        <span><%= icon(:hash) %><%= standup.slack_channel.to_s.delete_prefix("#") %></span>
+        <span><%= icon(:repeat) %><%= schedule_summary(standup) %></span>
+        <span><%= icon(:users) %><%= pluralize(participant_count, "participant") %></span>
+        <span><%= icon(:globe) %><%= standup.respect_timezone? ? "Participant timezones" : "UTC" %></span>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <% if standup.active? %>
+        <%= button_to pause_manager_standup_path(standup),
+          method: :patch,
+          class: "btn",
+          form: { data: { turbo_frame: "_top" } },
+          data: { turbo_submits_with: "Pausing…" },
+          "aria-label": "Pause #{display_name}" do %>
+          <%= icon(:pause) %> Pause
+        <% end %>
+      <% else %>
+        <%= button_to resume_manager_standup_path(standup),
+          method: :patch,
+          class: "btn",
+          form: { data: { turbo_frame: "_top" } },
+          data: { turbo_submits_with: "Resuming…" },
+          "aria-label": "Resume #{display_name}" do %>
+          <%= icon(:play) %> Resume
+        <% end %>
+      <% end %>
+      <% unless active == :settings %>
+        <%= link_to edit_manager_standup_path(standup), class: "btn btn-primary", data: { turbo_frame: "_top" } do %>
+          <%= icon(:edit) %> Edit standup
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+
+  <nav class="tabs" aria-label="<%= display_name %> sections">
+    <% [
+      [ :overview, "Overview", manager_standup_path(standup) ],
+      [ :insights, "Insights", manager_standup_analytics_path(standup) ],
+      [ :responses, "Responses", manager_standup_responses_path(standup) ],
+      [ :participants, "Participants", manager_standup_participants_path(standup), participant_count ],
+      [ :schedule, "Schedule", manager_standup_schedule_exceptions_path(standup) ],
+      [ :reports, "Reports", manager_standup_report_path(standup) ],
+      [ :slack, "Slack", manager_standup_slack_setup_path(standup) ],
+      [ :settings, "Settings", edit_manager_standup_path(standup) ]
+    ].each do |key, label, path, count| %>
+      <%= link_to path, class: [ "tab", key == active && "is-active" ].compact_blank.join(" "), "aria-current": (key == active ? "page" : nil), data: { turbo_frame: "_top" } do %>
+        <%= label %>
+        <% if count %><span class="tab-count"><%= count %></span><% end %>
+      <% end %>
+    <% end %>
+  </nav>
+</header>

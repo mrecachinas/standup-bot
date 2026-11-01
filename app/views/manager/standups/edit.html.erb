@@ -1,16 +1,7 @@
-<section class="space-y-6">
-  <div class="page-hero">
-    <div>
-      <p class="page-kicker">Standup wizard</p>
-      <h1>Edit <%= @standup.name %></h1>
-      <p class="mt-4 text-lg">Adjust cadence, prompts, and participants with a live schedule preview before saving.</p>
-    </div>
+<% content_for :title, "Settings · #{@standup.name}" %>
+<div class="page">
+  <%= render "manager/shared/standup_header", standup: @standup, active: :settings %>
+  <div class="page-narrow">
+    <%= render "form", standup: @standup %>
   </div>
-
-  <div class="wizard-shell">
-    <%= render "wizard_steps" %>
-    <div>
-      <%= render "form", standup: @standup %>
-    </div>
-  </div>
-</section>
+</div>

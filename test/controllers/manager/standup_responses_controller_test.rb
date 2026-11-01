@@ -15,8 +15,8 @@ class Manager::StandupResponsesControllerTest < ActionDispatch::IntegrationTest
       params: { start_date: "2025-04-06", end_date: "2025-04-06" }
 
     assert_response :success
-    assert_includes response.body, "Response history for #{@owned_standup.name}"
-    assert_includes response.body, "View analytics"
+    assert_includes response.body, "<title>Responses · #{@owned_standup.name} · Standup Bot</title>"
+    assert_includes response.body, "View insights"
     assert_includes response.body, manager_standup_analytics_path(@owned_standup)
     assert_includes response.body, "John Doe"
     assert_includes response.body, "Answered"

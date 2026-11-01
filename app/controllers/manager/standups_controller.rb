@@ -3,8 +3,35 @@ module Manager
     before_action :set_standup, only: [ :show, :edit, :update, :destroy, :pause, :resume ]
 
     PREVIEW_OCCURRENCE_COUNT = 5
-    BLANK_QUESTION_ROWS = 3
-    BLANK_PARTICIPANT_ROWS = 3
+    OVERVIEW_PERIOD_DAYS = 14
+    MIN_QUESTION_ROWS = 3
+    BLANK_PARTICIPANT_ROWS = 1
+    TEMPLATES = {
+      "daily" => {
+        label: "Daily standup",
+        description: "Weekdays at 9:30 AM",
+        attributes: {
+          schedule_type: "weekdays", schedule_days: [], default_hour: 9, default_minute: 30,
+          questions: [ "What did you get done yesterday?", "What are you working on today?", "Is anything blocking you?" ]
+        }
+      },
+      "weekly" => {
+        label: "Weekly check-in",
+        description: "Mondays at 10:00 AM",
+        attributes: {
+          schedule_type: "weekly", schedule_days: [ 1 ], default_hour: 10, default_minute: 0,
+          questions: [ "What were your wins last week?", "What are your priorities this week?", "Where could you use help?" ]
+        }
+      },
+      "retro" => {
+        label: "Friday retro",
+        description: "Fridays at 3:00 PM",
+        attributes: {
+          schedule_type: "weekly", schedule_days: [ 5 ], default_hour: 15, default_minute: 0,
+          questions: [ "What went well this week?", "What didn't go well?", "What should we try next week?" ]
+        }
+      }
+    }.freeze
     DEFAULT_PREVIEW_TIMEZONE = "UTC"
     WEEKDAY_OPTIONS = [
       [ "Sunday", 0 ],
@@ -20,16 +47,31 @@ module Manager
       @visibility = dashboard_visibility
       @period_days = dashboard_period_days
       @standups = filtered_standups.order(:name)
-      @dashboard_items = StandupDashboard.new(@standups, period_days: @period_days).items
+      @dashboard = StandupDashboard.new(@standups, period_days: @period_days)
+      @dashboard_items = @dashboard.items
     end
 
     def show
+      @standup.standup_schedule_exceptions.load
       @preview_timezone = DEFAULT_PREVIEW_TIMEZONE
       prepare_schedule_preview
+      analytics = StandupAnalyticsService.new(@standup, period_days: OVERVIEW_PERIOD_DAYS)
+      @summary = analytics.summary
+      @runs = analytics.run_breakdown
+      previous = StandupAnalyticsService.new(
+        @standup,
+        start_date: analytics.start_date - OVERVIEW_PERIOD_DAYS,
+        end_date: analytics.start_date - 1
+      )
+      @previous_completion_rate = previous.completion_rate if previous.responses?
+      @participants = @standup.standup_participants.order(:slack_name, :slack_id).to_a
+      @latest_responses = latest_run_responses
     end
 
     def new
-      @standup = Standup.new(schedule_type: "daily", questions: [], respect_timezone: true, active: true)
+      @template_key = params[:template].presence_in(TEMPLATES.keys + [ "blank" ]) || "daily"
+      template_attributes = TEMPLATES.dig(@template_key, :attributes) || { schedule_type: "daily", questions: [] }
+      @standup = Standup.new(respect_timezone: true, active: true, **template_attributes)
       prepare_wizard
     end
 
@@ -131,6 +173,13 @@ module Manager
     def set_standup
       @standup = Standup.find(params[:id])
       authorize_standup!(@standup)
+    end
+
+    def latest_run_responses
+      latest_date = @standup.standup_responses.where.not(standup_date: nil).maximum(:standup_date)
+      return [] unless latest_date
+
+      @standup.standup_responses.where(standup_date: latest_date).to_a
     end
 
     def standup_params
@@ -240,8 +289,7 @@ module Manager
 
     def padded_question_rows(rows)
       normalized_rows = rows.map(&:to_s)
-      normalized_rows += Array.new(BLANK_QUESTION_ROWS, "")
-      normalized_rows
+      normalized_rows + Array.new([ MIN_QUESTION_ROWS - normalized_rows.size, 0 ].max, "")
     end
 
     def padded_participant_rows(rows)
@@ -483,7 +531,7 @@ module Manager
     end
 
     def filtered_standups
-      scope = manageable_standups.includes(:standup_participants, :standup_responses)
+      scope = manageable_standups.includes(:standup_participants, :standup_schedule_exceptions)
 
       case @visibility
       when "active"

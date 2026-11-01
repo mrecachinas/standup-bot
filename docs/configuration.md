@@ -105,4 +105,4 @@ User.create!(email: "lead@example.com", name: "Team Lead", role: "manager", acce
 puts token # share this once with the manager
 ```
 
-Admins can manage every standup. Managers can only manage standups they own, and any standup a manager creates is theirs automatically. See [Architecture](architecture.md#manager-console-and-permissions) for more.
+Admins can manage every standup and can open the **Admin** page to check installation health and see every user. Managers can only manage standups they own, and any standup a manager creates is theirs automatically. See [Architecture](architecture.md#manager-console-and-permissions) for more.

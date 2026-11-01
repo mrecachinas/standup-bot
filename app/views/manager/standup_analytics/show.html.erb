@@ -1,189 +1,187 @@
+<% content_for :title, "Insights · #{@standup.name}" %>
+<% range_days = (@analytics.end_date - @analytics.start_date).to_i + 1 %>
+<% has_data = @summary[:expected_responses].positive? %>
+
 <turbo-frame id="standup_analytics">
-  <section class="space-y-6">
-    <header class="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
-      <div class="space-y-2">
-        <%= link_to "← Back to #{@standup.name}", manager_standup_path(@standup), class: "text-sm font-medium text-blue-700 hover:text-blue-900", data: { turbo_frame: "_top" } %>
-        <div>
-          <p class="text-sm font-medium uppercase tracking-wide text-slate-500">Analytics</p>
-          <h1 class="text-2xl font-semibold text-slate-950">Insights for <%= @standup.name %></h1>
-          <p class="text-sm text-slate-600">
-            Completion trends, non-responder patterns, response times, and question-level summaries.
-          </p>
-        </div>
-      </div>
-      <nav class="flex flex-wrap gap-2" aria-label="<%= @standup.name %> analytics actions">
-        <%= link_to "Response history", manager_standup_responses_path(@standup, start_date: @analytics.start_date.iso8601, end_date: @analytics.end_date.iso8601), class: "rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200", data: { turbo_frame: "_top" } %>
-        <%= link_to "Export CSV", manager_standup_analytics_path(@standup, format: :csv, start_date: @analytics.start_date.iso8601, end_date: @analytics.end_date.iso8601), class: "rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800", data: { turbo: false } %>
-      </nav>
-    </header>
+  <div class="page">
+    <%= render "manager/shared/standup_header", standup: @standup, active: :insights %>
 
-    <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <%= form_with url: manager_standup_analytics_path(@standup), method: :get, data: { turbo_frame: "standup_analytics", turbo_action: "advance" }, class: "grid gap-4 md:grid-cols-[1fr_1fr_auto]" do |form| %>
-        <div>
-          <%= form.label :start_date, "Start date", class: "block text-sm font-medium text-slate-700" %>
-          <%= form.date_field :start_date, value: @analytics.start_date.iso8601, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
-        </div>
-        <div>
-          <%= form.label :end_date, "End date", class: "block text-sm font-medium text-slate-700" %>
-          <%= form.date_field :end_date, value: @analytics.end_date.iso8601, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
-        </div>
-        <div class="flex items-end gap-2">
-          <%= form.submit "Apply range", class: "rounded bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800" %>
-          <%= link_to "Reset", manager_standup_analytics_path(@standup), class: "rounded border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50", data: { turbo_frame: "standup_analytics" } %>
-        </div>
-      <% end %>
-      <% if @analytics.range_limited? %>
-        <p class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Date range was limited to the most recent <%= StandupAnalyticsService::MAX_RANGE_DAYS %> days.
-        </p>
-      <% end %>
-    </section>
-
-    <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Expected responses</dt>
-        <dd class="mt-2 text-3xl font-bold text-slate-900"><%= @summary[:expected_responses] %></dd>
-      </div>
-      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed responses</dt>
-        <dd class="mt-2 text-3xl font-bold text-slate-900"><%= @summary[:completed_responses] %></dd>
-      </div>
-      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Completion rate</dt>
-        <dd class="mt-2 text-3xl font-bold text-slate-900"><%= @summary[:completion_rate] %>%</dd>
-      </div>
-      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Average response time</dt>
-        <dd class="mt-2 text-3xl font-bold text-slate-900">
-          <% if @summary[:average_response_time_minutes] %>
-            <%= @summary[:average_response_time_minutes] %> min
-          <% else %>
-            —
+    <div class="flex wrap items-center justify-between gap-3">
+      <div class="flex wrap items-center gap-3">
+        <nav class="segmented" aria-label="Date range">
+          <% [ 7, 30, 90 ].each do |days| %>
+            <% selected = range_days.between?(days, days + 1) && @analytics.end_date == Date.current %>
+            <%= link_to "#{days} days",
+              manager_standup_analytics_path(@standup, start_date: (Date.current - (days - 1)).iso8601, end_date: Date.current.iso8601),
+              class: (selected ? "is-active" : nil),
+              "aria-current": (selected ? "true" : nil),
+              data: { turbo_frame: "standup_analytics", turbo_action: "advance" } %>
           <% end %>
+        </nav>
+        <%= form_with url: manager_standup_analytics_path(@standup), method: :get, data: { turbo_frame: "standup_analytics", turbo_action: "advance" }, class: "flex items-center gap-2" do |form| %>
+          <%= form.label :start_date, "Start date", class: "sr-only" %>
+          <%= form.date_field :start_date, value: @analytics.start_date.iso8601 %>
+          <span class="muted">–</span>
+          <%= form.label :end_date, "End date", class: "sr-only" %>
+          <%= form.date_field :end_date, value: @analytics.end_date.iso8601 %>
+          <%= form.submit "Apply", class: "btn" %>
+        <% end %>
+      </div>
+      <div class="btn-row">
+        <%= link_to "Response history", manager_standup_responses_path(@standup, start_date: @analytics.start_date.iso8601, end_date: @analytics.end_date.iso8601), class: "btn", data: { turbo_frame: "_top" } %>
+        <%= link_to manager_standup_analytics_path(@standup, format: :csv, start_date: @analytics.start_date.iso8601, end_date: @analytics.end_date.iso8601), class: "btn", data: { turbo: false } do %>
+          <%= icon(:download) %> Export CSV
+        <% end %>
+      </div>
+    </div>
+
+    <% if @analytics.range_limited? %>
+      <div class="alert alert-warning"><%= icon(:info) %><span>Showing the most recent <%= StandupAnalyticsService::MAX_RANGE_DAYS %> days.</span></div>
+    <% end %>
+
+    <dl class="stats">
+      <div class="stat">
+        <dt>Completion rate</dt>
+        <dd>
+          <%= has_data ? percent(@summary[:completion_rate]) : "—" %>
+          <%= delta_badge(@summary[:completion_rate], @previous_completion_rate) if has_data %>
         </dd>
+        <span class="stat-sub">vs. the previous <%= pluralize(range_days, "day") %></span>
+      </div>
+      <div class="stat">
+        <dt>Responses</dt>
+        <dd><%= @summary[:completed_responses] %><span class="muted small">/ <%= @summary[:expected_responses] %></span></dd>
+        <span class="stat-sub">Completed of expected</span>
+      </div>
+      <div class="stat">
+        <dt>Average response time</dt>
+        <dd><%= @summary[:average_response_time_minutes] ? "#{@summary[:average_response_time_minutes].round} min" : "—" %></dd>
+        <span class="stat-sub">From prompt to submission</span>
+      </div>
+      <div class="stat">
+        <dt>Runs</dt>
+        <dd><%= @runs.size %></dd>
+        <span class="stat-sub"><%= @analytics.start_date.strftime("%b %-d") %> – <%= @analytics.end_date.strftime("%b %-d, %Y") %></span>
       </div>
     </dl>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+    <section class="card">
+      <div class="card-header">
         <div>
-          <h2 class="text-lg font-semibold text-slate-950">Completion trends over time</h2>
-          <p class="text-sm text-slate-600"><%= @analytics.start_date.to_fs(:long) %> through <%= @analytics.end_date.to_fs(:long) %></p>
+          <h2>Completion over time</h2>
+          <p class="hint">Share of expected responses completed, per run</p>
         </div>
       </div>
-      <div class="mt-4 overflow-x-auto">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
-          <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <tr>
-              <th class="px-3 py-2">Date</th>
-              <th class="px-3 py-2">Completed</th>
-              <th class="px-3 py-2">Expected</th>
-              <th class="px-3 py-2">Rate</th>
-              <th class="px-3 py-2">Trend</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <% @response_trends.each do |trend| %>
-              <% bar_width = [trend[:completion_rate], 100].min %>
-              <tr>
-                <td class="px-3 py-2 font-medium text-slate-900"><%= Date.iso8601(trend[:date]).to_fs(:medium) %></td>
-                <td class="px-3 py-2 text-slate-700"><%= trend[:completed] %></td>
-                <td class="px-3 py-2 text-slate-700"><%= trend[:expected] %></td>
-                <td class="px-3 py-2 text-slate-700"><%= trend[:completion_rate] %>%</td>
-                <td class="px-3 py-2">
-                  <div class="h-2 w-40 rounded-full bg-slate-100">
-                    <div class="h-2 rounded-full bg-blue-600" style="width: <%= bar_width %>%"></div>
-                  </div>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
+      <div class="card-body">
+        <%= rate_line_chart(@runs.map { |run| { label: run[:date].strftime("%b %-d"), value: run[:completion_rate], title: "#{run[:date].to_fs(:long)}: #{run[:completion_rate].round}% (#{run[:completed]}/#{run[:expected]})" } }, height: 240, width: 1000) %>
       </div>
     </section>
 
-    <div class="grid gap-4 lg:grid-cols-2">
-      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 class="text-lg font-semibold text-slate-950">Frequent non-responders</h2>
-        <% if @frequent_non_responders.any? %>
-          <div class="mt-4 divide-y divide-slate-100">
-            <% @frequent_non_responders.each do |participant| %>
-              <div class="flex items-center justify-between gap-4 py-3">
-                <div>
-                  <p class="font-medium text-slate-900"><%= participant[:slack_name].presence || participant[:slack_id] %></p>
-                  <p class="text-sm text-slate-500"><%= participant[:slack_id] %></p>
-                </div>
-                <div class="text-right">
-                  <p class="font-semibold text-amber-800"><%= pluralize(participant[:missed], "missed response") %></p>
-                  <p class="text-sm text-slate-500"><%= participant[:completion_rate] %>% complete</p>
-                </div>
-              </div>
-            <% end %>
+    <div class="grid grid-2 grid-gap-lg">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Responses per run</h2>
+            <p class="hint">What happened to each prompt</p>
           </div>
-        <% else %>
-          <p class="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-900">
-            No missed expected responses in this date range.
-          </p>
-        <% end %>
+          <%= run_legend(pending: @runs.any? { |run| run[:pending].positive? }) %>
+        </div>
+        <div class="card-body">
+          <%= run_breakdown_chart(@runs, height: 200, width: 480) %>
+        </div>
       </section>
 
-      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 class="text-lg font-semibold text-slate-950">Blocker keywords</h2>
-        <% if @blocker_keywords.any? %>
-          <div class="mt-4 flex flex-wrap gap-2">
-            <% @blocker_keywords.each do |keyword| %>
-              <span class="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900">
-                <%= keyword[:keyword] %> · <%= keyword[:count] %>
-              </span>
-            <% end %>
+      <section class="card card-flush">
+        <div class="card-header">
+          <div>
+            <h2>Participation</h2>
+            <p class="hint">Lowest completion first</p>
           </div>
+        </div>
+        <% if @participant_stats.any? %>
+          <ul class="list">
+            <% @participant_stats.each do |stat| %>
+              <% name = stat[:slack_name].presence || stat[:slack_id] %>
+              <li>
+                <%= avatar(name, size: "sm") %>
+                <div class="grow">
+                  <div class="flex justify-between gap-2 small">
+                    <span class="truncate strong"><%= name %></span>
+                    <span class="muted nowrap">
+                      <%= stat[:missed].positive? ? pluralize(stat[:missed], "missed response") : "No misses" %>
+                    </span>
+                  </div>
+                  <div class="meter mt-1">
+                    <%= progress_bar(stat[:completion_rate], tone: rate_tone(stat[:completion_rate])) %>
+                    <span class="meter-value small"><%= stat[:expected].positive? ? percent(stat[:completion_rate]) : "—" %></span>
+                  </div>
+                </div>
+              </li>
+            <% end %>
+          </ul>
         <% else %>
-          <p class="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-            No recurring blocker language found in completed responses.
-          </p>
+          <p class="empty-inline">No active participants.</p>
         <% end %>
       </section>
     </div>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 class="text-lg font-semibold text-slate-950">Question-level summaries</h2>
-      <div class="mt-4 grid gap-4">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>Blockers</h2>
+          <p class="hint">Words that come up most in blocker answers</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <% if @blocker_keywords.any? %>
+          <div class="chips">
+            <% @blocker_keywords.each do |keyword| %>
+              <span class="tag tag-warning"><%= keyword[:keyword] %> <span class="count"><%= keyword[:count] %></span></span>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="muted">No recurring blockers in this period.</p>
+        <% end %>
+      </div>
+    </section>
+
+    <section class="stack">
+      <h2>Answers by question</h2>
+      <div class="grid grid-<%= [ @question_summaries.size, 3 ].min.clamp(1, 3) %>">
         <% @question_summaries.each do |question| %>
-          <article class="rounded-lg border border-slate-200 p-4">
-            <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+          <article class="card">
+            <div class="card-header">
               <div>
-                <h3 class="font-semibold text-slate-950"><%= question[:question] %></h3>
-                <p class="mt-1 text-sm text-slate-600">
-                  <%= question[:answered] %> answered · <%= question[:skipped] %> skipped · <%= question[:answer_rate] %>% answer rate
-                </p>
+                <h3><%= question[:question] %></h3>
+                <p class="hint"><%= question[:answered] %> answered · <%= question[:skipped] %> skipped · <%= percent(question[:answer_rate]) %> answer rate</p>
               </div>
+            </div>
+            <div class="card-body">
               <% if question[:common_keywords].any? %>
-                <div class="flex flex-wrap gap-2">
+                <div class="chips">
                   <% question[:common_keywords].each do |keyword| %>
-                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                      <%= keyword[:keyword] %> · <%= keyword[:count] %>
-                    </span>
+                    <span class="tag"><%= keyword[:keyword] %> <span class="count"><%= keyword[:count] %></span></span>
                   <% end %>
                 </div>
               <% end %>
+              <% if question[:latest_answers].any? %>
+                <div>
+                  <% question[:latest_answers].each do |answer| %>
+                    <blockquote class="quote">
+                      <p><%= answer[:answer] %></p>
+                      <footer class="xsmall muted mt-1">
+                        <%= answer[:slack_name] %><% if answer[:answered_at].present? %> · <%= Time.zone.parse(answer[:answered_at]).strftime("%b %-d") %><% end %>
+                      </footer>
+                    </blockquote>
+                  <% end %>
+                </div>
+              <% else %>
+                <p class="muted small">No answers in this period.</p>
+              <% end %>
             </div>
-            <% if question[:latest_answers].any? %>
-              <div class="mt-3 space-y-2">
-                <% question[:latest_answers].each do |answer| %>
-                  <blockquote class="rounded border border-slate-100 bg-slate-50 p-3">
-                    <p class="text-sm text-slate-900"><%= answer[:answer] %></p>
-                    <footer class="mt-1 text-xs text-slate-500">
-                      <%= answer[:slack_name] %> · <%= Time.zone.parse(answer[:answered_at]).to_fs(:long) if answer[:answered_at].present? %>
-                    </footer>
-                  </blockquote>
-                <% end %>
-              </div>
-            <% else %>
-              <p class="mt-3 text-sm text-slate-500">No answers recorded for this question in the selected range.</p>
-            <% end %>
           </article>
         <% end %>
       </div>
     </section>
-  </section>
+  </div>
 </turbo-frame>

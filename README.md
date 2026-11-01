@@ -2,7 +2,7 @@
 
 Async standups for Slack. Standup Bot DMs each teammate a few questions at a scheduled time (in their own timezone), collects their answers, and posts each person's update to your team's channel. Managers get a small web console to set up standups, manage participants, and see who has responded.
 
-![Manager dashboard showing active standups, participant counts, and completion rates](docs/images/dashboard.png)
+![Manager overview showing completion rate, responses by day, standups needing attention, and a table of standups with trends](docs/images/dashboard.png)
 
 ## How it works
 
@@ -16,9 +16,9 @@ flowchart LR
 
 1. **Define a standup**: pick a channel, a schedule, a few questions, and who's in it. You can do this in the web console or in a YAML file.
 2. **The bot checks in**: at the scheduled time, each participant gets a DM and answers the questions one at a time. People who forget get a reminder.
-3. **Everyone sees the update**: as soon as someone finishes, their answers are posted to the team channel. Managers can follow participation in the console's response history and analytics, and generate summary reports.
+3. **Everyone sees the update**: as soon as someone finishes, their answers are posted to the team channel. Managers can follow participation in the console's responses and insights, and generate summary reports.
 
-![Response history for a standup, with answered and missed counts and each person's answers](docs/images/responses.png)
+![Insights for a standup, with completion over time, responses per run, and participation by person](docs/images/insights.png)
 
 ## Quick start
 

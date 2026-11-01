@@ -14,7 +14,7 @@ class Manager::StandupAccessControllerTest < ActionDispatch::IntegrationTest
     get manager_standup_responses_path(@owned_standup)
 
     assert_response :success
-    assert_includes response.body, "Response history for #{@owned_standup.name}"
+    assert_includes response.body, "<title>Responses · #{@owned_standup.name} · Standup Bot</title>"
   end
 
   test "manager cannot view response history for unowned standup" do
@@ -49,7 +49,7 @@ class Manager::StandupAccessControllerTest < ActionDispatch::IntegrationTest
     get manager_standup_analytics_path(@unowned_standup)
 
     assert_response :success
-    assert_includes response.body, "Insights for #{@unowned_standup.name}"
+    assert_includes response.body, "<title>Insights · #{@unowned_standup.name} · Standup Bot</title>"
   end
 
   test "manager cannot view analytics for unowned standup" do

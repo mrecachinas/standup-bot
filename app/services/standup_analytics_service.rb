@@ -45,7 +45,7 @@ class StandupAnalyticsService
       end_date: end_date.iso8601,
       active_participants: active_participants.count,
       expected_responses: expected_responses,
-      completed_responses: completed_responses.count,
+      completed_responses: completed_response_count,
       completion_rate: completion_rate,
       average_response_time_minutes: average_response_time_minutes(completed_responses),
       participant_stats: participant_stats,
@@ -54,7 +54,7 @@ class StandupAnalyticsService
   end
 
   def completion_rate
-    percentage(completed_responses.count, expected_responses)
+    percentage(completed_response_count, expected_responses)
   end
 
   def participant_stats
@@ -77,8 +77,12 @@ class StandupAnalyticsService
     end
   end
 
+  def responses?
+    responses.any?
+  end
+
   def response_trends
-    period_dates.map do |date|
+    @response_trends ||= period_dates.map do |date|
       day_responses = responses_by_date.fetch(date, {}).values
       completed_count = day_responses.count { |response| response.status == "completed" }
       expected_count = expected_count_for(date)
@@ -90,6 +94,26 @@ class StandupAnalyticsService
         completed: completed_count,
         completion_rate: percentage(completed_count, expected_count),
         statuses: tally_statuses(day_responses)
+      }
+    end
+  end
+
+  # Scheduled runs only, with each status broken out for charting.
+  def run_breakdown
+    response_trends.filter_map do |trend|
+      next if trend[:expected].zero? && trend[:total].zero?
+
+      completed = trend[:completed]
+      skipped = trend[:statuses]["skipped"].to_i
+      pending = trend[:statuses]["pending"].to_i
+      {
+        date: Date.iso8601(trend[:date]),
+        expected: trend[:expected],
+        completed: completed,
+        skipped: skipped,
+        pending: pending,
+        missed: [ trend[:expected] - completed - skipped - pending, 0 ].max,
+        completion_rate: trend[:completion_rate]
       }
     end
   end
@@ -248,14 +272,32 @@ class StandupAnalyticsService
     @expected_responses ||= period_dates.sum { |date| expected_count_for(date) }
   end
 
+  # Anyone who completed a response that day was clearly expected, even if they
+  # are now inactive or a later vacation covers the date. This keeps rates <= 100%.
   def expected_count_for(date)
-    return 0 unless scheduled_on?(date)
+    ids = completed_ids_on(date)
+    ids |= active_participants.select { |participant| participant.available_on?(date) }.map(&:slack_id) if scheduled_on?(date)
+    ids.size
+  end
 
-    active_participants.count { |participant| participant.available_on?(date) }
+  def completed_ids_on(date)
+    responses_by_date.fetch(date, {}).filter_map { |slack_id, response| slack_id if response.status == "completed" }
+  end
+
+  # De-duplicated per person per day so it lines up with expected_count_for.
+  def completed_response_count
+    @completed_response_count ||= responses_by_date.sum do |date, by_participant|
+      (start_date..end_date).cover?(date) ? by_participant.values.count { |response| response.status == "completed" } : 0
+    end
   end
 
   def expected_dates_for(participant)
-    period_dates.select { |date| scheduled_on?(date) && participant.available_on?(date) }
+    period_dates.select { |date| expected_on?(participant, date) }
+  end
+
+  def expected_on?(participant, date)
+    responses_by_date.fetch(date, {})[participant.slack_id]&.status == "completed" ||
+      (scheduled_on?(date) && participant.available_on?(date))
   end
 
   def period_dates
@@ -271,7 +313,10 @@ class StandupAnalyticsService
   end
 
   def scheduled_on?(date)
-    standup.scheduled_on_date?(date)
+    @scheduled_on ||= {}
+    return @scheduled_on[date] if @scheduled_on.key?(date)
+
+    @scheduled_on[date] = standup.scheduled_on_date?(date)
   end
 
   def schedule_days
@@ -398,7 +443,7 @@ class StandupAnalyticsService
   end
 
   def export_participants_for(date, responses_for_date)
-    expected_participants = active_participants.select { |participant| scheduled_on?(date) && participant.available_on?(date) }
+    expected_participants = active_participants.select { |participant| expected_on?(participant, date) }
     response_participants = responses_for_date.keys.map { |slack_id| participants_by_slack_id[slack_id] }.compact
     unknown_participants = responses_for_date.keys.reject { |slack_id| participants_by_slack_id.key?(slack_id) }
 
@@ -429,7 +474,7 @@ class StandupAnalyticsService
   end
 
   def expected_for_export?(date, participant)
-    scheduled_on?(date) && participant.available_on?(date)
+    expected_on?(participant, date)
   end
 
   def export_status(date, participant, response)
