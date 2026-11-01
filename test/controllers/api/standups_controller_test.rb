@@ -20,7 +20,7 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
   test "does not expose admin endpoints when token is unconfigured" do
     ENV.delete("ADMIN_API_TOKEN")
 
-    get api_standups_path
+    get api_standups_path, headers: admin_headers
     assert_response :service_unavailable
   end
 

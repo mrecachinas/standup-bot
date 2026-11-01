@@ -46,8 +46,6 @@ module UiHelper
     %w[#e0f2fe #075985], %w[#ede9fe #5b21b6], %w[#ffedd5 #9a3412], %w[#ccfbf1 #115e59]
   ].freeze
 
-  WEEKDAY_ABBREVIATIONS = %w[Sun Mon Tue Wed Thu Fri Sat].freeze
-
   def icon(name, css_class: nil)
     tag.svg(ICONS.fetch(name.to_sym).html_safe, xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none",
       stroke: "currentColor", "stroke-width": 1.75, "stroke-linecap": "round", "stroke-linejoin": "round",
@@ -86,52 +84,24 @@ module UiHelper
   end
 
   def status_badge(label, tone = nil)
-    tone ||= case label.to_s.downcase
-    when "completed", "answered", "succeeded", "scheduled", "ok", "active", "configured", "healthy" then "success"
-    when "pending", "queued", "running", "rescheduled" then "info"
-    when "missed", "expired", "paused", "warn", "degraded", "needs setup", "skipped", "skipped date", "holiday", "cancelled", "canceled" then "warning"
-    when "failed", "error", "unhealthy" then "danger"
-    end
+    tone ||= UiFormat.status_tone(label)
     tag.span(label, class: [ "badge", tone && "badge-#{tone}" ].compact_blank.join(" "))
   end
 
   def schedule_summary(standup)
-    days = Array(standup.schedule_days).filter_map { |day| Integer(day, exception: false) }
-    day_names = days.sort.filter_map { |day| WEEKDAY_ABBREVIATIONS[day] }
-    base = case standup.schedule_type
-    when "daily" then "Every day"
-    when "weekdays" then "Weekdays"
-    when "weekly" then day_names.any? ? "Weekly on #{day_names.to_sentence}" : "Weekly"
-    when "biweekly" then day_names.any? ? "Every 2 weeks on #{day_names.to_sentence}" : "Every 2 weeks"
-    when "monthly" then "Monthly on day #{days.first || 1}"
-    when "custom" then day_names.any? ? day_names.join(", ") : "Custom"
-    else standup.schedule_type.to_s.titleize
-    end
-    "#{base} at #{format_clock(standup.default_hour, standup.default_minute)}"
+    UiFormat.schedule_summary(standup)
   end
 
-  # How the editor's day picker should start for an existing schedule.
   def schedule_picker_state(standup)
-    days = Array(standup.schedule_days).filter_map { |day| Integer(day, exception: false) }
-    case standup.schedule_type
-    when "daily" then { frequency: "weekly", days: (0..6).to_a }
-    when "weekdays" then { frequency: "weekly", days: [ 1, 2, 3, 4, 5 ] }
-    when "biweekly" then { frequency: "biweekly", days: days.first(1).presence || [ 1 ] }
-    when "monthly" then { frequency: "monthly", days: [ 1, 2, 3, 4, 5 ], monthly_day: days.first || 1 }
-    # The scheduler only uses the first day of a weekly schedule (Monday if none).
-    when "weekly" then { frequency: "weekly", days: days.first(1).presence || [ 1 ] }
-    else { frequency: "weekly", days: days }
-    end
+    UiFormat.schedule_picker_state(standup)
   end
 
   def schedule_sentence(standup)
-    "#{schedule_summary(standup)}, #{standup.respect_timezone? ? "in each person's local time" : "UTC"}"
+    UiFormat.schedule_sentence(standup)
   end
 
   def format_clock(hour, minute)
-    return "—" if hour.nil? || minute.nil?
-
-    Time.utc(2000, 1, 1, hour, minute).strftime("%-l:%M %p")
+    UiFormat.format_clock(hour, minute)
   end
 
   def percent(value)
@@ -141,10 +111,7 @@ module UiHelper
   end
 
   def rate_tone(rate)
-    return "danger" if rate.to_f < 50
-    return "warning" if rate.to_f < 75
-
-    "success"
+    UiFormat.rate_tone(rate)
   end
 
   def progress_bar(rate, tone: nil)

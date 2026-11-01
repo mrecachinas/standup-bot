@@ -2,6 +2,7 @@
 
 require "json"
 require Rails.root.join("app/services/slack_signature_verifier")
+require Rails.root.join("app/services/admin_api_token")
 
 class Rack::Attack
   SLACK_PATHS = %w[
@@ -30,6 +31,26 @@ class Rack::Attack
     slack_event_id(request) if request.post? && request.path == "/slack/events"
   end
 
+  throttle("api/ip", limit: 600, period: 1.minute) do |request|
+    request.ip if api_request?(request)
+  end
+
+  throttle("api/sign_in/ip", limit: 10, period: 1.minute) do |request|
+    request.ip if request.post? && request.path == "/api/session"
+  end
+
+  # Ban an IP for a while after repeated wrong admin tokens.
+  blocklist("api/bad_token") do |request|
+    Rack::Attack::Allow2Ban.filter("api-bad-token-#{request.ip}", maxretry: 10, findtime: 1.minute, bantime: 10.minutes) do
+      api_request?(request) && request.get_header("HTTP_AUTHORIZATION") &&
+        AdminApiToken.configured? && !AdminApiToken.valid?(AdminApiToken.from_header(request.get_header("HTTP_AUTHORIZATION")))
+    end
+  end
+
+  self.blocklisted_responder = lambda do |_request|
+    [ 403, { "Content-Type" => "application/json" }, [ { error: "blocked" }.to_json ] ]
+  end
+
   self.throttled_responder = lambda do |request|
     match_data = request.env["rack.attack.match_data"] || {}
     retry_after = match_data[:period].to_i
@@ -47,6 +68,10 @@ class Rack::Attack
 
   class << self
     private
+
+    def api_request?(request)
+      request.path == "/api" || request.path.start_with?("/api/")
+    end
 
     def slack_request?(request)
       request.post? && SLACK_PATHS.include?(request.path)
