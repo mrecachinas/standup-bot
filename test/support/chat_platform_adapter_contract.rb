@@ -4,7 +4,8 @@ module ChatPlatformAdapterContract
   CONTRACT_METHODS = %i[
     key label configured? formatter
     send_direct_message send_message post_standup_update update_standup_update post_report send_selection
-    user_profile search_users list_channels channel_member_ids channel_member_profiles connection_status valid_user_id?
+    user_profile search_users list_channels channel_member_ids channel_member_profiles connection_status
+    valid_user_id? normalize_user_id user_id_hint valid_channel? normalize_channel channel_hint
   ].freeze
 
   FORMATTER_METHODS = %i[bold italic code channel_reference].freeze

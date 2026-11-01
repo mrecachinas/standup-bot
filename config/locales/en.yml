@@ -29,3 +29,14 @@
 
 en:
   hello: "Hello world"
+  activerecord:
+    attributes:
+      standup:
+        platform_channel: "Channel"
+      standup_participant:
+        platform_user_id: "User ID"
+        display_name: "Name"
+      standup_response:
+        platform_user_id: "User ID"
+        dm_channel: "DM channel"
+        platform_message_id: "Message ID"

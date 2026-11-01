@@ -8,11 +8,11 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   end
 
   def inbound(text, edited: false)
-    ChatPlatform::InboundMessage.new(platform: :slack, user_id: @participant.slack_id, text: text, conversation: "D1", edited: edited)
+    ChatPlatform::InboundMessage.new(platform: :slack, user_id: @participant.platform_user_id, text: text, conversation: "D1", edited: edited)
   end
 
   test "records an answer for the pending response" do
-    response = StandupResponse.create!(standup: @participant.standup, slack_id: @participant.slack_id, status: "pending", answers: [], standup_date: Date.current)
+    response = StandupResponse.create!(standup: @participant.standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: Date.current)
 
     StandupResponseService.expects(:record_answer).with(response, "Did things")
 
@@ -20,7 +20,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   end
 
   test "routes DM commands to DirectMessageCommands with the conversation" do
-    DirectMessageCommands.any_instance.expects(:process).with(has_entry(command: :help), @participant.slack_id, "D1")
+    DirectMessageCommands.any_instance.expects(:process).with(has_entry(command: :help), @participant.platform_user_id, "D1")
     StandupResponseService.expects(:record_answer).never
 
     @handler.handle(inbound("help"))
@@ -35,7 +35,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
 
   test "edits update the latest pending answer" do
     response = StandupResponse.create!(
-      standup: @participant.standup, slack_id: @participant.slack_id, status: "pending", standup_date: Date.current,
+      standup: @participant.standup, platform_user_id: @participant.platform_user_id, status: "pending", standup_date: Date.current,
       answers: [ { "question" => "Q1", "answer" => "old", "timestamp" => Time.current } ]
     )
 

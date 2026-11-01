@@ -50,7 +50,8 @@ module Api
     def standup_params
       params.require(:standup).permit(
         :name,
-        :slack_channel,
+        :platform,
+        :platform_channel,
         :intro,
         :outro,
         :schedule_type,
@@ -67,7 +68,8 @@ module Api
       payload = {
         id: standup.id,
         name: standup.name,
-        slack_channel: standup.slack_channel,
+        platform: standup.platform,
+        platform_channel: standup.platform_channel,
         intro: standup.intro,
         outro: standup.outro,
         questions: standup.questions || [],
@@ -98,7 +100,8 @@ module Api
       standup.attributes.slice(
         "id",
         "name",
-        "slack_channel",
+        "platform",
+        "platform_channel",
         "schedule_type",
         "schedule_days",
         "default_hour",

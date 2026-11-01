@@ -10,8 +10,8 @@ class SlackUserReactivationJobTest < ActiveJob::TestCase
     @participant1.update!(active: false)
     @participant2.update!(active: false)
 
-    # Get common slack_id from the fixtures
-    @slack_id = @participant1.slack_id
+    # Get common platform_user_id from the fixtures
+    @platform_user_id = @participant1.platform_user_id
 
     # Create mock slack client
     @mock_slack_client = mock("SlackClient")
@@ -25,11 +25,11 @@ class SlackUserReactivationJobTest < ActiveJob::TestCase
   test "reactivates all participants for the user" do
     # Expect notification to be sent
     @mock_slack_client.expects(:send_message)
-      .with(@slack_id, "Welcome back! You've been automatically re-enabled for standups.")
+      .with(@platform_user_id, "Welcome back! You've been automatically re-enabled for standups.")
       .once
 
     # Run the job
-    SlackUserReactivationJob.perform_now(@slack_id)
+    SlackUserReactivationJob.perform_now(@platform_user_id)
 
     # Verify that participants were reactivated
     @participant1.reload
@@ -47,7 +47,7 @@ class SlackUserReactivationJobTest < ActiveJob::TestCase
     @mock_slack_client.expects(:send_message).never
 
     # Run the job
-    SlackUserReactivationJob.perform_now(@slack_id)
+    SlackUserReactivationJob.perform_now(@platform_user_id)
 
     # Verify that participants remain active
     @participant1.reload
@@ -59,14 +59,14 @@ class SlackUserReactivationJobTest < ActiveJob::TestCase
 
   test "handles users with no participants" do
     # Delete all participants for this user
-    StandupParticipant.where(slack_id: @slack_id).delete_all
+    StandupParticipant.where(platform_user_id: @platform_user_id).delete_all
 
     # No notification should be sent
     @mock_slack_client.expects(:send_message).never
 
     # No error should be raised
     assert_nothing_raised do
-      SlackUserReactivationJob.perform_now(@slack_id)
+      SlackUserReactivationJob.perform_now(@platform_user_id)
     end
   end
 end

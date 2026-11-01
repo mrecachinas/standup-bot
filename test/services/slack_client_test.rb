@@ -115,8 +115,8 @@ class SlackClientTest < ActiveSupport::TestCase
 
     assert_equal(
       [
-        { "slack_id" => "U111", "slack_name" => "Alice", "cached_timezone" => "America/New_York" },
-        { "slack_id" => "U222", "slack_name" => "Bob", "cached_timezone" => "UTC" }
+        { "platform_user_id" => "U111", "display_name" => "Alice", "cached_timezone" => "America/New_York" },
+        { "platform_user_id" => "U222", "display_name" => "Bob", "cached_timezone" => "UTC" }
       ],
       slack_client.channel_member_profiles("C12345")
     )

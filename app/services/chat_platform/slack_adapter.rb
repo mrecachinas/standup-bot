@@ -3,6 +3,7 @@ module ChatPlatform
   # low-level Web API wrapper; Block Kit and mrkdwn live here.
   class SlackAdapter < Adapter
     USER_ID_PATTERN = /\A[UW][A-Z0-9]{2,}\z/
+    CHANNEL_PATTERN = /\A#?[A-Za-z0-9][A-Za-z0-9_-]*\z/
 
     def key
       :slack
@@ -93,6 +94,26 @@ module ChatPlatform
 
     def valid_user_id?(value)
       USER_ID_PATTERN.match?(value.to_s)
+    end
+
+    def normalize_user_id(value)
+      value.to_s.strip.upcase.presence
+    end
+
+    def user_id_hint
+      "a Slack user ID like U123ABC"
+    end
+
+    def valid_channel?(value)
+      CHANNEL_PATTERN.match?(value.to_s)
+    end
+
+    def normalize_channel(value)
+      value.to_s.strip.delete_prefix("#").presence
+    end
+
+    def channel_hint
+      "a Slack channel name or ID without spaces"
     end
 
     private

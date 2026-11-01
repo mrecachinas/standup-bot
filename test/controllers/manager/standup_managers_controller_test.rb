@@ -16,7 +16,7 @@ class Manager::StandupManagersControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to manager_standup_participants_path(@daily)
-    promoted = User.find_by!(slack_user_id: @member.slack_id)
+    promoted = User.find_by_identity!(:slack, @member.platform_user_id)
     assert promoted.can_manage_standup?(@daily)
     assert_not promoted.can_manage_standup?(@weekly)
     assert_not promoted.admin?
@@ -24,7 +24,7 @@ class Manager::StandupManagersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "promoting reuses an existing account for that Slack user" do
-    users(:other_manager).update!(slack_user_id: @member.slack_id)
+    users(:other_manager).link_identity!(:slack, @member.platform_user_id)
     sign_in(@manager, "manager-access-token")
 
     assert_no_difference "User.count" do
@@ -57,7 +57,7 @@ class Manager::StandupManagersControllerTest < ActionDispatch::IntegrationTest
   test "a manager can be removed, but not the last one" do
     sign_in(@manager, "manager-access-token")
     post manager_standup_managers_path(@daily), params: { participant_id: @member.id }
-    promoted = User.find_by!(slack_user_id: @member.slack_id)
+    promoted = User.find_by_identity!(:slack, @member.platform_user_id)
 
     assert_difference "@daily.standup_ownerships.count", -1 do
       delete manager_standup_manager_path(@daily, promoted)

@@ -207,8 +207,8 @@ class SlackClient
       next unless info
 
       {
-        "slack_id" => slack_id,
-        "slack_name" => info["name"].presence || slack_id,
+        "platform_user_id" => slack_id,
+        "display_name" => info["name"].presence || slack_id,
         "cached_timezone" => info["tz"].presence,
         "avatar_url" => info["avatar_url"]
       }.compact

@@ -8,13 +8,13 @@ module Manager
       participant = @standup.standup_participants.find(params[:participant_id])
       user = User.for_participant!(participant)
       unless user.active?
-        redirect_to manager_standup_participants_path(@standup), alert: "#{participant.slack_name}'s account is turned off, so they can't manage standups.", status: :see_other
+        redirect_to manager_standup_participants_path(@standup), alert: "#{participant.display_name}'s account is turned off, so they can't manage standups.", status: :see_other
         return
       end
 
       ownership = @standup.standup_ownerships.find_or_create_by!(user: user) { |record| record.role = "manager" }
-      audit_manager_change!("standup.manager.add", auditable: @standup, metadata: { user_id: user.id, slack_id: participant.slack_id, ownership_id: ownership.id })
-      redirect_to manager_standup_participants_path(@standup), notice: "#{participant.slack_name} can now manage #{@standup.name}.", status: :see_other
+      audit_manager_change!("standup.manager.add", auditable: @standup, metadata: { user_id: user.id, platform_user_id: participant.platform_user_id, ownership_id: ownership.id })
+      redirect_to manager_standup_participants_path(@standup), notice: "#{participant.display_name} can now manage #{@standup.name}.", status: :see_other
     end
 
     def destroy

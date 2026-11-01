@@ -1,11 +1,11 @@
 <%# locals: (participant:, index:) %>
-<% pending = participant[:id].blank? && participant[:slack_name].blank? %>
-<% name = participant[:slack_name].presence || participant[:slack_id] %>
+<% pending = participant[:id].blank? && participant[:display_name].blank? %>
+<% name = participant[:display_name].presence || participant[:platform_user_id] %>
 <span class="person-chip <%= "is-pending" if pending %> <%= "is-inactive" unless participant[:active] %> <%= "is-removed" if participant[:destroy] %>" data-person-chip>
   <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id], id: nil %>
-  <%= hidden_field_tag "standup[participants][#{index}][slack_id]", participant[:slack_id], id: nil %>
-  <%= hidden_field_tag "standup[participants][#{index}][original_slack_id]", participant[:slack_id], id: nil %>
-  <%= hidden_field_tag "standup[participants][#{index}][slack_name]", participant[:slack_name], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][platform_user_id]", participant[:platform_user_id], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][original_slack_id]", participant[:platform_user_id], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][display_name]", participant[:display_name], id: nil %>
   <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone], id: nil %>
   <%= hidden_field_tag "standup[participants][#{index}][active]", participant[:active] ? "1" : "0", id: nil %>
   <%= avatar(name, size: "sm", url: participant[:avatar_url]) %>

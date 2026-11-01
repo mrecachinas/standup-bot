@@ -26,10 +26,10 @@ class Manager::StandupResponsesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "date filter excludes responses outside selected range" do
-    @owned_standup.standup_participants.create!(slack_id: "UDATE159", slack_name: "Date Filter User")
+    @owned_standup.standup_participants.create!(platform_user_id: "UDATE159", display_name: "Date Filter User")
     StandupResponse.create!(
       standup: @owned_standup,
-      slack_id: "UDATE159",
+      platform_user_id: "UDATE159",
       status: "completed",
       answers: [ { "question" => "Any blockers?", "answer" => "Outside filter" } ],
       standup_date: Date.new(2025, 4, 5),
@@ -90,10 +90,10 @@ class Manager::StandupResponsesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "response history displays timestamps and updated state" do
-    @owned_standup.standup_participants.create!(slack_id: "UTIME159", slack_name: "Timestamp User")
+    @owned_standup.standup_participants.create!(platform_user_id: "UTIME159", display_name: "Timestamp User")
     response_record = StandupResponse.create!(
       standup: @owned_standup,
-      slack_id: "UTIME159",
+      platform_user_id: "UTIME159",
       status: "completed",
       answers: [
         {

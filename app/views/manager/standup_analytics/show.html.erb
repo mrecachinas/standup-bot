@@ -101,7 +101,7 @@
         <% if @participant_stats.any? %>
           <ul class="list">
             <% @participant_stats.each do |stat| %>
-              <% name = stat[:slack_name].presence || stat[:slack_id] %>
+              <% name = stat[:display_name].presence || stat[:platform_user_id] %>
               <li>
                 <%= avatar(name, size: "sm", url: stat[:avatar_url]) %>
                 <div class="grow">
@@ -214,7 +214,7 @@
                     <blockquote class="quote">
                       <p><%= answer[:answer] %></p>
                       <footer class="xsmall muted mt-1">
-                        <%= answer[:slack_name] %><% if answer[:answered_at].present? %> · <%= Time.zone.parse(answer[:answered_at]).strftime("%b %-d") %><% end %>
+                        <%= answer[:display_name] %><% if answer[:answered_at].present? %> · <%= Time.zone.parse(answer[:answered_at]).strftime("%b %-d") %><% end %>
                       </footer>
                     </blockquote>
                   <% end %>

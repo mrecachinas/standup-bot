@@ -1,5 +1,5 @@
 <% content_for :title, @standup.name %>
-<% participants_by_id = @participants.index_by(&:slack_id) %>
+<% participants_by_id = @participants.index_by(&:platform_user_id) %>
 <% active_participants = @participants.select(&:active?) %>
 <% latest_date = @latest_responses.first&.standup_date %>
 
@@ -67,11 +67,11 @@
           </div>
           <% if @latest_responses.any? %>
             <ul class="list">
-              <% @latest_responses.sort_by { |response| participants_by_id[response.slack_id]&.slack_name.to_s }.each do |response| %>
-                <% name = participants_by_id[response.slack_id]&.slack_name.presence || response.slack_id %>
+              <% @latest_responses.sort_by { |response| participants_by_id[response.platform_user_id]&.display_name.to_s }.each do |response| %>
+                <% name = participants_by_id[response.platform_user_id]&.display_name.presence || response.platform_user_id %>
                 <% answers = Array(response.answers) %>
                 <li class="items-start">
-                  <%= avatar(name, url: participants_by_id[response.slack_id]&.avatar_url) %>
+                  <%= avatar(name, url: participants_by_id[response.platform_user_id]&.avatar_url) %>
                   <div class="grow">
                     <div class="flex items-center gap-2">
                       <span class="cell-title"><%= name %></span>
@@ -150,8 +150,8 @@
               <ul class="stack-sm">
                 <% active_participants.first(8).each do |participant| %>
                   <li class="person">
-                    <%= avatar(participant.slack_name, size: "sm", url: participant.avatar_url) %>
-                    <span class="truncate grow"><%= participant.slack_name %></span>
+                    <%= avatar(participant.display_name, size: "sm", url: participant.avatar_url) %>
+                    <span class="truncate grow"><%= participant.display_name %></span>
                     <span class="xsmall muted"><%= participant.cached_timezone.to_s.split("/").last.to_s.tr("_", " ") %></span>
                   </li>
                 <% end %>

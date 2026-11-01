@@ -35,7 +35,7 @@ class StandupReminderJob < ApplicationJob
     total = standup.questions.size
 
     chat_for(standup).send_direct_message(
-      response.slack_id,
+      response.platform_user_id,
       "Friendly reminder: your #{standup.name} standup is still in progress " \
         "(#{answered}/#{total} questions answered). Reply in this DM to continue, " \
         "or type `skip` to skip the current question."

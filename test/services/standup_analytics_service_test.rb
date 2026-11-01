@@ -74,17 +74,17 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
 
     non_responder = analytics.frequent_non_responders.first
 
-    assert_equal "U234567", non_responder[:slack_id]
-    assert_equal "Jane Smith", non_responder[:slack_name]
+    assert_equal "U234567", non_responder[:platform_user_id]
+    assert_equal "Jane Smith", non_responder[:display_name]
     assert_equal 1, non_responder[:missed]
     assert_equal 0.0, non_responder[:completion_rate]
   end
 
   test "summary includes average response time" do
-    @standup.standup_participants.create!(slack_id: "UAVG160", slack_name: "Average User")
+    @standup.standup_participants.create!(platform_user_id: "UAVG160", display_name: "Average User")
     response = StandupResponse.create!(
       standup: @standup,
-      slack_id: "UAVG160",
+      platform_user_id: "UAVG160",
       status: "completed",
       answers: [ { "question" => "Any blockers?", "answer" => "No blockers" } ],
       standup_date: Date.new(2025, 4, 8),
@@ -137,7 +137,7 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
   test "extracts blocker keywords" do
     StandupResponse.create!(
       standup: @standup,
-      slack_id: "U999BLOCK",
+      platform_user_id: "U999BLOCK",
       status: "completed",
       answers: [
         { "question" => "Any blockers?", "answer" => "Waiting on review and deployment review" }
@@ -183,11 +183,11 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     @standup.standup_responses.delete_all
 
     Timecop.freeze(Time.zone.local(2025, 4, 10, 12, 0, 0)) do
-      @standup.standup_responses.create!(slack_id: participant.slack_id, status: "completed", standup_date: Date.new(2025, 4, 9), answers: [])
+      @standup.standup_responses.create!(platform_user_id: participant.platform_user_id, status: "completed", standup_date: Date.new(2025, 4, 9), answers: [])
       participant.update!(vacation_until: Date.new(2025, 4, 20))
 
       analytics = StandupAnalyticsService.new(@standup, start_date: "2025-04-09", end_date: "2025-04-09")
-      stat = analytics.participant_stats.find { |entry| entry[:slack_id] == participant.slack_id }
+      stat = analytics.participant_stats.find { |entry| entry[:platform_user_id] == participant.platform_user_id }
 
       assert_equal 1, stat[:expected]
       assert_in_delta 100.0, stat[:completion_rate]
@@ -196,10 +196,10 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
   end
 
   test "run breakdown lists each scheduled run with status counts" do
-    participants = @standup.standup_participants.active.order(:slack_id).to_a
+    participants = @standup.standup_participants.active.order(:platform_user_id).to_a
     @standup.standup_responses.delete_all
-    @standup.standup_responses.create!(slack_id: participants[0].slack_id, status: "completed", standup_date: Date.new(2025, 4, 9), answers: [])
-    @standup.standup_responses.create!(slack_id: participants[1].slack_id, status: "skipped", standup_date: Date.new(2025, 4, 9), answers: [])
+    @standup.standup_responses.create!(platform_user_id: participants[0].platform_user_id, status: "completed", standup_date: Date.new(2025, 4, 9), answers: [])
+    @standup.standup_responses.create!(platform_user_id: participants[1].platform_user_id, status: "skipped", standup_date: Date.new(2025, 4, 9), answers: [])
 
     runs = StandupAnalyticsService.new(@standup, start_date: "2025-04-08", end_date: "2025-04-09").run_breakdown
     run = runs.find { |entry| entry[:date] == Date.new(2025, 4, 9) }
@@ -210,11 +210,11 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     assert_equal participants.size - 2, run[:missed]
   end
   test "completion stays at or below 100 percent after a responder is deactivated" do
-    participants = @standup.standup_participants.active.order(:slack_id).first(2)
+    participants = @standup.standup_participants.active.order(:platform_user_id).first(2)
     @standup.standup_responses.delete_all
     [ Date.new(2025, 4, 8), Date.new(2025, 4, 9) ].each do |date|
       participants.each do |participant|
-        @standup.standup_responses.create!(slack_id: participant.slack_id, status: "completed", standup_date: date, answers: [])
+        @standup.standup_responses.create!(platform_user_id: participant.platform_user_id, status: "completed", standup_date: date, answers: [])
       end
     end
     participants.last.update!(active: false)
@@ -233,18 +233,18 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
   end
   test "question funnel shows where started check-ins stop" do
     @standup.update!(questions: [ "Yesterday?", "Today?", "Blockers?" ])
-    participants = @standup.standup_participants.active.order(:slack_id).first(2)
+    participants = @standup.standup_participants.active.order(:platform_user_id).first(2)
     @standup.standup_responses.delete_all
     date = Date.new(2025, 4, 9)
-    @standup.standup_responses.create!(slack_id: participants[0].slack_id, standup_date: date, status: "completed", answers: [
+    @standup.standup_responses.create!(platform_user_id: participants[0].platform_user_id, standup_date: date, status: "completed", answers: [
       { "question" => "Yesterday?", "answer" => "Shipped" },
       { "question" => "Today?", "answer" => "(skipped)" },
       { "question" => "Blockers?", "answer" => "None" }
     ])
-    @standup.standup_responses.create!(slack_id: participants[1].slack_id, standup_date: date, status: "expired", answers: [
+    @standup.standup_responses.create!(platform_user_id: participants[1].platform_user_id, standup_date: date, status: "expired", answers: [
       { "question" => "Yesterday?", "answer" => "Reviews" }
     ])
-    @standup.standup_responses.create!(slack_id: "UINPROGRESS", standup_date: date, status: "pending", answers: [
+    @standup.standup_responses.create!(platform_user_id: "UINPROGRESS", standup_date: date, status: "pending", answers: [
       { "question" => "Yesterday?", "answer" => "Still typing" }
     ])
 

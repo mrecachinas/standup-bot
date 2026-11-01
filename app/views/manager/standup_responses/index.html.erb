@@ -17,7 +17,7 @@
           <div class="field">
             <%= form.label :participant, "Person" %>
             <%= form.select :participant,
-              options_for_select(@history.participant_options.map { |participant| [ participant.label, participant.slack_id ] }, @history.participant_slack_id),
+              options_for_select(@history.participant_options.map { |participant| [ participant.label, participant.platform_user_id ] }, @history.participant_slack_id),
               { include_blank: "Everyone" } %>
           </div>
           <div class="field">

@@ -17,38 +17,38 @@ module Manager
         return
       end
 
-      previous_channel = @standup.slack_channel
-      @standup.update!(slack_channel: channel_id)
+      previous_channel = @standup.platform_channel
+      @standup.update!(platform_channel: channel_id)
       audit_manager_change!(
         "slack.channel.update",
         auditable: @standup,
-        metadata: { previous_channel: previous_channel, slack_channel: channel_id, channel_name: channel_name }.compact
+        metadata: { previous_channel: previous_channel, platform_channel: channel_id, channel_name: channel_name }.compact
       )
 
       redirect_to manager_standup_slack_setup_path(@standup, channel_updated: "1"), status: :see_other
     end
 
     def add_participant
-      resolved_user = resolve_slack_user(params[:slack_user].presence || params[:slack_id], fallback_name: params[:slack_name])
-      slack_id = resolved_user.slack_id
-      slack_name = resolved_user.slack_name
+      resolved_user = resolve_slack_user(params[:slack_user].presence || params[:platform_user_id], fallback_name: params[:display_name])
+      platform_user_id = resolved_user.platform_user_id
+      display_name = resolved_user.display_name
 
-      if slack_id.blank?
+      if platform_user_id.blank?
         @participant_error = "Select a Slack user before adding a participant."
         load_slack_setup
         render :show, status: :unprocessable_entity
         return
       end
 
-      participant = @standup.standup_participants.find_or_initialize_by(slack_id: slack_id)
-      participant.assign_attributes(slack_name: slack_name, active: true)
+      participant = @standup.standup_participants.find_or_initialize_by(platform_user_id: platform_user_id)
+      participant.assign_attributes(display_name: display_name, active: true)
       participant.avatar_url = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
 
       if participant.save
         audit_manager_change!(
           "slack.participant.add",
           auditable: participant,
-          metadata: { standup_id: @standup.id, slack_id: slack_id, slack_name: slack_name }
+          metadata: { standup_id: @standup.id, platform_user_id: platform_user_id, display_name: display_name }
         )
         redirect_to manager_standup_slack_setup_path(@standup, participant_added: "1"), status: :see_other
       else
@@ -64,7 +64,7 @@ module Manager
 
     def remove_participant
       participant = @standup.standup_participants.find(params[:participant_id])
-      metadata = { standup_id: @standup.id, slack_id: participant.slack_id, slack_name: participant.slack_name }
+      metadata = { standup_id: @standup.id, platform_user_id: participant.platform_user_id, display_name: participant.display_name }
       participant.destroy!
       audit_manager_change!("slack.participant.remove", auditable: participant, metadata: metadata)
 
@@ -93,7 +93,7 @@ module Manager
     def load_slack_setup
       @slack_integration_status = slack_integration_service.configuration_status
       @connection_result = slack_integration_service.connection_status
-      @participants = @standup.standup_participants.order(:slack_name, :slack_id)
+      @participants = @standup.standup_participants.order(:display_name, :platform_user_id)
       @channel_query = params[:channel_query]
       @user_query = params[:user_query]
       @channel_result = slack_integration_service.discover_channels(query: @channel_query, include_private: current_user.admin?) if discovery_requested?("channels", @channel_query)
@@ -103,7 +103,7 @@ module Manager
     def audit_test_message!(result)
       metadata = {
         standup_id: @standup.id,
-        slack_channel: @standup.slack_channel,
+        platform_channel: @standup.platform_channel,
         status: result.status,
         error_code: result.error_code
       }.compact

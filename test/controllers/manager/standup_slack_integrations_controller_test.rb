@@ -55,11 +55,11 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     end
 
     assert_redirected_to manager_standup_slack_setup_path(@owned_standup, channel_updated: "1")
-    assert_equal "CNEWCHAN", @owned_standup.reload.slack_channel
+    assert_equal "CNEWCHAN", @owned_standup.reload.platform_channel
     audit_log = AuditLog.where(action: "slack.channel.update").order(:created_at).last
     assert_equal @manager, audit_log.actor
     assert_equal "daily-standup", audit_log.metadata["previous_channel"]
-    assert_equal "CNEWCHAN", audit_log.metadata["slack_channel"]
+    assert_equal "CNEWCHAN", audit_log.metadata["platform_channel"]
   end
 
   test "manager adds discovered Slack user as participant and writes audit log" do
@@ -68,19 +68,19 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     assert_difference "StandupParticipant.count", 1 do
       assert_difference "AuditLog.where(action: 'slack.participant.add').count", 1 do
         post manager_standup_slack_setup_participants_path(@owned_standup),
-          params: { slack_id: "UDISC1", slack_name: "Discovered User" }
+          params: { platform_user_id: "UDISC1", display_name: "Discovered User" }
       end
     end
 
     assert_redirected_to manager_standup_slack_setup_path(@owned_standup, participant_added: "1")
-    participant = @owned_standup.standup_participants.find_by!(slack_id: "UDISC1")
-    assert_equal "Discovered User", participant.slack_name
+    participant = @owned_standup.standup_participants.find_by!(platform_user_id: "UDISC1")
+    assert_equal "Discovered User", participant.display_name
   end
 
   test "manager adds Slack user by username" do
     SlackUserResolver.any_instance.expects(:resolve)
       .with("@discovered", fallback_name: nil)
-      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UDISC2", slack_name: "Discovered By Username", cached_timezone: "UTC"))
+      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UDISC2", display_name: "Discovered By Username", cached_timezone: "UTC"))
     sign_in(@manager, "manager-access-token")
 
     assert_difference "StandupParticipant.count", 1 do
@@ -89,7 +89,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     end
 
     assert_redirected_to manager_standup_slack_setup_path(@owned_standup, participant_added: "1")
-    assert_equal "Discovered By Username", @owned_standup.standup_participants.find_by!(slack_id: "UDISC2").slack_name
+    assert_equal "Discovered By Username", @owned_standup.standup_participants.find_by!(platform_user_id: "UDISC2").display_name
   end
 
   test "manager removes participant and writes audit log" do
@@ -103,7 +103,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
 
     assert_redirected_to manager_standup_slack_setup_path(@owned_standup, participant_removed: "1")
     audit_log = AuditLog.where(action: "slack.participant.remove").order(:created_at).last
-    assert_equal @participant.slack_id, audit_log.metadata["slack_id"]
+    assert_equal @participant.platform_user_id, audit_log.metadata["platform_user_id"]
   end
 
   test "manager sends test standup message and writes audit log" do
@@ -119,7 +119,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     assert_redirected_to manager_standup_slack_setup_path(@owned_standup, test_message_sent: "1")
     audit_log = AuditLog.where(action: "slack.test_message.send").order(:created_at).last
     assert_equal @manager, audit_log.actor
-    assert_equal @owned_standup.slack_channel, audit_log.metadata["slack_channel"]
+    assert_equal @owned_standup.platform_channel, audit_log.metadata["platform_channel"]
     assert_equal({ "channel" => "C123", "ts" => "123.456" }, audit_log.metadata["slack_response"])
   end
 

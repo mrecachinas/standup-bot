@@ -19,7 +19,7 @@ class Api::StandupManagementControllerTest < ActionDispatch::IntegrationTest
 
     assert_difference "@standup.standup_participants.count", 1 do
       post api_standup_participants_path(@standup),
-        params: { participant: { slack_id: "UADMIN1", slack_name: "Admin User", active: true } },
+        params: { participant: { platform_user_id: "UADMIN1", display_name: "Admin User", active: true } },
         headers: admin_headers,
         as: :json
     end

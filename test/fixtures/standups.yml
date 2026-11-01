@@ -1,7 +1,7 @@
 # Fixture for daily standup
 daily:
   name: Daily Standup
-  slack_channel: daily-standup
+  platform_channel: daily-standup
   questions:
     - What did you do yesterday?
     - What are you doing today?
@@ -15,7 +15,7 @@ daily:
 # Fixture for weekdays standup
 weekdays:
   name: Weekdays Standup
-  slack_channel: weekday-standup
+  platform_channel: weekday-standup
   questions:
     - Current priorities?
     - Any updates?
@@ -28,7 +28,7 @@ weekdays:
 # Fixture for weekly standup
 weekly:
   name: Weekly Planning
-  slack_channel: weekly-planning
+  platform_channel: weekly-planning
   questions:
     - Goals for this week?
     - Wins from last week?
@@ -43,7 +43,7 @@ weekly:
 # Fixture for inactive standup
 inactive:
   name: Archived Standup
-  slack_channel: archived-standup
+  platform_channel: archived-standup
   questions:
     - Some question
   schedule_type: daily

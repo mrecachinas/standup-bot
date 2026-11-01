@@ -3,7 +3,7 @@ module Api
     before_action :set_standup
 
     def index
-      participants = @standup.standup_participants.order(:slack_name, :slack_id)
+      participants = @standup.standup_participants.order(:display_name, :platform_user_id)
       render json: {
         participants: participants.map { |participant| serialize_participant(participant) }
       }
@@ -23,7 +23,7 @@ module Api
 
     def destroy
       participant = @standup.standup_participants.find(params[:id])
-      metadata = { standup_id: @standup.id, slack_id: participant.slack_id, slack_name: participant.slack_name }
+      metadata = { standup_id: @standup.id, platform_user_id: participant.platform_user_id, display_name: participant.display_name }
       participant.destroy!
       StandupMetrics.track("admin.participant_deleted", standup_id: @standup.id, participant_id: participant.id)
       audit_admin_change!("standup_participant.destroy", auditable: participant, metadata: metadata)
@@ -33,15 +33,15 @@ module Api
     private
 
     def participant_params
-      params.require(:participant).permit(:slack_id, :slack_name, :active, :cached_timezone)
+      params.require(:participant).permit(:platform_user_id, :display_name, :active, :cached_timezone)
     end
 
     def serialize_participant(participant)
       {
         id: participant.id,
         standup_id: participant.standup_id,
-        slack_id: participant.slack_id,
-        slack_name: participant.slack_name,
+        platform_user_id: participant.platform_user_id,
+        display_name: participant.display_name,
         active: participant.active,
         cached_timezone: participant.cached_timezone,
         created_at: participant.created_at&.iso8601,

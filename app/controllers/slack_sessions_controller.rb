@@ -20,13 +20,14 @@ class SlackSessionsController < Web::ApplicationController
     return fail_sign_in("Your sign-in link expired. Please try again.") unless valid_state?(expected_state)
 
     identity = SlackSignIn.new.identity_for(code: params[:code], redirect_uri: slack_sign_in_callback_url)
-    user = User.from_slack_identity(identity)
+    user = User.from_identity(:slack, identity)
     return fail_sign_in("Your account has been turned off. Ask an admin to turn it back on.") unless user.active?
 
     reset_session
     session[:user_id] = user.id
-    session[:slack_id] = identity.slack_id
-    session[:slack_name] = identity.name
+    session[:member_platform] = "slack"
+    session[:member_user_id] = identity.user_id
+    session[:member_name] = identity.name
     user.update!(last_signed_in_at: Time.current)
     refresh_avatar(user, identity)
 
@@ -47,7 +48,7 @@ class SlackSessionsController < Web::ApplicationController
   def landing_path_for(user, identity)
     return manager_standups_path if user.admin? || user.standup_ownerships.exists?
 
-    Member.for(identity.slack_id) ? me_root_path : manager_standups_path
+    Member.for(:slack, identity.user_id) ? me_root_path : manager_standups_path
   end
 
   # Sign-in is a free chance to pick up a changed Slack photo everywhere it's shown.
@@ -55,7 +56,7 @@ class SlackSessionsController < Web::ApplicationController
     return unless SlackAvatar.safe_url?(identity.avatar_url)
 
     user.update_columns(avatar_url: identity.avatar_url) if user.avatar_url != identity.avatar_url
-    StandupParticipant.where(slack_id: identity.slack_id).update_all(avatar_url: identity.avatar_url)
+    StandupParticipant.on_platform(:slack).where(platform_user_id: identity.user_id).update_all(avatar_url: identity.avatar_url)
   end
 
   def fail_sign_in(message)

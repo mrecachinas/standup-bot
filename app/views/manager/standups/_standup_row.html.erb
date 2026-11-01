@@ -7,7 +7,7 @@
       <%= link_to standup.name, manager_standup_path(standup), class: "cell-title", data: { turbo_frame: "_top" } %>
       <% unless standup.active? %><%= standup_status_badge(standup) %><% end %>
     </div>
-    <div class="cell-sub">#<%= standup.slack_channel.to_s.delete_prefix("#") %></div>
+    <div class="cell-sub">#<%= standup.platform_channel.to_s.delete_prefix("#") %></div>
   </td>
   <td class="hide-sm">
     <div><%= schedule_summary(standup) %></div>

@@ -27,7 +27,7 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
   test "creates a new standup from YAML" do
     write_yaml("team.yml", {
       "name" => "Morning Standup",
-      "slack_channel" => "eng-standup",
+      "platform_channel" => "eng-standup",
       "intro" => "Good morning!",
       "outro" => "Have a great day!",
       "questions" => [ "What did you do?", "What will you do?" ],
@@ -43,7 +43,7 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
     end
 
     standup = Standup.find_by(name: "Morning Standup")
-    assert_equal "eng-standup", standup.slack_channel
+    assert_equal "eng-standup", standup.platform_channel
     assert_equal "Good morning!", standup.intro
     assert_equal "Have a great day!", standup.outro
     assert_equal [ "What did you do?", "What will you do?" ], standup.questions
@@ -56,13 +56,13 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
   test "updates an existing standup" do
     existing = Standup.create!(
       name: "Morning Standup",
-      slack_channel: "old-channel",
+      platform_channel: "old-channel",
       questions: [ "Old question?" ]
     )
 
     write_yaml("team.yml", {
       "name" => "Morning Standup",
-      "slack_channel" => "new-channel",
+      "platform_channel" => "new-channel",
       "questions" => [ "New question?" ],
       "schedule" => { "time" => "10:00" }
     })
@@ -72,7 +72,7 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
     end
 
     existing.reload
-    assert_equal "new-channel", existing.slack_channel
+    assert_equal "new-channel", existing.platform_channel
     assert_equal [ "New question?" ], existing.questions
     assert_equal 10, existing.default_hour
   end
@@ -80,7 +80,7 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
   test "maps weekly schedule with specific days" do
     write_yaml("team.yml", {
       "name" => "Weekly Sync",
-      "slack_channel" => "sync",
+      "platform_channel" => "sync",
       "questions" => [ "Updates?" ],
       "schedule" => {
         "days" => %w[monday thursday],
@@ -100,7 +100,7 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
   test "maps daily schedule when all seven days specified" do
     write_yaml("team.yml", {
       "name" => "Every Day",
-      "slack_channel" => "daily",
+      "platform_channel" => "daily",
       "questions" => [ "Status?" ],
       "schedule" => {
         "days" => %w[monday tuesday wednesday thursday friday saturday sunday],
@@ -117,12 +117,12 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
   test "creates participants from YAML" do
     write_yaml("team.yml", {
       "name" => "Team Standup",
-      "slack_channel" => "team",
+      "platform_channel" => "team",
       "questions" => [ "Update?" ],
       "schedule" => { "time" => "09:00" },
       "participants" => [
-        { "slack_id" => "U111", "name" => "Alice", "active" => true },
-        { "slack_id" => "U222", "name" => "Bob", "active" => false }
+        { "platform_user_id" => "U111", "name" => "Alice", "active" => true },
+        { "platform_user_id" => "U222", "name" => "Bob", "active" => false }
       ]
     })
 
@@ -131,32 +131,32 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
     standup = Standup.find_by(name: "Team Standup")
     assert_equal 2, standup.standup_participants.count
 
-    alice = standup.standup_participants.find_by(slack_id: "U111")
-    assert_equal "Alice", alice.slack_name
+    alice = standup.standup_participants.find_by(platform_user_id: "U111")
+    assert_equal "Alice", alice.display_name
     assert alice.active
 
-    bob = standup.standup_participants.find_by(slack_id: "U222")
-    assert_equal "Bob", bob.slack_name
+    bob = standup.standup_participants.find_by(platform_user_id: "U222")
+    assert_equal "Bob", bob.display_name
     assert_not bob.active
   end
 
   test "deactivates participants not in YAML" do
     standup = Standup.create!(
       name: "Team Standup",
-      slack_channel: "team",
+      platform_channel: "team",
       questions: [ "Update?" ]
     )
     removed = StandupParticipant.create!(
-      standup: standup, slack_id: "UREMOVED", slack_name: "Removed", active: true
+      standup: standup, platform_user_id: "UREMOVED", display_name: "Removed", active: true
     )
 
     write_yaml("team.yml", {
       "name" => "Team Standup",
-      "slack_channel" => "team",
+      "platform_channel" => "team",
       "questions" => [ "Update?" ],
       "schedule" => { "time" => "09:00" },
       "participants" => [
-        { "slack_id" => "UKEPT", "name" => "Kept", "active" => true }
+        { "platform_user_id" => "UKEPT", "name" => "Kept", "active" => true }
       ]
     })
 
@@ -169,13 +169,13 @@ class StandupsImportTaskTest < ActiveSupport::TestCase
   test "processes multiple YAML files" do
     write_yaml("team_a.yml", {
       "name" => "Team A",
-      "slack_channel" => "team-a",
+      "platform_channel" => "team-a",
       "questions" => [ "Q?" ],
       "schedule" => { "time" => "09:00" }
     })
     write_yaml("team_b.yml", {
       "name" => "Team B",
-      "slack_channel" => "team-b",
+      "platform_channel" => "team-b",
       "questions" => [ "Q?" ],
       "schedule" => { "time" => "10:00" }
     })

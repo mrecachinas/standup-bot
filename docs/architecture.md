@@ -93,17 +93,19 @@ erDiagram
     Standup ||--o{ ReportGeneration : produces
     Standup ||--o{ StandupOwnership : "owned through"
     User ||--o{ StandupOwnership : owns
+    User ||--o{ UserIdentity : "signs in as"
     User ||--o{ AuditLog : "changes recorded in"
 ```
 
 | Model | What it is |
 | --- | --- |
-| `Standup` | A team's standup: channel, schedule, questions, intro/outro, and reminder settings |
-| `StandupParticipant` | A Slack user in a standup, with their cached timezone and any vacation dates |
+| `Standup` | A team's standup: chat `platform`, channel, schedule, questions, intro/outro, and reminder settings. The platform is fixed once the standup exists |
+| `StandupParticipant` | A person in a standup, identified by `platform_user_id` on the standup's platform, with their cached timezone and any vacation dates |
 | `StandupResponse` | One person's answers for one standup date, with a status of `pending`, `completed`, `skipped`, `cancelled`, or `expired` |
 | `StandupScheduleException` | A one-off change to the schedule: a skipped date, holiday, cancellation, or new time |
 | `ReportConfiguration` / `ReportGeneration` | Where and how summary reports are delivered, plus a record of each one generated |
 | `User` | A manager or admin who can sign in to the web console |
+| `UserIdentity` | Links a `User` to their user ID on a chat platform, at most one per platform |
 | `StandupOwnership` | Links managers to the standups they can manage |
 | `AuditLog` | A record of changes managers and admins make |
 
@@ -129,15 +131,15 @@ The web console uses cookie-backed sessions and serves three kinds of people:
 
 - **Admins** (`User` with role `admin`) can manage every standup.
 - **Standup owners** (`User` with the standard `manager` role) manage the standups linked to them through `StandupOwnership`. Anyone can create a standup, for example to run one for a virtual team, and owns the standups they create. Being an owner has nothing to do with the org chart.
-- **Members** are the people in standups. A member is identified by Slack user ID, and the same person can be a `StandupParticipant` in several standups. `Member` (in `app/models/member.rb`) gathers those rows together.
+- **Members** are the people in standups. A member is identified by their platform and user ID on it, and the same person can be a `StandupParticipant` in several standups. `Member` (in `app/models/member.rb`) gathers those rows together.
 
-"Sign in with Slack" (`SlackSessionsController` and `SlackSignIn`) uses Slack's OpenID Connect endpoints and is pinned to one workspace. `User.from_slack_identity` finds or creates the account:
+"Sign in with Slack" (`SlackSessionsController` and `SlackSignIn`) uses Slack's OpenID Connect endpoints and is pinned to one workspace. `User.from_identity(:slack, identity)` finds or creates the account:
 
-1. It looks up an existing account by `slack_user_id`.
+1. It looks up an existing account by its Slack `UserIdentity`.
 2. If there isn't one, it links an existing account by a Slack-verified email.
 3. Otherwise it creates a standard account.
 
-Anyone who manages a standup can make other people in it managers, or remove them, from the Participants tab (`Manager::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their Slack user ID, and they're matched to it when they first sign in with Slack. A standup always keeps at least one manager.
+Anyone who manages a standup can make other people in it managers, or remove them, from the Participants tab (`Manager::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their user ID on the standup's platform, and they're matched to it when they first sign in. A standup always keeps at least one manager.
 
 Every console action has to check authorization. `Web::ApplicationController` runs `verify_authorized` after each action, and it raises `AuthorizationNotPerformed` unless the action called one of:
 

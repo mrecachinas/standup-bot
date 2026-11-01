@@ -69,7 +69,7 @@ module Manager
     end
 
     def sync
-      @sync_channel = params[:channel].presence || @standup.slack_channel
+      @sync_channel = params[:channel].presence || @standup.platform_channel
       @deactivate_missing = ActiveModel::Type::Boolean.new.cast(params[:deactivate_missing])
       unless current_user.admin? || channel_member?(@sync_channel)
         @sync_errors = [ "You can only sync people from a channel you're in." ]
@@ -107,8 +107,8 @@ module Manager
     # Non-admins can only pull in members of channels they belong to, so the
     # bot can't be used to list the members of someone else's private channel.
     def channel_member?(channel)
-      current_user.slack_user_id.present? &&
-        ChatPlatform.for_standup(@standup).channel_member_ids(channel).include?(current_user.slack_user_id)
+      user_id = current_user.platform_user_id_for(@standup.platform)
+      user_id.present? && ChatPlatform.for_standup(@standup).channel_member_ids(channel).include?(user_id)
     end
 
     def set_participant
@@ -122,11 +122,14 @@ module Manager
         @standup.standup_participants.new(active: true)
       end
       @bulk_import_text ||= nil
-      @sync_channel ||= @standup.slack_channel
+      @sync_channel ||= @standup.platform_channel
       @deactivate_missing = false if @deactivate_missing.nil?
-      @participants = @standup.standup_participants.order(:slack_name, :slack_id).to_a
+      @participants = @standup.standup_participants.order(:display_name, :platform_user_id).to_a
       @managers = @standup.standup_ownerships.includes(:user).map(&:user).sort_by { |user| user.name.downcase }
-      @manager_ids_by_slack_id = @managers.select(&:slack_user_id).to_h { |user| [ user.slack_user_id, user.id ] }
+      @manager_ids_by_platform_user_id = @managers.filter_map do |user|
+        user_id = user.platform_user_id_for(@standup.platform)
+        [ user_id, user.id ] if user_id.present?
+      end.to_h
       replace_invalid_participant
     end
 
@@ -139,8 +142,8 @@ module Manager
 
     def participant_params
       permitted = params.require(:standup_participant).permit(
-        :slack_id,
-        :slack_name,
+        :platform_user_id,
+        :display_name,
         :active,
         :cached_timezone,
         :vacation_until
@@ -152,12 +155,12 @@ module Manager
 
     def resolved_participant_params
       permitted = participant_params
-      identifier = permitted[:slack_id].to_s.strip
+      identifier = permitted[:platform_user_id].to_s.strip
       return permitted if identifier.blank?
 
-      resolved_user = slack_user_resolver.resolve(identifier, fallback_name: permitted[:slack_name])
-      permitted[:slack_id] = resolved_user.slack_id
-      permitted[:slack_name] = permitted[:slack_name].presence || resolved_user.slack_name
+      resolved_user = slack_user_resolver.resolve(identifier, fallback_name: permitted[:display_name])
+      permitted[:platform_user_id] = resolved_user.platform_user_id
+      permitted[:display_name] = permitted[:display_name].presence || resolved_user.display_name
       permitted[:cached_timezone] = permitted[:cached_timezone].presence || resolved_user.cached_timezone
       permitted[:avatar_url] = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
       permitted
@@ -193,8 +196,8 @@ module Manager
       participant.attributes.slice(
         "id",
         "standup_id",
-        "slack_id",
-        "slack_name",
+        "platform_user_id",
+        "display_name",
         "active",
         "cached_timezone",
         "cached_timezone_updated_at",

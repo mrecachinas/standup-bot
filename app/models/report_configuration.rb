@@ -17,9 +17,7 @@ class ReportConfiguration < ApplicationRecord
   before_validation :normalize_recipients
 
   validates :delivery_channel, presence: true
-  validates :delivery_channel,
-    format: { with: Standup::SLACK_CHANNEL_PATTERN, message: "must be a Slack channel name or ID without spaces" },
-    allow_blank: true
+  validate :delivery_channel_must_match_platform
   validates :report_format, inclusion: { in: REPORT_FORMATS.keys }
   validates :detail_level, inclusion: { in: DETAIL_LEVELS.keys }
   validate :recipients_are_valid
@@ -46,10 +44,22 @@ class ReportConfiguration < ApplicationRecord
     value.to_s.strip.sub(/\A#/, "")
   end
 
+  def chat_platform
+    ChatPlatform.for_standup(standup)
+  end
+
+  def delivery_channel_must_match_platform
+    return if delivery_channel.blank? || chat_platform.valid_channel?(delivery_channel)
+
+    errors.add(:delivery_channel, "must be #{chat_platform.channel_hint}")
+  end
+
   def recipients_are_valid
-    invalid_recipients = Array(recipients).reject { |recipient| recipient.match?(Standup::SLACK_CHANNEL_PATTERN) }
+    invalid_recipients = Array(recipients).reject do |recipient|
+      chat_platform.valid_channel?(recipient) || chat_platform.valid_user_id?(recipient)
+    end
     return if invalid_recipients.empty?
 
-    errors.add(:recipients, "contain invalid Slack channel or user IDs: #{invalid_recipients.join(', ')}")
+    errors.add(:recipients, "contain invalid #{chat_platform.label} channel or user IDs: #{invalid_recipients.join(', ')}")
   end
 end

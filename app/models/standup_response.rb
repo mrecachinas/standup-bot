@@ -11,7 +11,7 @@ class StandupResponse < ApplicationRecord
 
   before_validation :set_default_standup_date, on: :create
 
-  validates :slack_id, presence: true
+  validates :platform_user_id, presence: true
   validates :status, inclusion: { in: STATUSES }
   validate :answers_length_valid
 
@@ -34,15 +34,18 @@ class StandupResponse < ApplicationRecord
     for_date_in_timezone(zone.today, zone)
   }
   scope :for_today, -> { for_today_in_timezone(Time.zone) }
-  scope :authorized_for_slack_user, ->(slack_id) {
+  scope :on_platform, ->(platform) { joins(:standup).where(standups: { platform: platform.to_s }) }
+  # Responses belonging to this person in standups they're still part of.
+  scope :authorized_for, ->(platform, platform_user_id) {
     joins(standup: :standup_participants)
-      .where(slack_id: slack_id)
-      .where(standup_participants: { slack_id: slack_id })
+      .where(standups: { platform: platform.to_s })
+      .where(platform_user_id: platform_user_id)
+      .where(standup_participants: { platform_user_id: platform_user_id })
       .distinct
   }
 
   def participant
-    standup.standup_participants.find_by(slack_id: slack_id)
+    standup.standup_participants.find_by(platform_user_id: platform_user_id)
   end
 
   def self.normalize_date(date)

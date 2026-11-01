@@ -5,7 +5,7 @@ class DirectMessageCommandsTest < ActiveSupport::TestCase
     @slack_client = mock("SlackClient")
     SlackClient.stubs(:instance).returns(@slack_client)
     @commands = DirectMessageCommands.new(ChatPlatform.for(:slack))
-    @slack_id = "U12345678"
+    @platform_user_id = "U12345678"
     @channel = "D87654321"
   end
 
@@ -42,22 +42,22 @@ class DirectMessageCommandsTest < ActiveSupport::TestCase
     @slack_client.expects(:send_message).with(@channel, is_a(String))
 
     command_info = { command: :help, match: "help".match(/^help$/i) }
-    @commands.process(command_info, @slack_id, @channel)
+    @commands.process(command_info, @platform_user_id, @channel)
   end
 
   test "process should handle unknown command" do
     @slack_client.expects(:send_message).with(@channel, is_a(String))
 
     command_info = { command: :unknown_command, match: nil }
-    @commands.process(command_info, @slack_id, @channel)
+    @commands.process(command_info, @platform_user_id, @channel)
   end
 
   test "process should generate report for participant timezone date" do
     standup = standups(:daily)
     participant = StandupParticipant.create!(
       standup: standup,
-      slack_id: @slack_id,
-      slack_name: "Report User",
+      platform_user_id: @platform_user_id,
+      display_name: "Report User",
       active: true,
       cached_timezone: "UTC",
       cached_timezone_updated_at: Time.current
@@ -71,23 +71,23 @@ class DirectMessageCommandsTest < ActiveSupport::TestCase
     @slack_client.expects(:send_message).with(@channel, includes("Generating report"))
 
     command_info = { command: :report, match: "report".match(/^report$/i) }
-    @commands.process(command_info, @slack_id, @channel)
+    @commands.process(command_info, @platform_user_id, @channel)
   end
 
   test "process should handle skip command when no standup is active" do
     @slack_client.expects(:send_message).with(@channel, "You don't have an active standup to skip questions for.")
-    StandupResponse.expects(:authorized_for_slack_user).with(@slack_id).returns(StandupResponse.none)
+    StandupResponse.expects(:authorized_for).with(:slack, @platform_user_id).returns(StandupResponse.none)
 
     command_info = { command: :skip, match: "skip".match(/^skip$/i) }
-    @commands.process(command_info, @slack_id, @channel)
+    @commands.process(command_info, @platform_user_id, @channel)
   end
 
   test "process should handle cancel command when no standup is active" do
     @slack_client.expects(:send_message).with(@channel, "You don't have an active standup to cancel.")
-    StandupResponse.expects(:authorized_for_slack_user).with(@slack_id).returns(StandupResponse.none)
+    StandupResponse.expects(:authorized_for).with(:slack, @platform_user_id).returns(StandupResponse.none)
 
     command_info = { command: :cancel, match: "cancel".match(/^cancel$/i) }
-    @commands.process(command_info, @slack_id, @channel)
+    @commands.process(command_info, @platform_user_id, @channel)
   end
 
   test "back ends time away that was set on the web" do
@@ -95,7 +95,7 @@ class DirectMessageCommandsTest < ActiveSupport::TestCase
     participant.update!(active: true, vacation_until: Date.current + 3)
     @slack_client.expects(:send_message).with(@channel, regexp_matches(/Welcome back/))
 
-    @commands.process(@commands.parse("back"), participant.slack_id, @channel)
+    @commands.process(@commands.parse("back"), participant.platform_user_id, @channel)
 
     assert_nil participant.reload.vacation_until
     assert participant.active?

@@ -109,7 +109,7 @@ class SlackIntegrationService
   def test_message(standup)
     return missing_config_result(:bot_token) unless configured?(:bot_token)
 
-    if standup.slack_channel.blank?
+    if standup.platform_channel.blank?
       return Result.new(
         status: "error",
         message: "The standup does not have a Slack channel configured.",
@@ -118,7 +118,7 @@ class SlackIntegrationService
       )
     end
 
-    message = client.send_message(standup.slack_channel, test_message_text(standup))
+    message = client.send_message(standup.platform_channel, test_message_text(standup))
     Result.new(
       status: "ok",
       message: "Slack accepted the test standup message.",
@@ -181,7 +181,7 @@ class SlackIntegrationService
   def slack_user_id?(identifier)
     value = identifier.to_s
     normalized = value.upcase
-    (value == normalized && normalized.match?(StandupParticipant::SLACK_USER_ID_PATTERN)) ||
+    (value == normalized && normalized.match?(ChatPlatform::SlackAdapter::USER_ID_PATTERN)) ||
       normalized.match?(/\A[UW][A-Z0-9]*\d[A-Z0-9]*\z/)
   end
 

@@ -6,14 +6,14 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
     @participant = standup_participants(:one)
     @standup = @participant.standup
     @participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
-    StandupResponse.where(slack_id: @participant.slack_id).delete_all
+    StandupResponse.where(platform_user_id: @participant.platform_user_id).delete_all
   end
 
   test "standup start enqueues a manual standup" do
     standup_date = @participant.standup_date_for(Time.current).iso8601
 
-    assert_enqueued_with(job: StandupMessageJob, args: [ @participant.slack_id, @standup.id, standup_date ]) do
-      post slack_standup_command_url, params: { user_id: @participant.slack_id, text: "start" }
+    assert_enqueued_with(job: StandupMessageJob, args: [ @participant.platform_user_id, @standup.id, standup_date ]) do
+      post slack_standup_command_url, params: { user_id: @participant.platform_user_id, text: "start" }
     end
 
     assert_response :success
@@ -25,16 +25,16 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
   test "standup status and standup-status report pending progress" do
     StandupResponse.create!(
       standup: @standup,
-      slack_id: @participant.slack_id,
+      platform_user_id: @participant.platform_user_id,
       status: "pending",
       answers: [ { "question" => @standup.questions.first, "answer" => "Done", "timestamp" => Time.current } ]
     )
 
-    post slack_standup_command_url, params: { user_id: @participant.slack_id, text: "status" }
+    post slack_standup_command_url, params: { user_id: @participant.platform_user_id, text: "status" }
     assert_response :success
     assert_match(/in progress \(1\/#{@standup.questions.size}/, JSON.parse(response.body)["text"])
 
-    post slack_standup_status_command_url, params: { user_id: @participant.slack_id }
+    post slack_standup_status_command_url, params: { user_id: @participant.platform_user_id }
     assert_response :success
     assert_match(/in progress \(1\/#{@standup.questions.size}/, JSON.parse(response.body)["text"])
   end
@@ -45,13 +45,13 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
     Timecop.freeze(Time.new(2025, 4, 7, 6, 30, 0, "+00:00")) do
       StandupResponse.create!(
         standup: @standup,
-        slack_id: @participant.slack_id,
+        platform_user_id: @participant.platform_user_id,
         status: "pending",
         standup_date: Date.new(2025, 4, 6),
         answers: [ { "question" => @standup.questions.first, "answer" => "Done", "timestamp" => Time.current } ]
       )
 
-      post slack_standup_command_url, params: { user_id: @participant.slack_id, text: "status" }
+      post slack_standup_command_url, params: { user_id: @participant.platform_user_id, text: "status" }
 
       assert_response :success
       response_body = JSON.parse(response.body)
@@ -62,12 +62,12 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
   test "standup skip marks pending responses skipped" do
     response = StandupResponse.create!(
       standup: @standup,
-      slack_id: @participant.slack_id,
+      platform_user_id: @participant.platform_user_id,
       status: "pending",
       answers: [ { "question" => @standup.questions.first, "answer" => "Done", "timestamp" => Time.current } ]
     )
 
-    post slack_standup_command_url, params: { user_id: @participant.slack_id, text: "skip" }
+    post slack_standup_command_url, params: { user_id: @participant.platform_user_id, text: "skip" }
 
     assert_response :success
     assert_equal "skipped", response.reload.status
@@ -80,13 +80,13 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
     Timecop.freeze(Time.new(2025, 4, 7, 6, 30, 0, "+00:00")) do
       response = StandupResponse.create!(
         standup: @standup,
-        slack_id: @participant.slack_id,
+        platform_user_id: @participant.platform_user_id,
         status: "pending",
         standup_date: Date.new(2025, 4, 6),
         answers: [ { "question" => @standup.questions.first, "answer" => "Done", "timestamp" => Time.current } ]
       )
 
-      post slack_standup_command_url, params: { user_id: @participant.slack_id, text: "skip" }
+      post slack_standup_command_url, params: { user_id: @participant.platform_user_id, text: "skip" }
 
       assert_response :success
       assert_equal "skipped", response.reload.status
@@ -97,7 +97,7 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
     standup_date = @participant.standup_date_for(Time.current).iso8601
 
     assert_enqueued_with(job: StandupCollectionJob, args: [ @standup.id, standup_date, "Etc/UTC" ]) do
-      post slack_standup_command_url, params: { user_id: @participant.slack_id, text: "report" }
+      post slack_standup_command_url, params: { user_id: @participant.platform_user_id, text: "report" }
     end
 
     assert_response :success
@@ -106,13 +106,13 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
   test "standup history returns recent responses" do
     StandupResponse.create!(
       standup: @standup,
-      slack_id: @participant.slack_id,
+      platform_user_id: @participant.platform_user_id,
       status: "completed",
       answers: [ { "question" => @standup.questions.first, "answer" => "Done", "timestamp" => Time.current } ],
       created_at: Time.current
     )
 
-    post slack_standup_command_url, params: { user_id: @participant.slack_id, text: "history 30" }
+    post slack_standup_command_url, params: { user_id: @participant.platform_user_id, text: "history 30" }
 
     assert_response :success
     response_body = JSON.parse(response.body)

@@ -1,26 +1,23 @@
 class StandupParticipant < ApplicationRecord
   DEFAULT_TIMEZONE = "UTC"
   TIMEZONE_CACHE_TTL = 1.week
-  SLACK_USER_ID_PATTERN = /\A[UW][A-Z0-9]{2,}\z/
-
   belongs_to :standup
 
-  before_validation :normalize_slack_fields
+  before_validation :normalize_fields
   before_save :touch_cached_timezone_updated_at, if: :should_touch_cached_timezone_updated_at?
 
-  validates :slack_id, presence: true
-  validates :slack_id,
-    format: { with: SLACK_USER_ID_PATTERN, message: "must be a Slack user ID like U123ABC" },
-    allow_blank: true
-  validates :slack_name, presence: true
-  validates :slack_id, uniqueness: { scope: :standup_id }
+  validates :platform_user_id, presence: true
+  validate :platform_user_id_must_match_platform
+  validates :display_name, presence: true
+  validates :platform_user_id, uniqueness: { scope: :standup_id }
   validate :cached_timezone_must_be_valid
 
   scope :active, -> { where(active: true) }
+  scope :on_platform, ->(platform) { joins(:standup).where(standups: { platform: platform.to_s }) }
   scope :available_on, ->(date) { active.where("vacation_until IS NULL OR vacation_until < ?", date) }
 
   def fetch_profile
-    ChatPlatform.for_standup(standup).user_profile(slack_id)
+    ChatPlatform.for_standup(standup).user_profile(platform_user_id)
   end
 
   def timezone
@@ -41,7 +38,7 @@ class StandupParticipant < ApplicationRecord
     cache_avatar_url(profile&.avatar_url)
     resolved_timezone
   rescue StandardError => error
-    Rails.logger.warn "Unable to refresh timezone for participant #{id || slack_id}: #{error.class} - #{error.message}"
+    Rails.logger.warn "Unable to refresh timezone for participant #{id || platform_user_id}: #{error.class} - #{error.message}"
     nil
   end
 
@@ -120,9 +117,19 @@ class StandupParticipant < ApplicationRecord
 
   private
 
-  def normalize_slack_fields
-    self.slack_id = slack_id.to_s.strip.upcase if slack_id.present?
-    self.slack_name = slack_name.to_s.strip if slack_name.present?
+  def chat_platform
+    ChatPlatform.for_standup(standup)
+  end
+
+  def platform_user_id_must_match_platform
+    return if platform_user_id.blank? || chat_platform.valid_user_id?(platform_user_id)
+
+    errors.add(:platform_user_id, "must be #{chat_platform.user_id_hint}")
+  end
+
+  def normalize_fields
+    self.platform_user_id = chat_platform.normalize_user_id(platform_user_id) if platform_user_id.present?
+    self.display_name = display_name.to_s.strip if display_name.present?
     self.cached_timezone = cached_timezone.strip if cached_timezone.present?
   end
 

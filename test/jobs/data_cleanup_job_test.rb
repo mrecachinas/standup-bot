@@ -22,7 +22,7 @@ class DataCleanupJobTest < ActiveJob::TestCase
     Timecop.freeze(Time.zone.local(2025, 6, 1, 12, 0, 0)) do
       old_response = StandupResponse.create!(
         standup: @standup,
-        slack_id: "UOLD",
+        platform_user_id: "UOLD",
         status: "completed",
         answers: [],
         created_at: 31.days.ago,
@@ -30,7 +30,7 @@ class DataCleanupJobTest < ActiveJob::TestCase
       )
       stale_pending = StandupResponse.create!(
         standup: @standup,
-        slack_id: "USTALE",
+        platform_user_id: "USTALE",
         status: "pending",
         answers: [],
         created_at: 8.days.ago,
@@ -38,7 +38,7 @@ class DataCleanupJobTest < ActiveJob::TestCase
       )
       fresh_pending = StandupResponse.create!(
         standup: @standup,
-        slack_id: "UFRESH",
+        platform_user_id: "UFRESH",
         status: "pending",
         answers: [],
         created_at: 1.day.ago,

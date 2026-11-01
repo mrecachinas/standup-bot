@@ -26,6 +26,10 @@ class StandupConversationHandler
 
   attr_reader :chat
 
+  def platform
+    chat.key
+  end
+
   def handle_edit(message)
     user_id = message.user_id
     text = StandupResponseService.normalize_answer_text(message.text)
@@ -42,7 +46,7 @@ class StandupConversationHandler
 
   def pending_response_for(user_id)
     StandupResponse
-      .authorized_for_slack_user(user_id)
+      .authorized_for(platform, user_id)
       .where(status: "pending")
       .order("standup_responses.created_at DESC")
       .first
@@ -83,7 +87,7 @@ class StandupConversationHandler
   def current_completed_response_for(user_id)
     active_participants_for(user_id).filter_map do |participant|
       StandupResponse
-        .where(slack_id: user_id, standup_id: participant.standup_id, status: "completed")
+        .where(platform_user_id: user_id, standup_id: participant.standup_id, status: "completed")
         .for_standup_date(participant.standup_date_for(Time.current), participant.standup_time_zone)
         .order(created_at: :desc)
         .first
@@ -92,8 +96,8 @@ class StandupConversationHandler
 
   def active_participants_for(user_id)
     StandupParticipant
-      .joins(:standup)
-      .where(slack_id: user_id, active: true)
+      .on_platform(platform)
+      .where(platform_user_id: user_id, active: true)
       .merge(Standup.active)
       .includes(:standup)
   end

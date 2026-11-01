@@ -13,7 +13,7 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
     )
 
     assert_equal [ Date.new(2025, 4, 6) ], history.days.map(&:date)
-    assert history.days.first.entries.any? { |entry| entry.slack_id == "U123456" && entry.answered? }
+    assert history.days.first.entries.any? { |entry| entry.platform_user_id == "U123456" && entry.answered? }
   end
 
   test "filters history to selected participant" do
@@ -23,7 +23,7 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
       today: Date.new(2025, 4, 10)
     )
 
-    assert_equal [ "U234567" ], history.days.flat_map(&:entries).map(&:slack_id).uniq
+    assert_equal [ "U234567" ], history.days.flat_map(&:entries).map(&:platform_user_id).uniq
   end
 
   test "filters visible answers to selected question" do
@@ -33,7 +33,7 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
       today: Date.new(2025, 4, 10)
     )
 
-    john_entry = history.days.first.entries.find { |entry| entry.slack_id == "U123456" }
+    john_entry = history.days.first.entries.find { |entry| entry.platform_user_id == "U123456" }
 
     assert_equal [ "Any blockers?" ], john_entry.answers.map(&:question)
     assert_equal [ "None" ], john_entry.answers.map(&:text)
@@ -52,13 +52,13 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
 
   test "detects responses updated after submission" do
     @standup.standup_participants.create!(
-      slack_id: "UUPDATED159",
-      slack_name: "Updated Person",
+      platform_user_id: "UUPDATED159",
+      display_name: "Updated Person",
       active: true
     )
     response = StandupResponse.create!(
       standup: @standup,
-      slack_id: "UUPDATED159",
+      platform_user_id: "UUPDATED159",
       status: "completed",
       answers: [
         {

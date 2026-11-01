@@ -105,7 +105,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
 
   test "test message sends to configured standup channel" do
     @client.expects(:send_message)
-      .with(@standup.slack_channel, includes(@standup.name))
+      .with(@standup.platform_channel, includes(@standup.name))
       .returns(ChatPlatform::MessageRef.new(channel: "C123", id: "123.456"))
 
     result = service.test_message(@standup)

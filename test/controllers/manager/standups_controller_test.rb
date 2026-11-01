@@ -42,7 +42,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     Timecop.freeze(Time.zone.local(2026, 4, 27, 12, 0, 0)) do
       StandupResponse.create!(
         standup: @owned_standup,
-        slack_id: "UDASHBOARD1",
+        platform_user_id: "UDASHBOARD1",
         status: "completed",
         answers: [],
         created_at: 30.minutes.ago,
@@ -50,7 +50,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
       )
       StandupResponse.create!(
         standup: @owned_standup,
-        slack_id: "UDASHBOARD2",
+        platform_user_id: "UDASHBOARD2",
         status: "pending",
         answers: [],
         created_at: 20.minutes.ago
@@ -88,13 +88,13 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
 
   test "new standups start with the creator on the roster and their timezone in the preview" do
     standup_participants(:one).update!(cached_timezone: "America/New_York")
-    @manager.update!(slack_user_id: standup_participants(:one).slack_id)
+    @manager.link_identity!(:slack, standup_participants(:one).platform_user_id)
     sign_in(@manager, "manager-access-token")
 
     get new_manager_standup_path
 
     assert_response :success
-    assert_select "input[name='standup[participants][0][slack_id]'][value='#{standup_participants(:one).slack_id}']"
+    assert_select "input[name='standup[participants][0][platform_user_id]'][value='#{standup_participants(:one).platform_user_id}']"
     assert_select "select[name='preview_timezone'] option[selected][value='Eastern Time (US & Canada)']"
     assert_select "select[name='preview_timezone'][data-detect-timezone]", count: 0
   end
@@ -221,7 +221,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
         params: {
           standup: {
             name: "New Manager Standup",
-            slack_channel: "new-manager-standup",
+            platform_channel: "new-manager-standup",
             questions: [ "Any blockers?" ],
             schedule_type: "daily",
             default_hour: 9,
@@ -315,13 +315,13 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "people can be added as a comma-separated list" do
-    SlackUserResolver.any_instance.stubs(:resolve).with("@ada", fallback_name: "").returns(SlackUserResolver::ResolvedUser.new(slack_id: "UADA1", slack_name: "Ada", cached_timezone: "UTC"))
-    SlackUserResolver.any_instance.stubs(:resolve).with("@grace", fallback_name: "").returns(SlackUserResolver::ResolvedUser.new(slack_id: "UGRACE1", slack_name: "Grace", cached_timezone: "UTC"))
+    SlackUserResolver.any_instance.stubs(:resolve).with("@ada", fallback_name: "").returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UADA1", display_name: "Ada", cached_timezone: "UTC"))
+    SlackUserResolver.any_instance.stubs(:resolve).with("@grace", fallback_name: "").returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UGRACE1", display_name: "Grace", cached_timezone: "UTC"))
     sign_in(@manager, "manager-access-token")
 
     post manager_standups_path, params: { preview_timezone: "UTC", standup: wizard_standup_params(name: "Handles", participant_handles: "@ada, @grace") }
 
-    assert_equal %w[UADA1 UGRACE1], Standup.find_by!(name: "Handles").standup_participants.order(:slack_id).pluck(:slack_id)
+    assert_equal %w[UADA1 UGRACE1], Standup.find_by!(name: "Handles").standup_participants.order(:platform_user_id).pluck(:platform_user_id)
   end
 
   test "preview renders upcoming occurrences without saving" do
@@ -358,11 +358,11 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
                 preview_timezone: "UTC",
                 standup: wizard_standup_params(
                   name: "Wizard Standup",
-                  slack_channel: "#wizard-team",
+                  platform_channel: "#wizard-team",
                   question_rows: [ "First question?", "Second question?", "" ],
                   participants: {
-                    "0" => { slack_id: "uwiz001", slack_name: "Wizard One", cached_timezone: "America/New_York", active: "1" },
-                    "1" => { slack_id: "UWIZ002", slack_name: "Wizard Two", cached_timezone: "Europe/London", active: "1" }
+                    "0" => { platform_user_id: "uwiz001", display_name: "Wizard One", cached_timezone: "America/New_York", active: "1" },
+                    "1" => { platform_user_id: "UWIZ002", display_name: "Wizard Two", cached_timezone: "Europe/London", active: "1" }
                   }
                 )
               }
@@ -373,12 +373,12 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
 
     standup = Standup.find_by!(name: "Wizard Standup")
     assert_redirected_to manager_standup_path(standup)
-    assert_equal "wizard-team", standup.slack_channel
+    assert_equal "wizard-team", standup.platform_channel
     assert_equal [ "First question?", "Second question?" ], standup.questions
     assert_equal 9, standup.default_hour
     assert_equal 15, standup.default_minute
     assert standup.manageable_by?(@manager)
-    assert_equal [ "UWIZ001", "UWIZ002" ], standup.standup_participants.order(:slack_id).pluck(:slack_id)
+    assert_equal [ "UWIZ001", "UWIZ002" ], standup.standup_participants.order(:platform_user_id).pluck(:platform_user_id)
 
     audit_log = AuditLog.where(action: "standup.create").order(:created_at).last
     assert_equal @manager, audit_log.actor
@@ -388,7 +388,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
   test "replacing the pre-filled creator row looks up the new person instead of keeping the creator's details" do
     SlackUserResolver.any_instance.expects(:resolve)
       .with("UNEWGUY", fallback_name: "")
-      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UNEWGUY", slack_name: "New Guy", cached_timezone: "Europe/Berlin"))
+      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UNEWGUY", display_name: "New Guy", cached_timezone: "Europe/Berlin"))
     sign_in(@manager, "manager-access-token")
 
     post manager_standups_path,
@@ -397,20 +397,20 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
         standup: wizard_standup_params(
           name: "Replaced Creator Standup",
           participants: {
-            "0" => { slack_id: "UNEWGUY", original_slack_id: "UCREATOR", slack_name: "Creator Name", cached_timezone: "America/New_York", active: "1" }
+            "0" => { platform_user_id: "UNEWGUY", original_slack_id: "UCREATOR", display_name: "Creator Name", cached_timezone: "America/New_York", active: "1" }
           }
         )
       }
 
     participant = Standup.find_by!(name: "Replaced Creator Standup").standup_participants.sole
-    assert_equal "New Guy", participant.slack_name
+    assert_equal "New Guy", participant.display_name
     assert_equal "Europe/Berlin", participant.cached_timezone
   end
 
   test "wizard resolves Slack usernames before creating participants" do
     SlackUserResolver.any_instance.expects(:resolve)
       .with("@wizard", fallback_name: "")
-      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UWIZ003", slack_name: "Wizard Resolved", cached_timezone: "America/Chicago"))
+      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UWIZ003", display_name: "Wizard Resolved", cached_timezone: "America/Chicago"))
     sign_in(@manager, "manager-access-token")
 
     assert_difference [ "Standup.count", "StandupParticipant.count" ], 1 do
@@ -419,19 +419,19 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
           preview_timezone: "UTC",
           standup: wizard_standup_params(
             name: "Resolved Wizard Standup",
-            slack_channel: "#resolved-wizard",
+            platform_channel: "#resolved-wizard",
             question_rows: [ "Status?", "" ],
             participants: {
-              "0" => { slack_id: "@wizard", slack_name: "", cached_timezone: "", active: "1" }
+              "0" => { platform_user_id: "@wizard", display_name: "", cached_timezone: "", active: "1" }
             }
           )
         }
     end
 
     standup = Standup.find_by!(name: "Resolved Wizard Standup")
-    participant = standup.standup_participants.find_by!(slack_id: "UWIZ003")
+    participant = standup.standup_participants.find_by!(platform_user_id: "UWIZ003")
     assert_redirected_to manager_standup_path(standup)
-    assert_equal "Wizard Resolved", participant.slack_name
+    assert_equal "Wizard Resolved", participant.display_name
     assert_equal "America/Chicago", participant.cached_timezone
   end
 
@@ -442,17 +442,17 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
       post manager_standups_path,
         params: {
           standup: wizard_standup_params(
-            slack_channel: "bad channel",
+            platform_channel: "bad channel",
             participants: {
-              "0" => { slack_id: "not-a-user", slack_name: "", cached_timezone: "Invalid/Zone", active: "1" }
+              "0" => { platform_user_id: "not-a-user", display_name: "", cached_timezone: "Invalid/Zone", active: "1" }
             }
           )
         }
     end
 
     assert_response :unprocessable_entity
-    assert_includes response.body, "Slack channel must be a Slack channel name or ID without spaces"
-    assert_includes response.body, "Participant 1 Slack ID must look like U123ABC"
+    assert_includes response.body, "Channel must be a Slack channel name or ID without spaces"
+    assert_includes response.body, "Participant 1 Slack ID must be a Slack user ID like U123ABC"
     assert_includes response.body, "Participant 1 name can&#39;t be blank"
     assert_includes response.body, "Participant 1 timezone is not valid"
   end
@@ -468,12 +468,12 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
           params: {
             standup: wizard_standup_params(
               name: @owned_standup.name,
-              slack_channel: @owned_standup.slack_channel,
+              platform_channel: @owned_standup.platform_channel,
               question_rows: [ "Third?", "First?", "Second?" ],
               participants: {
-                "0" => { id: removed_participant.id, slack_id: removed_participant.slack_id, slack_name: removed_participant.slack_name, active: "1", _destroy: "1" },
-                "1" => { id: kept_participant.id, slack_id: kept_participant.slack_id, slack_name: "Jane Updated", cached_timezone: "America/Chicago", active: "1" },
-                "2" => { slack_id: "UWIZ999", slack_name: "Wizard New", cached_timezone: "UTC", active: "1" }
+                "0" => { id: removed_participant.id, platform_user_id: removed_participant.platform_user_id, display_name: removed_participant.display_name, active: "1", _destroy: "1" },
+                "1" => { id: kept_participant.id, platform_user_id: kept_participant.platform_user_id, display_name: "Jane Updated", cached_timezone: "America/Chicago", active: "1" },
+                "2" => { platform_user_id: "UWIZ999", display_name: "Wizard New", cached_timezone: "UTC", active: "1" }
               }
             )
           }
@@ -484,8 +484,8 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     @owned_standup.reload
     assert_equal [ "Third?", "First?", "Second?" ], @owned_standup.questions
     assert_not StandupParticipant.exists?(removed_participant.id)
-    assert_equal "Jane Updated", kept_participant.reload.slack_name
-    assert @owned_standup.standup_participants.exists?(slack_id: "UWIZ999")
+    assert_equal "Jane Updated", kept_participant.reload.display_name
+    assert @owned_standup.standup_participants.exists?(platform_user_id: "UWIZ999")
 
     participant_actions = AuditLog.where(action: "standup.update").order(:created_at).last.metadata.fetch("participants").map { |participant| participant.fetch("action") }
     assert_includes participant_actions, "removed"
@@ -497,7 +497,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     sign_in(@manager, "manager-access-token")
     standup = Standup.create!(
       name: "Deletable Standup",
-      slack_channel: "deletable",
+      platform_channel: "deletable",
       questions: [ "Question?" ],
       schedule_type: "daily",
       respect_timezone: true
@@ -550,7 +550,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
   def wizard_standup_params(overrides = {})
     {
       name: "Wizard Params",
-      slack_channel: "wizard-params",
+      platform_channel: "wizard-params",
       question_rows: [ "What changed?", "Any blockers?" ],
       schedule_type: "weekly",
       schedule_days: [ "1" ],

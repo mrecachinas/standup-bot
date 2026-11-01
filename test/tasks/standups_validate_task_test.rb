@@ -33,14 +33,14 @@ class StandupsValidateTaskTest < ActiveSupport::TestCase
   def valid_config
     {
       "name" => "Test Standup",
-      "slack_channel" => "test-channel",
+      "platform_channel" => "test-channel",
       "questions" => [ "What did you do?", "Any blockers?" ],
       "schedule" => {
         "days" => %w[monday tuesday wednesday thursday friday],
         "time" => "09:00"
       },
       "participants" => [
-        { "slack_id" => "U111", "name" => "Alice", "active" => true }
+        { "platform_user_id" => "U111", "name" => "Alice", "active" => true }
       ]
     }
   end
@@ -58,8 +58,8 @@ class StandupsValidateTaskTest < ActiveSupport::TestCase
     assert_equal 1, result.status
   end
 
-  test "fails when slack_channel is missing" do
-    config = valid_config.except("slack_channel")
+  test "fails when platform_channel is missing" do
+    config = valid_config.except("platform_channel")
     write_yaml("bad.yml", config)
     result = run_validate
     assert_equal 1, result.status
@@ -100,7 +100,7 @@ class StandupsValidateTaskTest < ActiveSupport::TestCase
     assert_equal 1, result.status
   end
 
-  test "fails when participant missing slack_id" do
+  test "fails when participant missing platform_user_id" do
     config = valid_config.merge("participants" => [ { "name" => "Alice" } ])
     write_yaml("bad.yml", config)
     result = run_validate
@@ -108,7 +108,7 @@ class StandupsValidateTaskTest < ActiveSupport::TestCase
   end
 
   test "fails when participant missing name" do
-    config = valid_config.merge("participants" => [ { "slack_id" => "U111" } ])
+    config = valid_config.merge("participants" => [ { "platform_user_id" => "U111" } ])
     write_yaml("bad.yml", config)
     result = run_validate
     assert_equal 1, result.status

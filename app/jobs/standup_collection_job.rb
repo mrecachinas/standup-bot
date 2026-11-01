@@ -10,7 +10,7 @@ class StandupCollectionJob < ApplicationJob
     options = (options || {}).with_indifferent_access
     report_zone = timezone.present? ? Standup.resolve_time_zone(timezone) : Time.zone
     report_date = standup_date.present? ? StandupResponse.normalize_date(standup_date) : report_zone.today
-    destination_channel = options[:destination_channel].presence || standup.slack_channel
+    destination_channel = options[:destination_channel].presence || standup.platform_channel
     recipients = Array(options[:recipients]).reject(&:blank?)
     report_format = options[:report_format].presence || "slack"
     detail_level = options[:detail_level].presence || "detailed"
@@ -57,7 +57,7 @@ class StandupCollectionJob < ApplicationJob
 
   def detailed_report_text(responses)
     summary_parts = responses.map do |response|
-      display_name = display_name_for(response.slack_id)
+      display_name = display_name_for(response.platform_user_id)
 
       answers = Array(response.answers).filter_map do |answer|
         next if answer["answer"].blank? || answer["answer"] == "(skipped)"
@@ -76,7 +76,7 @@ class StandupCollectionJob < ApplicationJob
   def summary_report_text(standup, responses, report_date)
     lines = responses.map do |response|
       answered_count = Array(response.answers).count { |answer| answer["answer"].present? && answer["answer"] != "(skipped)" }
-      "• #{display_name_for(response.slack_id)}: #{answered_count} answer(s)"
+      "• #{display_name_for(response.platform_user_id)}: #{answered_count} answer(s)"
     end
 
     [

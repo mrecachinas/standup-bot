@@ -31,7 +31,7 @@ class StandupResponseService
 
     if notify
       chat_for(standup_response).send_direct_message(
-        standup_response.slack_id,
+        standup_response.platform_user_id,
         "Your remaining #{standup.name} standup questions have been skipped."
       )
     end
@@ -42,13 +42,13 @@ class StandupResponseService
     standup_response.save!
   end
 
-  def self.cancel_previous_pending_responses(slack_id, standup_id, current_standup_date = nil, timezone = Time.zone)
+  def self.cancel_previous_pending_responses(platform_user_id, standup_id, current_standup_date = nil, timezone = Time.zone)
     zone = Standup.resolve_time_zone(timezone)
     standup_date = current_standup_date.present? ? StandupResponse.normalize_date(current_standup_date) : zone.today
     day_start = zone.local(standup_date.year, standup_date.month, standup_date.day)
 
     previous_pending = StandupResponse
-      .where(slack_id: slack_id, standup_id: standup_id, status: "pending")
+      .where(platform_user_id: platform_user_id, standup_id: standup_id, status: "pending")
       .where(
         "standup_date < :standup_date OR (standup_date IS NULL AND created_at < :day_start)",
         standup_date: standup_date,
@@ -86,16 +86,16 @@ class StandupResponseService
   end
 
   def self.repost_response(standup_response)
-    message_id = standup_response.slack_message_ts
+    message_id = standup_response.platform_message_id
     return post_individual_response(standup_response) if message_id.blank?
 
     chat = chat_for(standup_response)
-    display_name = chat.display_name_for(standup_response.slack_id)
+    display_name = chat.display_name_for(standup_response.platform_user_id)
     answers = postable_answers(standup_response)
     return if answers.empty?
 
     chat.update_standup_update(
-      standup_response.standup.slack_channel,
+      standup_response.standup.platform_channel,
       message_id,
       display_name: display_name,
       answers: answers
@@ -107,20 +107,20 @@ class StandupResponseService
     standup_response.status = "completed"
 
     chat = chat_for(standup_response)
-    channel = chat.channel_reference(standup.slack_channel)
+    channel = chat.channel_reference(standup.platform_channel)
     completion_message = if standup.outro.present?
       "#{standup.outro}\n\nYour standup update has been posted to #{channel}."
     else
       "Thank you! Your standup update has been posted to #{channel}."
     end
-    chat.send_direct_message(standup_response.slack_id, completion_message)
+    chat.send_direct_message(standup_response.platform_user_id, completion_message)
 
     post_individual_response(standup_response)
 
     StandupMetrics.track(
       "standup.completed",
       standup_id: standup.id,
-      slack_id: standup_response.slack_id,
+      platform_user_id: standup_response.platform_user_id,
       response_id: standup_response.id,
       duration_seconds: response_duration_seconds(standup_response)
     )
@@ -143,24 +143,24 @@ class StandupResponseService
       formatter: chat.formatter
     )
 
-    chat.send_direct_message(standup_response.slack_id, formatted_question)
+    chat.send_direct_message(standup_response.platform_user_id, formatted_question)
   end
 
   def self.post_individual_response(standup_response)
     chat = chat_for(standup_response)
-    display_name = chat.display_name_for(standup_response.slack_id)
+    display_name = chat.display_name_for(standup_response.platform_user_id)
     answers = postable_answers(standup_response)
     return if answers.empty?
 
     # Keep the message ID so later edits can update the channel post in place.
     message = chat.post_standup_update(
-      standup_response.standup.slack_channel,
+      standup_response.standup.platform_channel,
       display_name: display_name,
       answers: answers
     )
 
     if message&.id.present?
-      standup_response.slack_message_ts = message.id
+      standup_response.platform_message_id = message.id
       standup_response.save!
     end
   end

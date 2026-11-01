@@ -15,7 +15,7 @@
         <%= standup_status_badge(standup) %>
       </div>
       <div class="meta-row">
-        <span><%= icon(:hash) %><%= standup.slack_channel.to_s.delete_prefix("#") %></span>
+        <span><%= icon(:hash) %><%= standup.platform_channel.to_s.delete_prefix("#") %></span>
         <span><%= icon(:repeat) %><%= schedule_summary(standup) %></span>
         <span><%= icon(:users) %><%= pluralize(participant_count, "participant") %></span>
         <span><%= icon(:globe) %><%= standup.respect_timezone? ? "Participant timezones" : "UTC" %></span>

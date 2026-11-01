@@ -87,8 +87,8 @@ class StandupParticipantImporter
     return unless resolved_user
 
     {
-      slack_id: resolved_user.slack_id,
-      slack_name: fallback_name.presence || resolved_user.slack_name,
+      platform_user_id: resolved_user.platform_user_id,
+      display_name: fallback_name.presence || resolved_user.display_name,
       cached_timezone: values[2].presence || resolved_user.cached_timezone,
       active: parse_active(values[3]),
       source: "bulk_import",
@@ -122,13 +122,13 @@ class StandupParticipantImporter
     if user_resolver
       user_resolver.resolve(identifier, fallback_name: fallback_name)
     else
-      slack_id = normalize_slack_id(identifier)
-      if slack_id.blank?
+      platform_user_id = normalize_slack_id(identifier)
+      if platform_user_id.blank?
         result.errors << "#{label}: Slack user is required."
         return
       end
 
-      SlackUserResolver::ResolvedUser.new(slack_id: slack_id, slack_name: fallback_name.presence || slack_id)
+      SlackUserResolver::ResolvedUser.new(platform_user_id: platform_user_id, display_name: fallback_name.presence || platform_user_id)
     end
   rescue SlackUserResolver::ResolutionError => error
     result.errors << "#{label}: #{error.message}"
@@ -142,20 +142,20 @@ class StandupParticipantImporter
   end
 
   def profile_row(profile, index, result)
-    slack_id = normalize_slack_id(profile_value(profile, :slack_id) || profile_value(profile, "slack_id") || profile_value(profile, :id) || profile_value(profile, "id"))
+    platform_user_id = normalize_slack_id(profile_value(profile, :platform_user_id) || profile_value(profile, "platform_user_id") || profile_value(profile, :id) || profile_value(profile, "id"))
 
-    if slack_id.blank?
+    if platform_user_id.blank?
       result.errors << "Slack profile #{index}: Slack user ID is required."
       return
     end
 
     {
-      slack_id: slack_id,
-      slack_name: profile_value(profile, :slack_name).presence ||
-        profile_value(profile, "slack_name").presence ||
+      platform_user_id: platform_user_id,
+      display_name: profile_value(profile, :display_name).presence ||
+        profile_value(profile, "display_name").presence ||
         profile_value(profile, :name).presence ||
         profile_value(profile, "name").presence ||
-        slack_id,
+        platform_user_id,
       cached_timezone: profile_value(profile, :cached_timezone).presence ||
         profile_value(profile, "cached_timezone").presence ||
         profile_value(profile, :tz).presence ||
@@ -175,7 +175,7 @@ class StandupParticipantImporter
 
   def import_rows(rows, result)
     rows.each do |row|
-      participant = standup.standup_participants.find_or_initialize_by(slack_id: row[:slack_id])
+      participant = standup.standup_participants.find_or_initialize_by(platform_user_id: row[:platform_user_id])
       was_new = participant.new_record?
       attributes = participant_attributes(row, participant)
       participant.assign_attributes(attributes)
@@ -190,7 +190,7 @@ class StandupParticipantImporter
 
   def participant_attributes(row, participant)
     attributes = {
-      slack_name: row[:slack_name],
+      display_name: row[:display_name],
       active: row[:active],
       cached_timezone: row[:cached_timezone],
       avatar_url: row[:avatar_url]
@@ -229,9 +229,9 @@ class StandupParticipantImporter
   end
 
   def deactivate_missing_participants(rows, result)
-    incoming_slack_ids = rows.map { |row| row[:slack_id] }.to_set
+    incoming_slack_ids = rows.map { |row| row[:platform_user_id] }.to_set
 
-    standup.standup_participants.where(active: true).where.not(slack_id: incoming_slack_ids).find_each do |participant|
+    standup.standup_participants.where(active: true).where.not(platform_user_id: incoming_slack_ids).find_each do |participant|
       before = audited_participant_attributes(participant)
       participant.update!(active: false)
       result.deactivated << participant
@@ -254,7 +254,7 @@ class StandupParticipantImporter
   end
 
   def row_error(row, message)
-    label = row[:line] ? "Line #{row[:line]}" : row[:slack_id]
+    label = row[:line] ? "Line #{row[:line]}" : row[:platform_user_id]
     "#{label}: #{message}"
   end
 
@@ -266,8 +266,8 @@ class StandupParticipantImporter
     participant.attributes.slice(
       "id",
       "standup_id",
-      "slack_id",
-      "slack_name",
+      "platform_user_id",
+      "display_name",
       "active",
       "cached_timezone",
       "cached_timezone_updated_at",

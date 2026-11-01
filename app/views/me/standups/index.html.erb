@@ -56,7 +56,7 @@
         <div class="card-header">
           <div>
             <h2><%= standup.name %></h2>
-            <p class="hint">#<%= standup.slack_channel.to_s.delete_prefix("#") %></p>
+            <p class="hint">#<%= standup.platform_channel.to_s.delete_prefix("#") %></p>
           </div>
           <%= status_badge(status_label, status_tone) %>
         </div>

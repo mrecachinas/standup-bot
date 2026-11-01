@@ -4,7 +4,7 @@ module Manager
 
     def index
       @history = StandupResponseHistory.new(standup: @standup, params: response_history_params)
-      @avatar_urls = @standup.standup_participants.pluck(:slack_id, :avatar_url).to_h
+      @avatar_urls = @standup.standup_participants.pluck(:platform_user_id, :avatar_url).to_h
     end
 
     private

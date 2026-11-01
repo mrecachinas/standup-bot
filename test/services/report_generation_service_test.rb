@@ -42,7 +42,7 @@ class ReportGenerationServiceTest < ActiveSupport::TestCase
     end
 
     assert @result.success?
-    assert_equal @standup.slack_channel, @result.report_generation.delivery_channel
+    assert_equal @standup.platform_channel, @result.report_generation.delivery_channel
     assert_nil @result.report_generation.report_configuration
   end
 

@@ -24,9 +24,15 @@ Set the token with the `ADMIN_API_TOKEN` environment variable, or store it in Ra
 | `GET` | `/api/standups/:id/participants` | List participants |
 | `POST` | `/api/standups/:id/participants` | Add a participant |
 | `DELETE` | `/api/standups/:id/participants/:participant_id` | Remove a participant |
-| `GET` | `/api/standups/:id/responses` | List responses. Filter with `status`, `slack_id`, `since`, `until`, and `limit` (default 100, max 500). |
+| `GET` | `/api/standups/:id/responses` | List responses. Filter with `status`, `platform_user_id`, `since`, `until`, and `limit` (default 100, max 500). |
 | `GET` | `/api/standups/:id/stats` | Summary stats. Pass `period_days` to change the window (default 30). |
 | `GET` | `/api/standups/:id/analytics` | Detailed analytics, also with `period_days` |
+
+### Fields
+
+Standups have a `platform` (`slack` by default) and a `platform_channel` where updates are posted. `platform` is set when the standup is created and can't be changed later. Participants and responses identify people by `platform_user_id`, and participants have a `display_name`. Responses also include the DM channel (`dm_channel`) and the ID of the channel post (`platform_message_id`).
+
+> **Changed in the platform-neutral schema:** these fields used to be `slack_channel`, `slack_id`, `slack_name`, and `slack_message_ts` (and `slack_channel` on responses). The old names are no longer accepted or returned.
 
 ### Examples
 
@@ -39,7 +45,8 @@ curl -X POST http://localhost:3000/api/standups \
   -d '{
     "standup": {
       "name": "Platform Daily",
-      "slack_channel": "platform-standup",
+      "platform": "slack",
+      "platform_channel": "platform-standup",
       "schedule_type": "weekdays",
       "default_hour": 9,
       "default_minute": 30,
@@ -54,7 +61,7 @@ Add a participant:
 curl -X POST http://localhost:3000/api/standups/1/participants \
   -H "Authorization: Bearer $ADMIN_API_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "participant": { "slack_id": "U01ABC123", "slack_name": "Sarah Thompson" } }'
+  -d '{ "participant": { "platform_user_id": "U01ABC123", "display_name": "Sarah Thompson" } }'
 ```
 
 Get completed responses since a given date:
