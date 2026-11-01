@@ -2,7 +2,7 @@
 <% items = @dashboard_items %>
 <% active_count = items.count { |item| item.standup.active? } %>
 <% paused_count = items.size - active_count %>
-<% participant_total = items.sum(&:participant_count) %>
+<% participant_total = @dashboard.people_count %>
 <% expected_total = items.sum(&:expected_responses) %>
 <% completed_total = items.sum(&:completed_responses) %>
 <% overall_rate = expected_total.positive? ? (completed_total * 100.0 / expected_total) : nil %>
@@ -42,7 +42,7 @@
             <span class="stat-sub"><%= paused_count.positive? ? "#{paused_count} paused" : "None paused" %></span>
           </div>
           <div class="stat">
-            <dt>Participants</dt>
+            <dt>People</dt>
             <dd><%= participant_total %></dd>
             <span class="stat-sub">Across <%= pluralize(items.size, "standup") %></span>
           </div>

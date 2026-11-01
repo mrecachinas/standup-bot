@@ -55,5 +55,14 @@ module Manager
       assert_equal "No runs yet", item.latest_run_status
       assert_nil item.latest_run_summary
     end
+
+    test "counts people once even when they're in several standups" do
+      shared = standup_participants(:one)
+      standups(:weekly).standup_participants.create!(slack_id: shared.slack_id, slack_name: shared.slack_name, active: true)
+
+      dashboard = StandupDashboard.new([ @standup, standups(:weekly) ], period_days: 1, now: Time.zone.local(2026, 4, 27, 12, 0, 0))
+
+      assert_equal dashboard.items.sum(&:participant_count) - 1, dashboard.people_count
+    end
   end
 end

@@ -16,6 +16,9 @@ class SlackAppManifestTest < ActiveSupport::TestCase
       assert_includes scopes, scope
     end
 
+    assert_equal [ "https://standup.example.com/auth/slack/callback" ], manifest.dig("oauth_config", "redirect_urls")
+    assert_equal %w[openid email profile], manifest.dig("oauth_config", "scopes", "user")
+
     commands = manifest.dig("features", "slash_commands")
     assert_equal "/standup", commands.first.fetch("command")
     assert_equal "https://standup.example.com/slack/commands/standup", commands.first.fetch("url")

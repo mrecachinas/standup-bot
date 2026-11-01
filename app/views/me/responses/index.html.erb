@@ -1,0 +1,65 @@
+<% content_for :title, "My responses" %>
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-text">
+      <h1>My responses</h1>
+      <p class="page-subtitle">Your most recent check-ins<%= " in #{@standup.name}" if @standup %>.</p>
+    </div>
+  </div>
+
+  <% if @standups.size > 1 %>
+    <nav class="segmented" aria-label="Filter by standup">
+      <%= link_to "All", me_responses_path, class: (@standup ? nil : "is-active"), "aria-current": (@standup ? nil : "true") %>
+      <% @standups.each do |standup| %>
+        <% selected = @standup&.id == standup.id %>
+        <%= link_to standup.name, me_responses_path(standup_id: standup.id), class: (selected ? "is-active" : nil), "aria-current": (selected ? "true" : nil) %>
+      <% end %>
+    </nav>
+  <% end %>
+
+  <% if @responses.any? %>
+    <section class="card card-flush">
+      <ul class="list">
+        <% @responses.each do |response| %>
+          <% date = response.standup_date || response.created_at.to_date %>
+          <% answers = Array(response.answers) %>
+          <li class="items-start" id="<%= dom_id(response) %>">
+            <%= date_tile(date) %>
+            <div class="grow stack-sm">
+              <div class="flex wrap items-center gap-2">
+                <span class="cell-title"><%= response.standup.name %></span>
+                <span class="cell-sub"><%= date.strftime("%A, %B %-d, %Y") %></span>
+                <%= status_badge(response.status == "completed" ? "Answered" : response.status.titleize) %>
+              </div>
+              <% if answers.any? %>
+                <div>
+                  <% answers.each do |answer| %>
+                    <div class="answer">
+                      <span class="answer-question"><%= answer["question"] || answer[:question] %></span>
+                      <span class="answer-text"><%= (answer["answer"] || answer[:answer]).presence || "No answer" %></span>
+                    </div>
+                  <% end %>
+                </div>
+              <% elsif response.status == "pending" %>
+                <p class="small muted">Waiting for your answers in Slack.</p>
+              <% else %>
+                <p class="small muted">No answers recorded.</p>
+              <% end %>
+            </div>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+    <% if @responses.size >= Me::ResponsesController::LIMIT %>
+      <p class="small muted">Showing your <%= Me::ResponsesController::LIMIT %> most recent check-ins.</p>
+    <% end %>
+  <% else %>
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon"><%= icon(:inbox) %></span>
+        <h2>No check-ins yet</h2>
+        <p>Your answers will show up here after your first standup.</p>
+      </div>
+    </div>
+  <% end %>
+</div>

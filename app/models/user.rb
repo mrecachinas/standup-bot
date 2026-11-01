@@ -1,7 +1,12 @@
 require "openssl"
 
 class User < ApplicationRecord
+  # "manager" is the standard role: anyone can create standups and manage the
+  # ones they own. Admins can manage every standup and see the Admin page.
   ROLES = %w[manager admin].freeze
+  SLACK_PLACEHOLDER_EMAIL_DOMAIN = "slack-users.invalid".freeze
+
+  LinkConflict = Class.new(StandardError)
   TOKEN_DIGEST_PATTERN = /\A\h{64}\z/
 
   has_many :standup_ownerships, dependent: :destroy
@@ -24,6 +29,49 @@ class User < ApplicationRecord
     return unless user&.authenticate_access_token(access_token)
 
     user
+  end
+
+  # Find or create the account for someone who signed in with Slack.
+  def self.from_slack_identity(identity)
+    find_by(slack_user_id: identity.slack_id) ||
+      link_slack_identity_by_email(identity) ||
+      create_from_slack_identity!(identity)
+  end
+
+  def self.link_slack_identity_by_email(identity)
+    return unless identity.email_verified && identity.email.present?
+
+    user = find_by(email: normalize_email(identity.email))
+    return unless user
+    raise LinkConflict, "That email is already linked to a different Slack account." if user.slack_user_id.present?
+
+    user.update!(slack_user_id: identity.slack_id)
+    user
+  end
+
+  def self.create_from_slack_identity!(identity)
+    email = normalize_email(identity.email)
+    if !identity.email_verified || email.blank? || exists?(email: email)
+      email = "#{identity.slack_id.downcase}@#{SLACK_PLACEHOLDER_EMAIL_DOMAIN}"
+    end
+
+    create!(
+      name: identity.name.presence || identity.slack_id,
+      email: email,
+      role: "manager",
+      slack_user_id: identity.slack_id,
+      avatar_url: (identity.avatar_url if SlackAvatar.safe_url?(identity.avatar_url)),
+      access_token: SecureRandom.hex(32)
+    )
+  end
+
+  # The account for someone in a standup, created if they've never signed in.
+  # They'll be matched by Slack user ID when they sign in with Slack later.
+  def self.for_participant!(participant)
+    find_by(slack_user_id: participant.slack_id) ||
+      create_from_slack_identity!(
+        SlackSignIn::Identity.new(slack_id: participant.slack_id, name: participant.slack_name, email: nil, email_verified: false, avatar_url: participant.avatar_url)
+      )
   end
 
   def self.digest_access_token(access_token)

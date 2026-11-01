@@ -85,7 +85,7 @@
             <h3>Next runs</h3>
             <div class="input-group" data-schedule-input>
               <%= label_tag "preview_timezone", "Preview timezone", class: "sr-only" %>
-              <%= select_tag "preview_timezone", options_for_select(@time_zone_options || ActiveSupport::TimeZone.all.map(&:name), @preview_timezone), class: "w-full" %>
+              <%= select_tag "preview_timezone", options_for_select(@time_zone_options || ActiveSupport::TimeZone.all.map(&:name), @preview_timezone), class: "w-full", data: { detect_timezone: (true if @detect_preview_timezone) } %>
               <button type="submit" formaction="<%= preview_manager_standups_path %>" formmethod="post" formnovalidate data-turbo-frame="schedule_preview" data-preview-button class="btn">Preview schedule</button>
             </div>
           </div>
@@ -176,11 +176,12 @@
           <% @participant_rows.each_with_index do |participant, index| %>
             <div class="participant-editor-row" data-row>
               <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id] %>
+              <%= hidden_field_tag "standup[participants][#{index}][original_slack_id]", participant[:slack_id] %>
               <%= hidden_field_tag "standup[participants][#{index}][slack_name]", participant[:slack_name] %>
               <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone] %>
               <div class="person">
                 <% if participant[:slack_name].present? %>
-                  <%= avatar(participant[:slack_name]) %>
+                  <%= avatar(participant[:slack_name], url: participant[:avatar_url]) %>
                 <% end %>
                 <div class="grow">
                   <%= label_tag "standup_participants_#{index}_slack_id", "Slack user", class: "sr-only" %>

@@ -35,7 +35,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
 
   test "manager can discover and select a Slack channel" do
     SlackIntegrationService.any_instance.expects(:discover_channels)
-      .with(query: "daily")
+      .with(query: "daily", include_private: false)
       .returns(SlackIntegrationService::Result.new(status: "ok", records: [ { "id" => "CDAILY", "name" => "daily", "label" => "#daily" } ]))
     sign_in(@manager, "manager-access-token")
 

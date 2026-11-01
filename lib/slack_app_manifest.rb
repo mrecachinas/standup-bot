@@ -5,6 +5,8 @@ class SlackAppManifest
   DEFAULT_APP_NAME = "Standup Bot"
   DEFAULT_DESCRIPTION = "Automates daily standups by collecting Slack DM responses and posting team summaries."
   BOT_SCOPES = %w[channels:read chat:write commands im:history im:write users:read].freeze
+  # "Sign in with Slack" (OpenID Connect) for the web console.
+  USER_SCOPES = %w[openid email profile].freeze
 
   def initialize(app_url:, app_name: DEFAULT_APP_NAME, description: DEFAULT_DESCRIPTION)
     @app_url = normalize_app_url(app_url)
@@ -27,8 +29,10 @@ class SlackAppManifest
         "slash_commands" => slash_commands
       },
       "oauth_config" => {
+        "redirect_urls" => [ app_url_for("/auth/slack/callback") ],
         "scopes" => {
-          "bot" => BOT_SCOPES
+          "bot" => BOT_SCOPES,
+          "user" => USER_SCOPES
         }
       },
       "settings" => {

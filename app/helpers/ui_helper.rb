@@ -33,7 +33,10 @@ module UiHelper
     database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>',
     layers: '<path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
     activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-    logo: '<path d="M4 6h10"/><path d="M4 12h16"/><path d="M4 18h7"/>'
+    logo: '<path d="M4 6h10"/><path d="M4 12h16"/><path d="M4 18h7"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>'
   }.freeze
 
   AVATAR_PALETTE = [
@@ -56,17 +59,23 @@ module UiHelper
     (words.size == 1 ? words.first[0, 2] : words.first[0] + words.last[0]).upcase
   end
 
-  def avatar(name, size: nil)
+  # Slack photo when we have one, with initials underneath as the fallback.
+  def avatar(name, size: nil, url: nil)
     background, foreground = AVATAR_PALETTE[name.to_s.sum % AVATAR_PALETTE.size]
-    tag.span(initials_for(name), class: [ "avatar", size && "avatar-#{size}" ].compact_blank.join(" "),
-      style: "--avatar-bg:#{background};--avatar-fg:#{foreground}", title: name, "aria-hidden": "true")
+    photo = SlackAvatar.safe_url?(url) ? tag.img(src: url, alt: "", class: "avatar-img", loading: "lazy", referrerpolicy: "no-referrer") : "".html_safe
+    tag.span(class: [ "avatar", size && "avatar-#{size}" ].compact_blank.join(" "),
+      style: "--avatar-bg:#{background};--avatar-fg:#{foreground}", title: name, "aria-hidden": "true") do
+      safe_join([ initials_for(name), photo ])
+    end
   end
 
-  def avatar_stack(names, limit: 5)
-    names = Array(names)
+  # people: names, or [name, avatar_url] pairs.
+  def avatar_stack(people, limit: 5)
+    people = Array(people).map { |person| Array(person) }
+    names = people.map(&:first)
     tag.span(class: "avatar-stack", title: names.to_sentence) do
-      safe_join(names.first(limit).map { |name| avatar(name, size: "sm") }) +
-        (names.size > limit ? tag.span("+#{names.size - limit}", class: "avatar-more") : "".html_safe)
+      safe_join(people.first(limit).map { |name, url| avatar(name, size: "sm", url: url) }) +
+        (people.size > limit ? tag.span("+#{people.size - limit}", class: "avatar-more") : "".html_safe)
     end
   end
 

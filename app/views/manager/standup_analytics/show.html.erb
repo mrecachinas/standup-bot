@@ -103,7 +103,7 @@
             <% @participant_stats.each do |stat| %>
               <% name = stat[:slack_name].presence || stat[:slack_id] %>
               <li>
-                <%= avatar(name, size: "sm") %>
+                <%= avatar(name, size: "sm", url: stat[:avatar_url]) %>
                 <div class="grow">
                   <div class="flex justify-between gap-2 small">
                     <span class="truncate strong"><%= name %></span>

@@ -5,7 +5,7 @@
       <% result.records.each do |record| %>
         <li>
           <% if record.key?("tz") || action == :add_user %>
-            <%= avatar(record["label"] || record["name"] || record["id"], size: "sm") %>
+            <%= avatar(record["label"] || record["name"] || record["id"], size: "sm", url: record["avatar_url"]) %>
           <% else %>
             <span class="subtle"><%= icon(:hash) %></span>
           <% end %>

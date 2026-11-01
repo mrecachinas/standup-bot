@@ -8,6 +8,16 @@ Rails.application.routes.draw do
   root "manager/standups#index"
 
   resource :session, only: [ :new, :create, :destroy ]
+  get "auth/slack", to: "slack_sessions#new", as: :slack_sign_in
+  get "auth/slack/callback", to: "slack_sessions#callback", as: :slack_sign_in_callback
+
+  namespace :me do
+    root "standups#index"
+    resources :responses, only: [ :index ]
+    resource :availability, only: [ :show, :update ], controller: "availability" do
+      delete :clear, on: :member
+    end
+  end
 
   namespace :manager do
     get "slack_integration", to: "slack_integrations#show", as: :slack_integration
@@ -36,6 +46,7 @@ Rails.application.routes.draw do
         post :generate
       end
       resources :schedule_exceptions, controller: "standup_schedule_exceptions", only: [ :index, :create, :destroy ]
+      resources :managers, controller: "standup_managers", only: [ :create, :destroy ]
     end
   end
 

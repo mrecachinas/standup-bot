@@ -31,7 +31,9 @@ class HealthCheckService
           active: Standup.active.count,
           inactive: Standup.where(active: false).count,
           participants: StandupParticipant.count,
-          active_participants: StandupParticipant.active.count
+          active_participants: StandupParticipant.active.count,
+          people: StandupParticipant.distinct.count(:slack_id),
+          active_people: StandupParticipant.active.distinct.count(:slack_id)
         },
         responses: StandupResponse.group(:status).count,
         recent_activity: {

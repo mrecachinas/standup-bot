@@ -151,7 +151,12 @@ class SlackClient
       "name" => user.name,
       "tz" => user.tz,
       "tz_offset" => user.tz_offset,
-      "profile" => user.profile
+      "profile" => user.profile,
+      "avatar_url" => SlackAvatar.url_from(user.profile),
+      "deleted" => user.try(:deleted),
+      "is_bot" => user.try(:is_bot),
+      "is_restricted" => user.try(:is_restricted),
+      "is_ultra_restricted" => user.try(:is_ultra_restricted)
     }
   rescue Slack::Web::Api::Errors::UserNotFound
     Rails.logger.error "User not found in Slack: #{slack_id}"
@@ -230,8 +235,9 @@ class SlackClient
       {
         "slack_id" => slack_id,
         "slack_name" => info["name"].presence || slack_id,
-        "cached_timezone" => info["tz"].presence
-      }
+        "cached_timezone" => info["tz"].presence,
+        "avatar_url" => info["avatar_url"]
+      }.compact
     end
   end
 
@@ -408,7 +414,8 @@ class SlackClient
       "display_name" => display_name,
       "real_name" => real_name,
       "label" => label,
-      "tz" => response_value(user, "tz")
+      "tz" => response_value(user, "tz"),
+      "avatar_url" => SlackAvatar.url_from(profile)
     }.compact
   end
 

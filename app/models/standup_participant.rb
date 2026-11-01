@@ -39,6 +39,7 @@ class StandupParticipant < ApplicationRecord
     resolved_timezone = normalize_timezone(info&.dig("tz"))
 
     cache_timezone(resolved_timezone)
+    cache_avatar_url(info&.dig("avatar_url"))
     resolved_timezone
   rescue StandardError => error
     Rails.logger.warn "Unable to refresh timezone for participant #{id || slack_id}: #{error.class} - #{error.message}"
@@ -147,6 +148,12 @@ class StandupParticipant < ApplicationRecord
 
   def normalize_timezone(timezone_name)
     self.class.valid_timezone?(timezone_name) ? timezone_name : DEFAULT_TIMEZONE
+  end
+
+  def cache_avatar_url(url)
+    return unless persisted? && SlackAvatar.safe_url?(url) && url != avatar_url
+
+    update_columns(avatar_url: url)
   end
 
   def cache_timezone(timezone_name)

@@ -67,4 +67,18 @@ class StandupParticipantImporterTest < ActiveSupport::TestCase
     assert_not missing.reload.active
     assert result.deactivated.any? { |participant| participant.id == missing.id }
   end
+
+  test "sync profiles keep Slack photos" do
+    importer = StandupParticipantImporter.new(@standup)
+
+    result = importer.sync_profiles(
+      [ { "slack_id" => "UPHOTO1", "slack_name" => "Pic", "avatar_url" => "https://avatars.slack-edge.com/pic.png" },
+        { "slack_id" => "UPHOTO2", "slack_name" => "Bad", "avatar_url" => "javascript:alert(1)" } ],
+      deactivate_missing: false
+    )
+
+    assert result.success?, result.errors.join(", ")
+    assert_equal "https://avatars.slack-edge.com/pic.png", @standup.standup_participants.find_by!(slack_id: "UPHOTO1").avatar_url
+    assert_nil @standup.standup_participants.find_by!(slack_id: "UPHOTO2").avatar_url
+  end
 end

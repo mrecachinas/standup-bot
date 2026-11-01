@@ -71,7 +71,7 @@
                 <% name = participants_by_id[response.slack_id]&.slack_name.presence || response.slack_id %>
                 <% answers = Array(response.answers) %>
                 <li class="items-start">
-                  <%= avatar(name) %>
+                  <%= avatar(name, url: participants_by_id[response.slack_id]&.avatar_url) %>
                   <div class="grow">
                     <div class="flex items-center gap-2">
                       <span class="cell-title"><%= name %></span>
@@ -150,7 +150,7 @@
               <ul class="stack-sm">
                 <% active_participants.first(8).each do |participant| %>
                   <li class="person">
-                    <%= avatar(participant.slack_name, size: "sm") %>
+                    <%= avatar(participant.slack_name, size: "sm", url: participant.avatar_url) %>
                     <span class="truncate grow"><%= participant.slack_name %></span>
                     <span class="xsmall muted"><%= participant.cached_timezone.to_s.split("/").last.to_s.tr("_", " ") %></span>
                   </li>

@@ -101,12 +101,27 @@ Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custo
 
 Recurring schedules are defined in [`config/recurring.yml`](../config/recurring.yml). If you set `ADMIN_CHANNEL`, failed jobs post a message there.
 
-## Manager console and permissions
+## Web console, personas, and permissions
 
-The web console (`/manager/*`) uses cookie-backed sessions. Users sign in with an email and access token, and only a SHA-256 digest of the token is stored.
+The web console uses cookie-backed sessions and serves three kinds of people:
 
-- **Admins** can manage every standup.
-- **Managers** can only manage standups linked to them through `StandupOwnership`. Any standup a manager creates is theirs automatically.
+- **Admins** (`User` with role `admin`) can manage every standup.
+- **Standup owners** (`User` with the standard `manager` role) manage the standups linked to them through `StandupOwnership`. Anyone can create a standup, for example to run one for a virtual team, and owns the standups they create. Being an owner has nothing to do with the org chart.
+- **Members** are the people in standups. A member is identified by Slack user ID, and the same person can be a `StandupParticipant` in several standups. `Member` (in `app/models/member.rb`) gathers those rows together.
+
+"Sign in with Slack" (`SlackSessionsController` and `SlackSignIn`) uses Slack's OpenID Connect endpoints and is pinned to one workspace. `User.from_slack_identity` finds or creates the account:
+
+1. It looks up an existing account by `slack_user_id`.
+2. If there isn't one, it links an existing account by a Slack-verified email.
+3. Otherwise it creates a standard account.
+
+Anyone who manages a standup can make other people in it managers, or remove them, from the Participants tab (`Manager::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their Slack user ID, and they're matched to it when they first sign in with Slack. A standup always keeps at least one manager.
+
+Avatars use each person's Slack photo when we have one. `avatar_url` on `StandupParticipant` and `User` is filled in whenever the app already talks to Slack about that person: user search and resolution, channel sync, timezone refresh, and Slack sign-in, which also refreshes that person's participant rows. `SlackAvatar` only accepts `https` URLs. If a photo is missing or fails to load, the avatar falls back to initials.
+
+Slack guests are refused at sign-in. Since anyone else can sign in, non-admins only see public channels in channel discovery, and can only sync participants from channels they belong to.
+
+Everyone signed in with Slack can use the console for the standups they own, and the member area under `/me` (`Me::*` controllers) for the standups they're in. Accounts can also sign in with an email and access token. Only a SHA-256 digest of the token is stored.
 
 - **Admins** also get an **Admin** page (`/admin`) that shows database, job queue, and Slack health, usage, users, failed reports, and recent audit log entries.
 

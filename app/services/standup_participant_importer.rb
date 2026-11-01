@@ -154,6 +154,7 @@ class StandupParticipantImporter
         profile_value(profile, "cached_timezone").presence ||
         profile_value(profile, :tz).presence ||
         profile_value(profile, "tz").presence,
+      avatar_url: SlackAvatar.safe_url?(profile_value(profile, "avatar_url")) ? profile_value(profile, "avatar_url") : nil,
       active: true,
       source: "slack_sync",
       line: index
@@ -185,7 +186,8 @@ class StandupParticipantImporter
     attributes = {
       slack_name: row[:slack_name],
       active: row[:active],
-      cached_timezone: row[:cached_timezone]
+      cached_timezone: row[:cached_timezone],
+      avatar_url: row[:avatar_url]
     }.reject { |_key, value| value.nil? }
 
     if row[:cached_timezone].present? && participant.cached_timezone != row[:cached_timezone]

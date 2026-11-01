@@ -30,7 +30,7 @@ class Manager::SlackIntegrationsControllerTest < ActionDispatch::IntegrationTest
 
   test "channel discovery surfaces Slack records" do
     SlackIntegrationService.any_instance.expects(:discover_channels)
-      .with(query: "gen")
+      .with(query: "gen", include_private: false)
       .returns(SlackIntegrationService::Result.new(status: "ok", records: [ { "id" => "C123", "label" => "#general" } ], message: "Found 1 Slack channel(s)."))
     sign_in(@manager, "manager-access-token")
 

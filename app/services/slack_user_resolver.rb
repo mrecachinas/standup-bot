@@ -1,7 +1,7 @@
 class SlackUserResolver
   ResolutionError = Class.new(StandardError)
 
-  ResolvedUser = Struct.new(:slack_id, :slack_name, :cached_timezone, keyword_init: true)
+  ResolvedUser = Struct.new(:slack_id, :slack_name, :cached_timezone, :avatar_url, keyword_init: true)
 
   def initialize(service: SlackIntegrationService.new)
     @service = service
@@ -18,7 +18,8 @@ class SlackUserResolver
     ResolvedUser.new(
       slack_id: record.fetch("id"),
       slack_name: fallback_name.presence || mention_name.presence || record["label"].presence || record["display_name"].presence || record["real_name"].presence || record["name"].presence || record.fetch("id"),
-      cached_timezone: record["tz"].presence
+      cached_timezone: record["tz"].presence,
+      avatar_url: record["avatar_url"].presence
     )
   end
 

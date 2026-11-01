@@ -71,6 +71,13 @@ module Manager
     def sync
       @sync_channel = params[:channel].presence || @standup.slack_channel
       @deactivate_missing = ActiveModel::Type::Boolean.new.cast(params[:deactivate_missing])
+      unless current_user.admin? || channel_member?(@sync_channel)
+        @sync_errors = [ "You can only sync people from a channel you're in." ]
+        prepare_index
+        render :index, status: :unprocessable_entity
+        return
+      end
+
       profiles = SlackClient.instance.channel_member_profiles(@sync_channel)
       result = StandupParticipantImporter.new(@standup).sync_profiles(profiles, deactivate_missing: @deactivate_missing)
 
@@ -97,6 +104,13 @@ module Manager
       authorize_standup!(@standup)
     end
 
+    # Non-admins can only pull in members of channels they belong to, so the
+    # bot can't be used to list the members of someone else's private channel.
+    def channel_member?(channel)
+      current_user.slack_user_id.present? &&
+        SlackClient.instance.channel_members(channel).include?(current_user.slack_user_id)
+    end
+
     def set_participant
       @participant = @standup.standup_participants.find(params[:id])
     end
@@ -111,7 +125,22 @@ module Manager
       @sync_channel ||= @standup.slack_channel
       @deactivate_missing = false if @deactivate_missing.nil?
       @participants = @standup.standup_participants.order(:slack_name, :slack_id).to_a
+      @other_standups_by_slack_id = other_standups_by_slack_id(@participants.map(&:slack_id))
+      @managers = @standup.standup_ownerships.includes(:user).map(&:user).sort_by { |user| user.name.downcase }
+      @manager_ids_by_slack_id = @managers.select(&:slack_user_id).to_h { |user| [ user.slack_user_id, user.id ] }
       replace_invalid_participant
+    end
+
+    # People can be in several standups; show the other ones this user can manage.
+    def other_standups_by_slack_id(slack_ids)
+      StandupParticipant
+        .where(slack_id: slack_ids, standup_id: manageable_standups.select(:id))
+        .where.not(standup_id: @standup.id)
+        .joins(:standup)
+        .order("standups.name")
+        .pluck(:slack_id, "standups.name")
+        .group_by(&:first)
+        .transform_values { |rows| rows.map(&:last) }
     end
 
     def replace_invalid_participant
@@ -143,6 +172,7 @@ module Manager
       permitted[:slack_id] = resolved_user.slack_id
       permitted[:slack_name] = permitted[:slack_name].presence || resolved_user.slack_name
       permitted[:cached_timezone] = permitted[:cached_timezone].presence || resolved_user.cached_timezone
+      permitted[:avatar_url] = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
       permitted
     end
 

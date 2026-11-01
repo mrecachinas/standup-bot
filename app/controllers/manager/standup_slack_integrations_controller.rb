@@ -42,6 +42,7 @@ module Manager
 
       participant = @standup.standup_participants.find_or_initialize_by(slack_id: slack_id)
       participant.assign_attributes(slack_name: slack_name, active: true)
+      participant.avatar_url = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
 
       if participant.save
         audit_manager_change!(
@@ -95,7 +96,7 @@ module Manager
       @participants = @standup.standup_participants.order(:slack_name, :slack_id)
       @channel_query = params[:channel_query]
       @user_query = params[:user_query]
-      @channel_result = slack_integration_service.discover_channels(query: @channel_query) if discovery_requested?("channels", @channel_query)
+      @channel_result = slack_integration_service.discover_channels(query: @channel_query, include_private: current_user.admin?) if discovery_requested?("channels", @channel_query)
       @user_result = slack_integration_service.discover_users(query: @user_query) if discovery_requested?("users", @user_query)
     end
 

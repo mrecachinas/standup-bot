@@ -68,6 +68,7 @@ class StandupAnalyticsService
       {
         slack_id: participant.slack_id,
         slack_name: participant.slack_name,
+        avatar_url: participant.avatar_url,
         completed: completed,
         expected: expected,
         missed: [ expected - completed, 0 ].max,

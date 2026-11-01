@@ -1,4 +1,6 @@
 <% content_for :title, "Sign in" %>
+<% slack_enabled = SlackSignIn.configured? %>
+<% token_failed = response.status == 401 %>
 <turbo-frame id="session">
   <div class="auth-card">
     <div class="brand">
@@ -10,26 +12,45 @@
       <div class="card-body">
         <div>
           <h1>Sign in</h1>
-          <p class="page-subtitle">Use the email and access token from your admin.</p>
+          <p class="page-subtitle">See your standups, answers, and time away.</p>
         </div>
 
-        <% if response.status == 401 %>
+        <% if flash[:alert].present? %>
+          <div class="alert alert-danger" role="alert"><%= icon(:alert) %><span><%= flash[:alert] %></span></div>
+        <% end %>
+        <% if token_failed %>
           <div class="alert alert-danger" role="alert"><%= icon(:alert) %><span>Invalid email or access token.</span></div>
         <% end %>
 
-        <%= form_with url: session_path, method: :post, data: { turbo_frame: "_top" }, class: "stack" do |form| %>
-          <div class="field">
-            <%= form.label :email %>
-            <%= form.email_field :email, value: @email, required: true, autofocus: @email.blank?, autocomplete: "email", placeholder: "you@company.com" %>
-          </div>
-          <div class="field">
-            <%= form.label :access_token, "Access token" %>
-            <%= form.password_field :access_token, value: @access_token, required: true, autocomplete: "current-password" %>
-            <% if @access_token.present? %>
-              <span class="hint">Local development credentials are pre-filled from the dev server environment.</span>
-            <% end %>
-          </div>
-          <%= form.submit "Sign in", class: "btn btn-primary w-full" %>
+        <% if slack_enabled %>
+          <%= link_to slack_sign_in_path, class: "btn btn-primary w-full", data: { turbo: false } do %>
+            <%= icon(:hash) %> Sign in with Slack
+          <% end %>
+        <% end %>
+
+        <% token_form = capture do %>
+          <%= form_with url: session_path, method: :post, data: { turbo_frame: "_top" }, class: "stack token-form" do |form| %>
+            <div class="field">
+              <%= form.label :email %>
+              <%= form.email_field :email, value: @email, required: true, autocomplete: "email", placeholder: "you@company.com" %>
+            </div>
+            <div class="field">
+              <%= form.label :access_token, "Access token" %>
+              <%= form.password_field :access_token, value: @access_token, required: true, autocomplete: "current-password" %>
+              <% if @access_token.present? %>
+                <span class="hint">Local development credentials are pre-filled from the dev server environment.</span>
+              <% end %>
+            </div>
+            <%= form.submit "Sign in", class: [ "btn w-full", ("btn-primary" unless slack_enabled) ].compact.join(" ") %>
+          <% end %>
+        <% end %>
+        <% if slack_enabled %>
+          <details class="token-sign-in" <%= "open" if token_failed || @access_token.present? %>>
+            <summary class="small muted">Sign in with an access token instead</summary>
+            <%= token_form %>
+          </details>
+        <% else %>
+          <%= token_form %>
         <% end %>
       </div>
     </section>

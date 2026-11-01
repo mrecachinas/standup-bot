@@ -3,6 +3,7 @@ default: &default
   signing_secret: <%= ENV.fetch('SLACK_SIGNING_SECRET', nil) %>
   client_id: <%= ENV.fetch('SLACK_CLIENT_ID', nil) %>
   client_secret: <%= ENV.fetch('SLACK_CLIENT_SECRET', nil) %>
+  team_id: <%= ENV.fetch('SLACK_TEAM_ID', nil) %>
 
 development:
   <<: *default
