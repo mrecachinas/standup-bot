@@ -102,6 +102,35 @@ describe("StandupsIndexPage", () => {
     expect(requests(fetchMock).filter((url) => url === "/api/session").length).toBeGreaterThan(1);
   });
 
+  it("shows three standups that need attention and the rest in a dialog", async () => {
+    const user = userEvent.setup();
+    const needsAttention = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"].map((name, index) => ({
+      standup_id: 20 + index,
+      name,
+      active: true,
+      reason: "0% completion over 14 days",
+      tone: "danger" as const,
+    }));
+    mockFetch(userBootstrap(), (url) => (url.startsWith("/api/overview") ? jsonResponse(overviewFixture({ needs_attention: needsAttention })) : undefined));
+    renderApp("/manager/standups");
+
+    const card = (await screen.findByRole("heading", { name: "Needs attention", level: 2 })).closest("section")!;
+    expect(within(card).getAllByRole("listitem").map((item) => within(item).getByRole("link").textContent)).toEqual(["Alpha", "Bravo", "Charlie"]);
+
+    await user.click(within(card).getByRole("button", { name: "Show all 5" }));
+    const dialog = await screen.findByRole("dialog", { name: "Needs attention" });
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
+    expect(within(dialog).getByRole("link", { name: "Echo" })).toHaveAttribute("href", "/manager/standups/24");
+  });
+
+  it("doesn't offer to show more when every standup fits", async () => {
+    mockFetch(userBootstrap(), (url) => (url.startsWith("/api/overview") ? jsonResponse(overviewFixture()) : undefined));
+    renderApp("/manager/standups");
+
+    expect(await screen.findByRole("button", { name: "Resume Retro" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Show all/ })).not.toBeInTheDocument();
+  });
+
   it("pauses a standup from its row menu, which also links to every tab", async () => {
     const user = userEvent.setup();
     const fetchMock = mockFetch(userBootstrap(), (url, init) => {
