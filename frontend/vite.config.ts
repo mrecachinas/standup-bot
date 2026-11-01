@@ -16,6 +16,18 @@ export default defineConfig(({ command }) => ({
     emptyOutDir: true,
     // Primer React is most of the bundle; an internal console can afford it.
     chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        // Libraries change less often than the app, so keep them in their own
+        // files and let browsers reuse them across deploys.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@primer/")) return "primer";
+          if (/node_modules\/(react|react-dom|react-router|scheduler)\//.test(id)) return "react";
+          return "vendor";
+        },
+      },
+    },
   },
   server: {
     port: 5173,
