@@ -16,6 +16,7 @@ class User < ApplicationRecord
   has_many :standup_ownerships, dependent: :destroy
   has_many :owned_standups, through: :standup_ownerships, source: :standup
   has_many :audit_logs, foreign_key: :actor_id, dependent: :nullify
+  has_many :report_generations, foreign_key: :actor_id, dependent: :nullify, inverse_of: :actor
 
   before_validation :normalize_email
 
