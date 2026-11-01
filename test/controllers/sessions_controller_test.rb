@@ -1,6 +1,10 @@
 require "test_helper"
 
 class SessionsControllerTest < ActionDispatch::IntegrationTest
+  test "includes flash middleware for the manager console" do
+    assert_includes Rails.application.middleware.map(&:klass), ActionDispatch::Flash
+  end
+
   test "does not prefill local admin credentials outside development" do
     with_env("MANAGER_ADMIN_EMAIL" => "admin@example.com", "MANAGER_ADMIN_TOKEN" => "local-manager-token") do
       get new_session_path
