@@ -91,8 +91,56 @@ p.hint {
   gap: var(--base-size-8) var(--base-size-16);
 }
 
-.dayChoice {
-  min-width: 3.5rem;
+.dayPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--base-size-8);
+}
+
+.dayPill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  height: var(--control-medium-size, 32px);
+  padding: 0 var(--base-size-12);
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-full);
+  background: var(--bgColor-default);
+  color: var(--fgColor-default);
+  font-weight: var(--base-text-weight-semibold);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 80ms ease,
+    border-color 80ms ease;
+}
+
+.dayPill:hover {
+  background: var(--bgColor-muted);
+}
+
+.dayPill:has(.dayPillInput:checked) {
+  border-color: var(--bgColor-accent-emphasis);
+  background: var(--bgColor-accent-emphasis);
+  color: var(--fgColor-onEmphasis);
+}
+
+.dayPill:has(.dayPillInput:focus-visible) {
+  outline: var(--focus-outline, 2px solid var(--borderColor-accent-emphasis));
+  outline-offset: 2px;
+}
+
+/* Visually hidden but still focusable and announced as a checkbox. */
+.dayPillInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  opacity: 0;
 }
 
 .presets {
