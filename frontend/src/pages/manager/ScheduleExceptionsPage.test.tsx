@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { jsonResponse, userBootstrap } from "../../test/fixtures";
 import { mockFetch, renderApp } from "../../test/render";
-import { schedulePayload, standupFixture } from "./roster/testFixtures";
+import { occurrence, schedulePayload, standupFixture } from "./roster/testFixtures";
 
 const PAGE = "/manager/standups/7/schedule_exceptions";
 const API = "/api/standups/7/schedule_exceptions";
@@ -44,6 +44,7 @@ describe("ScheduleExceptionsPage", () => {
     expect(items[1]).toHaveTextContent("Election day");
     expect(items[1]).toHaveTextContent("Holiday");
     expect(within(items[1]).queryByRole("button", { name: /Skip/ })).toBeNull();
+    expect(within(items[1]).queryByRole("button", { name: /Unskip/ })).toBeNull();
 
     const table = screen.getByRole("table", { name: "Exceptions" });
     const rows = within(table).getAllByRole("row");
@@ -92,6 +93,37 @@ describe("ScheduleExceptionsPage", () => {
 
     expect(await screen.findByText("Skipped date saved for November 2, 2026.")).toBeInTheDocument();
     expect(bodyOf(fetchMock, "POST", API)).toEqual({ schedule_exception: { exception_type: "skipped_date", original_date: "2026-11-02", reason: "Skipped" } });
+    await waitFor(() => expect(callsTo(fetchMock, "GET", API)).toHaveLength(2));
+  });
+
+  it("unskips a skipped run from its row", async () => {
+    const user = userEvent.setup();
+    const skipped = occurrence({
+      status: "skipped",
+      status_label: "Skipped",
+      status_tone: "warning",
+      sendable: false,
+      blocked: true,
+      note: "Skipped",
+      exception_id: 42,
+      can_skip: false,
+      can_unskip: true,
+    });
+    const fetchMock = setup(
+      (url, init) =>
+        url === `${API}/42` && init.method === "DELETE"
+          ? jsonResponse({ schedule_exception: schedulePayload().schedule_exceptions[0], notice: "Removed the skipped date exception for November 2, 2026." })
+          : undefined,
+      schedulePayload({ upcoming_occurrences: [skipped] }),
+    );
+    renderApp(PAGE);
+
+    const row = within(await screen.findByRole("list", { name: "Upcoming runs" })).getByRole("listitem");
+    expect(within(row).queryByRole("button", { name: /^Skip/ })).toBeNull();
+    await user.click(within(row).getByRole("button", { name: "Unskip November 2, 2026" }));
+
+    expect(await screen.findByText("Removed the skipped date exception for November 2, 2026.")).toBeInTheDocument();
+    expect(callsTo(fetchMock, "DELETE", `${API}/42`)).toHaveLength(1);
     await waitFor(() => expect(callsTo(fetchMock, "GET", API)).toHaveLength(2));
   });
 

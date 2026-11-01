@@ -14,9 +14,21 @@ export interface UpcomingRunsSectionProps {
   /** Date (standup_date) currently being skipped. */
   skipping: string | null;
   onSkip: (occurrence: ScheduleOccurrence) => void;
+  /** Exception id currently being removed. */
+  removing: number | null;
+  onUnskip: (exceptionId: number) => void;
 }
 
-export function UpcomingRunsSection({ occurrences, previewTimezone, timeZoneOptions, onPreviewTimezoneChange, skipping, onSkip }: UpcomingRunsSectionProps) {
+export function UpcomingRunsSection({
+  occurrences,
+  previewTimezone,
+  timeZoneOptions,
+  onPreviewTimezoneChange,
+  skipping,
+  onSkip,
+  removing,
+  onUnskip,
+}: UpcomingRunsSectionProps) {
   const zones = timeZoneOptions.includes(previewTimezone) ? timeZoneOptions : [previewTimezone, ...timeZoneOptions];
 
   return (
@@ -58,6 +70,16 @@ export function UpcomingRunsSection({ occurrences, previewTimezone, timeZoneOpti
                   onClick={() => onSkip(occurrence)}
                 >
                   Skip
+                </Button>
+              )}
+              {occurrence.can_unskip && occurrence.exception_id !== null && (
+                <Button
+                  size="small"
+                  aria-label={`Unskip ${occurrence.standup_date_label}`}
+                  loading={removing === occurrence.exception_id}
+                  onClick={() => onUnskip(occurrence.exception_id!)}
+                >
+                  Unskip
                 </Button>
               )}
             </li>
