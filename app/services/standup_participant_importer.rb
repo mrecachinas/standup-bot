@@ -1,3 +1,4 @@
+require "csv"
 require "set"
 
 class StandupParticipantImporter
@@ -76,7 +77,9 @@ class StandupParticipantImporter
     stripped = line.strip
     return if stripped.blank? || stripped.start_with?("#")
 
-    values = parse_values(stripped)
+    values = parse_values(stripped, line_number, result)
+    return unless values
+
     mention_id, mention_name = parse_slack_mention(values[0])
     fallback_name = values[1].presence || mention_name
     resolved_user = resolve_user_identifier(mention_id || values[0], fallback_name: fallback_name, result: result, label: "Line #{line_number}")
@@ -93,12 +96,15 @@ class StandupParticipantImporter
     }
   end
 
-  def parse_values(line)
+  def parse_values(line, line_number, result)
     if line.include?(",")
-      line.split(",", -1).map { |value| value.to_s.strip }
+      CSV.parse_line(line, strip: true, liberal_parsing: true).map(&:to_s)
     else
-      line.split(/\s+/, 4).map(&:strip)
+      line.split(/\s+/, 4)
     end
+  rescue CSV::MalformedCSVError
+    result.errors << "Line #{line_number}: could not parse comma-separated values."
+    nil
   end
 
   def parse_slack_mention(value)

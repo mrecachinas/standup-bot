@@ -32,6 +32,14 @@ module Api
         ActiveSupport::SecurityUtils.secure_compare(provided_token, configured_token)
     end
 
+    def set_standup
+      @standup = Standup.find(params[:standup_id])
+    end
+
+    def period_days
+      params.fetch(:period_days, 30).to_i.clamp(1, 365)
+    end
+
     def render_not_found
       render json: { error: "Not found" }, status: :not_found
     end

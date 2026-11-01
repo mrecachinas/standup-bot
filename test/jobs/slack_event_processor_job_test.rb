@@ -25,10 +25,6 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
       created_at: 1.day.ago,
       standup_date: 1.day.ago.to_date
     )
-
-    # Mock the StandupResponseService for verification
-    @standup_response_service = mock("StandupResponseService")
-    StandupResponseService.stubs(:record_answer).returns(true)
   end
 
   test "ignores non-message events" do
@@ -40,70 +36,18 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     SlackEventProcessorJob.perform_now(event)
   end
 
-  test "processes commands" do
-    event = {
-      "type" => "message",
-      "user" => @slack_id,
-      "text" => "/standup help",
-      "channel" => @channel_id
-    }
+  test "routes messages to commands, pending standup answers, or ignores them" do
+    command_info = { command: :help }
+    @slack_commands.stubs(:parse).returns(nil)
+    @slack_commands.stubs(:parse).with("help").returns(command_info)
+    @slack_commands.expects(:process).with(command_info, @slack_id, @channel_id).once
+    StandupResponseService.expects(:record_answer).with(@standup_response, "I worked on feature X").once
 
-    # Setup command parsing expectation
-    @slack_commands.expects(:parse).with(event["text"]).returns({
-      command: "standup",
-      subcommand: "help",
-      args: []
-    })
+    perform_message("help")
+    perform_message("I worked on feature X")
 
-    # Command should be processed
-    @slack_commands.expects(:process).with(
-      { command: "standup", subcommand: "help", args: [] },
-      @slack_id,
-      @channel_id
-    )
-
-    # StandupResponseService should not be called for commands
-    StandupResponseService.expects(:record_answer).never
-
-    SlackEventProcessorJob.perform_now(event)
-  end
-
-  test "processes standup responses" do
-    event = {
-      "type" => "message",
-      "user" => @slack_id,
-      "text" => "I worked on feature X",
-      "channel" => @channel_id
-    }
-
-    # Setup command parsing expectation to return nil (not a command)
-    @slack_commands.expects(:parse).with(event["text"]).returns(nil)
-
-    # StandupResponseService should be called with the response
-    StandupResponseService.expects(:record_answer)
-      .with(@standup_response, event["text"])
-
-    SlackEventProcessorJob.perform_now(event)
-  end
-
-  test "ignores messages if no pending standup response" do
-    # Delete existing standup responses for this test
     StandupResponse.where(slack_id: @slack_id).delete_all
-
-    event = {
-      "type" => "message",
-      "user" => @slack_id,
-      "text" => "Hello world",
-      "channel" => @channel_id
-    }
-
-    # Setup command parsing expectation to return nil (not a command)
-    @slack_commands.expects(:parse).with(event["text"]).returns(nil)
-
-    # StandupResponseService should not be called
-    StandupResponseService.expects(:record_answer).never
-
-    SlackEventProcessorJob.perform_now(event)
+    perform_message("Hello world")
   end
 
   test "processes edited message for pending standup response" do
@@ -319,5 +263,16 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     # Assert that answers are unchanged (no fallback corruption)
     assert_equal "I fixed bug A", completed_response.answers[0]["answer"]
     assert_equal "I will implement feature B", completed_response.answers[1]["answer"]
+  end
+
+  private
+
+  def perform_message(text)
+    SlackEventProcessorJob.perform_now(
+      "type" => "message",
+      "user" => @slack_id,
+      "text" => text,
+      "channel" => @channel_id
+    )
   end
 end

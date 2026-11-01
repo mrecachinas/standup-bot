@@ -6,15 +6,12 @@ class ApplicationJob < ActiveJob::Base
   retry_on Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED,
            wait: :exponentially_longer, attempts: 3
 
-  # Discard jobs where the record no longer exists
   discard_on ActiveRecord::RecordNotFound
 
-  # Provide a memoized slack client for all job classes
   def self.slack_client
     SlackClient.instance
   end
 
-  # Allow instance methods to access the class method
   delegate :slack_client, to: :class
 
   private

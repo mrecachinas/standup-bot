@@ -32,10 +32,6 @@ module Api
 
     private
 
-    def set_standup
-      @standup = Standup.find(params[:standup_id])
-    end
-
     def participant_params
       params.require(:participant).permit(:slack_id, :slack_name, :active, :cached_timezone)
     end

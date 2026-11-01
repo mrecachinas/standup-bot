@@ -17,12 +17,6 @@ module Admin
 
     private
 
-    def require_admin!
-      return if current_user.admin?
-
-      render plain: "Forbidden", status: :forbidden
-    end
-
     def daily_activity
       dates = ((ACTIVITY_DAYS - 1).days.ago.to_date..Date.current).to_a
       counts = StandupResponse.where(standup_date: dates.first..dates.last).group(:standup_date, :status).count

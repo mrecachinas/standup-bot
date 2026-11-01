@@ -2,8 +2,6 @@ class StandupCollectionJob < ApplicationJob
   queue_as :default
 
   def perform(standup_id, standup_date = nil, timezone = nil, report_generation_id = nil, options = {})
-    Rails.logger.info "Collecting standup responses for standup #{standup_id}"
-
     @report_generation = report_generation_id.present? ? ReportGeneration.find(report_generation_id) : nil
     @report_generation&.mark_running!
 
@@ -16,13 +14,11 @@ class StandupCollectionJob < ApplicationJob
     report_format = options[:report_format].presence || "slack"
     detail_level = options[:detail_level].presence || "detailed"
 
-    # Gather completed responses for the requested local standup date
     responses = StandupResponse
       .where(standup_id: standup.id, status: "completed")
       .for_standup_date(report_date, report_zone)
 
     if responses.empty?
-      Rails.logger.info "No completed responses found for standup #{standup.name} today"
       no_responses_message = "No standup responses have been submitted today for #{standup.name}."
       slack_client.send_message(destination_channel, no_responses_message)
       deliver_recipient_copies(recipients, no_responses_message)
@@ -32,16 +28,12 @@ class StandupCollectionJob < ApplicationJob
       return
     end
 
-    Rails.logger.info "Found #{responses.count} completed responses for standup #{standup.name}"
-
     summary_text = report_text(standup, responses, report_date, detail_level)
     deliver_report(destination_channel, summary_text, standup.outro, report_format)
     deliver_recipient_copies(recipients, summary_text)
     @report_generation&.mark_succeeded!(
       metadata: generation_metadata(destination_channel, recipients, response_count: responses.count, detail_level: detail_level, report_format: report_format)
     )
-
-    Rails.logger.info "Successfully posted standup report for #{standup.name}"
   rescue StandardError => error
     @report_generation&.mark_failed!(
       error.message,

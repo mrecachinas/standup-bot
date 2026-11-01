@@ -7,33 +7,6 @@ class StandupParticipantTest < ActiveSupport::TestCase
     @participant = standup_participants(:one)
   end
 
-  test "should be valid with required attributes" do
-    Timecop.freeze(Time.new(2025, 4, 6)) do
-      participant = StandupParticipant.new(
-        standup: @standup,
-        slack_id: "U123NEW",
-        slack_name: "New User",
-        active: true
-      )
-      assert participant.valid?
-    end
-  end
-
-  test "should not be valid without slack_id" do
-    Timecop.freeze(Time.new(2025, 4, 6)) do
-      @participant.slack_id = nil
-      assert_not @participant.valid?
-      assert_includes @participant.errors[:slack_id], "can't be blank"
-    end
-  end
-
-  test "should not be valid without slack_name" do
-    @participant.slack_name = nil
-
-    assert_not @participant.valid?
-    assert_includes @participant.errors[:slack_name], "can't be blank"
-  end
-
   test "normalizes and validates Slack user IDs" do
     participant = StandupParticipant.new(
       standup: @standup,

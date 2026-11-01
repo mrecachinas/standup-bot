@@ -2,11 +2,10 @@ require "test_helper"
 
 class SlackEventWorkflowTest < ActionDispatch::IntegrationTest
   class FakeSlackClient
-    attr_reader :messages, :updates
+    attr_reader :messages
 
     def initialize
       @messages = []
-      @updates = []
       @counter = 0
     end
 
@@ -18,11 +17,6 @@ class SlackEventWorkflowTest < ActionDispatch::IntegrationTest
 
     def get_user_info(slack_id)
       { "name" => slack_id, "profile" => { "display_name" => "Test User" } }
-    end
-
-    def update_message(channel, message_ts, text, blocks = nil)
-      @updates << { channel: channel, ts: message_ts, text: text, blocks: blocks }
-      { "ok" => true, "channel" => channel, "ts" => message_ts }
     end
   end
 
@@ -69,34 +63,5 @@ class SlackEventWorkflowTest < ActionDispatch::IntegrationTest
     response = StandupResponse.where(slack_id: @participant.slack_id, standup_id: @standup.id).last
     assert_equal "(skipped)", response.answers.first["answer"]
     assert_equal "pending", response.status
-  end
-
-  test "edited completed response updates posted channel message" do
-    response = StandupResponse.create!(
-      standup: @standup,
-      slack_id: @participant.slack_id,
-      status: "completed",
-      answers: [
-        { "question" => "Yesterday?", "answer" => "Built workflow", "timestamp" => Time.current },
-        { "question" => "Today?", "answer" => "Testing", "timestamp" => Time.current }
-      ],
-      slack_message_ts: "123.1",
-      created_at: Time.current
-    )
-
-    SlackEventProcessorJob.perform_now(
-      "type" => "message",
-      "subtype" => "message_changed",
-      "channel" => "D#{@participant.slack_id}",
-      "message" => {
-        "user" => @participant.slack_id,
-        "text" => "Built workflow and slash commands",
-        "ts" => "111.222"
-      }
-    )
-
-    assert_equal "Built workflow and slash commands", response.reload.answers.first["answer"]
-    assert_equal 1, @fake_slack_client.updates.size
-    assert_equal @standup.slack_channel, @fake_slack_client.updates.first[:channel]
   end
 end

@@ -1,5 +1,7 @@
 module Me
   class ApplicationController < Web::ApplicationController
+    # Member pages only read the signed-in member's own standups via current_member.
+    skip_after_action :verify_authorized
     before_action :authenticate_member!
 
     private

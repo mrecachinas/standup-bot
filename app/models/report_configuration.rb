@@ -32,14 +32,6 @@ class ReportConfiguration < ApplicationRecord
     self.recipients = value.to_s.split(/[\n,]+/).map { |recipient| normalize_identifier(recipient) }.reject(&:blank?).uniq
   end
 
-  def destination_channels
-    [ delivery_channel, *Array(recipients) ].reject(&:blank?)
-  end
-
-  def snapshot
-    attributes.slice("delivery_channel", "recipients", "report_format", "detail_level")
-  end
-
   private
 
   def normalize_delivery_channel

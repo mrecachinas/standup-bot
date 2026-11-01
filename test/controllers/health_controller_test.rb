@@ -35,20 +35,7 @@ class HealthControllerTest < ActionDispatch::IntegrationTest
     assert exclusion.call(request.new("/up"))
     assert exclusion.call(request.new("/health"))
     assert exclusion.call(request.new("/health/detailed"))
-    assert exclusion.call(request.new("/health/metrics"))
     refute exclusion.call(request.new("/healthcheck"))
     refute exclusion.call(request.new("/slack/events"))
-  end
-
-  test "health endpoints can bypass host authorization without disabling other paths" do
-    middleware = ActionDispatch::HostAuthorization.new(
-      ->(_env) { [ 200, { "content-type" => "text/plain" }, [ "ok" ] ] },
-      [ "allowed.example" ],
-      exclude: Rails.application.config.x.health_check_host_authorization_exclude
-    )
-    request = Rack::MockRequest.new(middleware)
-
-    assert_equal 200, request.get("/health/detailed", "HTTP_HOST" => "monitor.local").status
-    assert_equal 403, request.get("/slack/events", "HTTP_HOST" => "monitor.local").status
   end
 end

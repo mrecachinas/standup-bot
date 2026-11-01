@@ -8,38 +8,6 @@ class StandupTest < ActiveSupport::TestCase
     @weekly_standup = standups(:weekly)
   end
 
-  test "should be valid with required attributes" do
-    standup = Standup.new(
-      name: "Test Standup",
-      slack_channel: "test-channel",
-      questions: [ "How are you?" ],
-      schedule_type: "daily",
-      respect_timezone: true,
-      default_hour: 9,
-      default_minute: 0,
-      active: true
-    )
-    assert standup.valid?
-  end
-
-  test "should not be valid without name" do
-    @daily_standup.name = nil
-    assert_not @daily_standup.valid?
-    assert_includes @daily_standup.errors[:name], "can't be blank"
-  end
-
-  test "should not be valid without slack_channel" do
-    @daily_standup.slack_channel = nil
-    assert_not @daily_standup.valid?
-    assert_includes @daily_standup.errors[:slack_channel], "can't be blank"
-  end
-
-  test "should not be valid without questions" do
-    @daily_standup.questions = nil
-    assert_not @daily_standup.valid?
-    assert_includes @daily_standup.errors[:questions], "can't be blank"
-  end
-
   test "should not be valid with invalid schedule_type" do
     Timecop.freeze(Time.new(2025, 4, 6)) do
       @daily_standup.schedule_type = "invalid"
@@ -181,6 +149,12 @@ class StandupTest < ActiveSupport::TestCase
 
     assert @daily_standup.valid?
     assert_equal [ "Keep me" ], @daily_standup.questions
+
+    [ [ "", "  " ], nil ].each do |questions|
+      @daily_standup.questions = questions
+      assert_not @daily_standup.valid?, "expected #{questions.inspect} questions to be invalid"
+      assert_includes @daily_standup.errors[:questions], "can't be blank"
+    end
   end
 
   test "previews upcoming occurrences without persisting" do

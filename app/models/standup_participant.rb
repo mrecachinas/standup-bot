@@ -19,7 +19,6 @@ class StandupParticipant < ApplicationRecord
   scope :active, -> { where(active: true) }
   scope :available_on, ->(date) { active.where("vacation_until IS NULL OR vacation_until < ?", date) }
 
-  # Fetch participant info from Slack as needed
   def fetch_info
     SlackClient.instance.get_user_info(slack_id)
   end
@@ -124,7 +123,7 @@ class StandupParticipant < ApplicationRecord
   def normalize_slack_fields
     self.slack_id = slack_id.to_s.strip.upcase if slack_id.present?
     self.slack_name = slack_name.to_s.strip if slack_name.present?
-    self.cached_timezone = cached_timezone.to_s.strip.presence if cached_timezone.present?
+    self.cached_timezone = cached_timezone.strip if cached_timezone.present?
   end
 
   def should_touch_cached_timezone_updated_at?

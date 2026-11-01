@@ -1,6 +1,7 @@
 module Manager
   class StandupsController < ApplicationController
     before_action :set_standup, only: [ :show, :edit, :update, :destroy, :pause, :resume ]
+    before_action :skip_authorization, only: [ :index, :new, :create, :preview ]
 
     PREVIEW_OCCURRENCE_COUNT = 4
     OVERVIEW_PERIOD_DAYS = 14

@@ -1,8 +1,14 @@
 module Web
   class ApplicationController < ActionController::Base
+    AuthorizationNotPerformed = Class.new(StandardError)
+
     layout "web"
 
     helper_method :current_user, :current_member, :sidebar_standups
+
+    # Every action must call authorize_standup!, require_admin!, or
+    # skip_authorization, so a new action can't silently skip the ownership check.
+    after_action :verify_authorized
 
     private
 
@@ -33,6 +39,7 @@ module Web
     end
 
     def authorize_standup!(standup)
+      @authorization_checked = true
       return if standup.manageable_by?(current_user)
 
       respond_to do |format|
@@ -40,6 +47,25 @@ module Web
         format.json { render json: { error: "Forbidden" }, status: :forbidden }
         format.any { head :forbidden }
       end
+    end
+
+    def require_admin!
+      @authorization_checked = true
+      return if current_user&.admin?
+
+      render plain: "Forbidden", status: :forbidden
+    end
+
+    # For actions any signed-in user may take, such as creating a standup or
+    # listing their own (already scoped by manageable_standups).
+    def skip_authorization
+      @authorization_checked = true
+    end
+
+    def verify_authorized
+      return if @authorization_checked
+
+      raise AuthorizationNotPerformed, "#{self.class.name}##{action_name} didn't check authorization"
     end
 
     def manageable_standups

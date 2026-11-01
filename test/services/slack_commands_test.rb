@@ -8,83 +8,33 @@ class SlackCommandsTest < ActiveSupport::TestCase
     @channel = "D87654321"
   end
 
-  test "parse should recognize help command" do
-    result = @commands.parse("help")
-
-    assert_equal :help, result[:command]
-    assert_not_nil result[:match]
+  test "parse recognizes each command" do
+    {
+      "help" => :help,
+      "report" => :report,
+      "skip" => :skip,
+      "cancel" => :cancel,
+      "away" => :away,
+      "back" => :back
+    }.each do |text, command|
+      assert_equal command, @commands.parse(text)&.fetch(:command), "expected #{text.inspect} to parse as #{command}"
+    end
   end
 
-  test "parse should recognize report command" do
-    result = @commands.parse("report")
-
-    assert_equal :report, result[:command]
-    assert_not_nil result[:match]
+  test "parse captures optional away days" do
+    assert_nil @commands.parse("away")[:match][1]
+    assert_equal "10", @commands.parse("away 10")[:match][1]
   end
 
-  test "parse should recognize skip command" do
-    result = @commands.parse("skip")
-
-    assert_equal :skip, result[:command]
-    assert_not_nil result[:match]
+  test "parse is case insensitive and trims whitespace" do
+    assert_equal :help, @commands.parse("HELP")[:command]
+    assert_equal :help, @commands.parse("  help  ")[:command]
   end
 
-  test "parse should recognize cancel command" do
-    result = @commands.parse("cancel")
-
-    assert_equal :cancel, result[:command]
-    assert_not_nil result[:match]
-  end
-
-  test "parse should recognize away command without days" do
-    result = @commands.parse("away")
-
-    assert_equal :away, result[:command]
-    assert_not_nil result[:match]
-    assert_nil result[:match][1] # No days specified
-  end
-
-  test "parse should recognize away command with days" do
-    result = @commands.parse("away 10")
-
-    assert_equal :away, result[:command]
-    assert_not_nil result[:match]
-    assert_equal "10", result[:match][1] # Days specified
-  end
-
-  test "parse should recognize back command" do
-    result = @commands.parse("back")
-
-    assert_equal :back, result[:command]
-    assert_not_nil result[:match]
-  end
-
-  test "parse should be case insensitive" do
-    result = @commands.parse("HELP")
-
-    assert_equal :help, result[:command]
-    assert_not_nil result[:match]
-  end
-
-  test "parse should return nil for non-command text" do
-    result = @commands.parse("This is not a command")
-
-    assert_nil result
-  end
-
-  test "parse should return nil for nil text" do
-    assert_nil @commands.parse(nil)
-  end
-
-  test "parse should return nil for nil or blank text" do
+  test "parse returns nil for non-command, nil, or blank text" do
+    assert_nil @commands.parse("This is not a command")
     assert_nil @commands.parse(nil)
     assert_nil @commands.parse("   ")
-  end
-
-  test "parse should trim command text" do
-    result = @commands.parse("  help  ")
-
-    assert_equal :help, result[:command]
   end
 
   test "process should handle help command" do
@@ -138,6 +88,7 @@ class SlackCommandsTest < ActiveSupport::TestCase
     command_info = { command: :cancel, match: "cancel".match(/^cancel$/i) }
     @commands.process(command_info, @slack_id, @channel)
   end
+
   test "back ends time away that was set on the web" do
     participant = standup_participants(:one)
     participant.update!(active: true, vacation_until: Date.current + 3)

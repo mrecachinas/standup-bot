@@ -23,6 +23,26 @@ class StandupParticipantImporterTest < ActiveSupport::TestCase
     assert_not bob.active
   end
 
+  test "imports quoted comma separated values" do
+    importer = StandupParticipantImporter.new(@standup)
+
+    result = importer.import_text(%(UIMPORT1, "Import, Alice", UTC, true))
+
+    assert result.success?, result.errors.join(", ")
+    participant = @standup.standup_participants.find_by!(slack_id: "UIMPORT1")
+    assert_equal "Import, Alice", participant.slack_name
+    assert_equal "UTC", participant.cached_timezone
+  end
+
+  test "reports malformed comma separated lines" do
+    importer = StandupParticipantImporter.new(@standup)
+
+    result = importer.import_text(%(UIMPORT1,"Unclosed name,UTC\nUIMPORT2,Bob Import,UTC))
+
+    assert_equal [ "Line 1: could not parse comma-separated values." ], result.errors
+    assert_equal [ "UIMPORT2" ], result.created.map(&:slack_id)
+  end
+
   test "imports participants by Slack username through resolver" do
     resolver = mock("SlackUserResolver")
     resolver.expects(:resolve)

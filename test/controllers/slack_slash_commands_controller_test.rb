@@ -22,7 +22,7 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Starting/, response_body["text"])
   end
 
-  test "standup status reports pending progress" do
+  test "standup status and standup-status report pending progress" do
     StandupResponse.create!(
       standup: @standup,
       slack_id: @participant.slack_id,
@@ -31,10 +31,12 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
     )
 
     post slack_standup_command_url, params: { user_id: @participant.slack_id, text: "status" }
-
     assert_response :success
-    response_body = JSON.parse(response.body)
-    assert_match(/in progress \(1\/#{@standup.questions.size}/, response_body["text"])
+    assert_match(/in progress \(1\/#{@standup.questions.size}/, JSON.parse(response.body)["text"])
+
+    post slack_standup_status_command_url, params: { user_id: @participant.slack_id }
+    assert_response :success
+    assert_match(/in progress \(1\/#{@standup.questions.size}/, JSON.parse(response.body)["text"])
   end
 
   test "standup status uses participant timezone date" do
@@ -55,14 +57,6 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
       response_body = JSON.parse(response.body)
       assert_match(/in progress \(1\/#{@standup.questions.size}/, response_body["text"])
     end
-  end
-
-  test "standup-status command reports status" do
-    post slack_standup_status_command_url, params: { user_id: @participant.slack_id }
-
-    assert_response :success
-    response_body = JSON.parse(response.body)
-    assert_match(/Standup status/, response_body["text"])
   end
 
   test "standup skip marks pending responses skipped" do

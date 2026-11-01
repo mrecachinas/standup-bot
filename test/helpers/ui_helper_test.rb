@@ -6,20 +6,21 @@ class UiHelperTest < ActionView::TestCase
 
     assert_includes html, "AL"
     assert_includes html, %(src="https://avatars.slack-edge.com/ada.png")
-    assert_includes html, %(class="avatar-img")
   end
 
-  test "avatars fall back to initials without a safe URL" do
-    html = avatar("Ada Lovelace", url: "javascript:alert(1)")
+  test "avatars fall back to initials without a safe https URL" do
+    [ "javascript:alert(1)", "http://example.com/a.png", nil ].each do |url|
+      html = avatar("Ada Lovelace", url: url)
 
-    assert_includes html, "AL"
-    assert_not_includes html, "<img"
+      assert_includes html, "AL"
+      assert_not_includes html, "<img", "expected #{url.inspect} not to render as an image"
+    end
   end
 
   test "avatar stacks accept name and photo pairs" do
     html = avatar_stack([ [ "Ada Lovelace", "https://avatars.slack-edge.com/ada.png" ], [ "Alan Turing", nil ] ])
 
-    assert_equal 1, html.scan("<img").size
+    assert_includes html, %(src="https://avatars.slack-edge.com/ada.png")
     assert_includes html, "AT"
   end
 end

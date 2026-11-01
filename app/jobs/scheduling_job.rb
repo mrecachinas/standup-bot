@@ -5,22 +5,11 @@ class SchedulingJob < ApplicationJob
   SCHEDULING_WINDOW = 75.minutes
 
   def perform
-    Rails.logger.info "Starting scheduling job to process active standups"
-
-    # Find all active standups
     standups = Standup.active
-    Rails.logger.info "Found #{standups.count} active standups to schedule"
     scheduled_count = 0
 
     standups.each do |standup|
-      Rails.logger.info "Processing standup: #{standup.id} - #{standup.name}"
-
-      # Get all participants for this standup
-      participants = standup.standup_participants.active
-      Rails.logger.info "Found #{participants.count} active participants for standup #{standup.id}"
-
-      participants.each do |participant|
-        # Calculate send time using participant method
+      standup.standup_participants.active.each do |participant|
         send_at = participant.calculate_send_time
         occurrence = participant.next_standup_occurrence
 
@@ -46,16 +35,12 @@ class SchedulingJob < ApplicationJob
           next
         end
 
-        Rails.logger.info "Scheduling standup message for participant #{participant.slack_id} at #{send_at}"
-
-        # Schedule the standup message job
         StandupMessageJob.set(wait_until: send_at).perform_later(participant.slack_id, standup.id, standup_date.iso8601)
         scheduled_count += 1
       end
     end
 
     StandupMetrics.track("scheduling.completed", active_standups: standups.count, messages_scheduled: scheduled_count)
-    Rails.logger.info "Scheduling job completed successfully"
   end
 
   private
