@@ -77,15 +77,15 @@ class SlackSignIn
   # Guests can't sign in: anyone who can sign in can create standups and use
   # the bot's workspace lookups. Fail closed if Slack can't confirm the account.
   def verify_full_member!(identity)
-    info = SlackClient.new.get_user_info(identity.slack_id)
-    raise Error, "Slack sign-in couldn't confirm your account. Please try again." if info.nil?
-    raise Error, "Guest accounts can't sign in to Standup Bot." if info["is_restricted"] || info["is_ultra_restricted"]
-    raise Error, "That Slack account can't sign in to Standup Bot." if info["deleted"] || info["is_bot"]
+    profile = ChatPlatform.for(:slack).user_profile(identity.slack_id)
+    raise Error, "Slack sign-in couldn't confirm your account. Please try again." if profile.nil?
+    raise Error, "Guest accounts can't sign in to Standup Bot." if profile.guest?
+    raise Error, "That Slack account can't sign in to Standup Bot." if profile.deleted? || profile.bot?
   end
 
   def bot_team_id
     Rails.cache.fetch("slack_sign_in/bot_team_id", expires_in: 1.hour, skip_nil: true) do
-      SlackClient.new.auth_test&.dig("team_id").presence
+      ChatPlatform.for(:slack).connection_status&.dig("team_id").presence
     end
   rescue StandardError => error
     Rails.logger.warn("Could not look up the bot's Slack workspace: #{error.class}")

@@ -97,61 +97,18 @@ class SlackEventsController < ApplicationController
       return
     end
 
+    handler = StandupCommandHandler.new(chat: ChatPlatform.for(:slack), user_id: payload.dig("user", "id"))
+    standup_id = action.dig("selected_option", "value") || action["value"]
+
     case action["action_id"]
     when "standup_selection"
-      handle_standup_report_selection(payload, action)
+      render_interaction_response(handler.report_selected(standup_id).text)
     when "standup_start_selection"
-      handle_standup_start_selection(payload, action)
+      render_interaction_response(handler.start_selected(standup_id).text)
     else
       Rails.logger.info "Ignoring unsupported Slack action_id=#{action['action_id']}"
       render_interaction_response("That Slack action is not supported yet.")
     end
-  end
-
-  def handle_standup_report_selection(payload, action)
-    standup = selected_standup(action)
-    participant = selected_participant(payload, standup)
-    return render_interaction_response("I couldn't find that standup.") unless standup
-    return render_interaction_response("You are not a participant in that standup.") unless participant
-
-    StandupCollectionJob.perform_later(*standup_collection_args(participant))
-
-    render_interaction_response(
-      "Generating report for #{standup.name}. It will be posted to ##{standup.slack_channel} shortly."
-    )
-  end
-
-  def handle_standup_start_selection(payload, action)
-    standup = selected_standup(action)
-    participant = selected_participant(payload, standup)
-    user_id = payload.dig("user", "id")
-
-    return render_interaction_response("I couldn't find that standup.") unless standup
-    return render_interaction_response("You are not a participant in that standup.") unless participant
-
-    StandupMessageJob.perform_later(user_id, standup.id, participant.standup_date_for(Time.current).iso8601)
-
-    render_interaction_response("Starting #{standup.name} now. Check your DMs.")
-  end
-
-  def selected_standup(action)
-    standup_id = action.dig("selected_option", "value") || action["value"]
-    Standup.find_by(id: standup_id)
-  end
-
-  def selected_participant(payload, standup)
-    user_id = payload.dig("user", "id")
-    return if user_id.blank? || standup.blank?
-
-    standup.standup_participants.find_by(slack_id: user_id, active: true)
-  end
-
-  def standup_collection_args(participant)
-    [
-      participant.standup_id,
-      participant.standup_date_for(Time.current).iso8601,
-      participant.standup_time_zone.tzinfo.name
-    ]
   end
 
   def render_interaction_response(text)

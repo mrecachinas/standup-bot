@@ -47,7 +47,11 @@ class SlackEventWorkflowTest < ActionDispatch::IntegrationTest
     response = StandupResponse.where(slack_id: @participant.slack_id, standup_id: @standup.id).last
     assert_equal "completed", response.status
     assert_equal @standup.questions.size, response.answers.size
-    assert @fake_slack_client.messages.any? { |message| message[:channel] == @standup.slack_channel }
+    channel_post = @fake_slack_client.messages.find { |message| message[:channel] == @standup.slack_channel }
+    assert channel_post
+    @standup.questions.each_with_index do |question, index|
+      assert_includes channel_post[:text], "*#{question}*\nAnswer #{index + 1}"
+    end
   end
 
   test "skip command skips current question and continues workflow" do

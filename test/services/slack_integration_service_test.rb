@@ -3,7 +3,7 @@ require "test_helper"
 class SlackIntegrationServiceTest < ActiveSupport::TestCase
   setup do
     @standup = standups(:daily)
-    @client = mock("SlackClient")
+    @client = mock("ChatPlatform::SlackAdapter")
     @config = {
       bot_token: "xoxb-secret-token",
       signing_secret: "super-secret-signing-value",
@@ -26,7 +26,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
   end
 
   test "connection status validates Slack auth through client" do
-    @client.expects(:auth_test).returns({ "team" => "Example", "team_id" => "T123", "user_id" => "U999" })
+    @client.expects(:connection_status).returns({ "team" => "Example", "team_id" => "T123", "user_id" => "U999" })
 
     result = service.connection_status
 
@@ -50,7 +50,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
       { "id" => "U123", "name" => "alice", "label" => "Alice Doe", "real_name" => "Alice Doe", "tz" => "America/New_York" },
       { "id" => "U999", "name" => "malice", "label" => "Malice" }
     ]
-    @client.expects(:list_users).with(query: "alice", limit: 200).returns(users)
+    @client.expects(:search_users).with(query: "alice", limit: 200).returns(users)
 
     result = service.resolve_user("@alice")
 
@@ -60,7 +60,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
   end
 
   test "resolves Slack IDs without requiring Slack API" do
-    @client.expects(:list_users).never
+    @client.expects(:search_users).never
 
     result = SlackIntegrationService.new(client: @client, config: {}).resolve_user("u123")
 
@@ -73,7 +73,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
       { "id" => "U123", "name" => "alex", "label" => "Alex" },
       { "id" => "U456", "display_name" => "alex", "label" => "Alex Backup" }
     ]
-    @client.expects(:list_users).with(query: "alex", limit: 200).returns(users)
+    @client.expects(:search_users).with(query: "alex", limit: 200).returns(users)
 
     result = service.resolve_user("alex")
 
@@ -83,7 +83,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
   end
 
   test "missing bot token produces actionable configuration error" do
-    @client.expects(:list_users).never
+    @client.expects(:search_users).never
 
     result = SlackIntegrationService.new(client: @client, config: {}).discover_users(query: "alice")
 
@@ -106,7 +106,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
   test "test message sends to configured standup channel" do
     @client.expects(:send_message)
       .with(@standup.slack_channel, includes(@standup.name))
-      .returns({ "channel" => "C123", "ts" => "123.456" })
+      .returns(ChatPlatform::MessageRef.new(channel: "C123", id: "123.456"))
 
     result = service.test_message(@standup)
 

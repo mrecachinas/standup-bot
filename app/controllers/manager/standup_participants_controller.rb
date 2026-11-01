@@ -78,7 +78,7 @@ module Manager
         return
       end
 
-      profiles = SlackClient.instance.channel_member_profiles(@sync_channel)
+      profiles = ChatPlatform.for_standup(@standup).channel_member_profiles(@sync_channel)
       result = StandupParticipantImporter.new(@standup).sync_profiles(profiles, deactivate_missing: @deactivate_missing)
 
       if result.success?
@@ -108,7 +108,7 @@ module Manager
     # bot can't be used to list the members of someone else's private channel.
     def channel_member?(channel)
       current_user.slack_user_id.present? &&
-        SlackClient.instance.channel_members(channel).include?(current_user.slack_user_id)
+        ChatPlatform.for_standup(@standup).channel_member_ids(channel).include?(current_user.slack_user_id)
     end
 
     def set_participant

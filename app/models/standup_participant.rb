@@ -19,8 +19,8 @@ class StandupParticipant < ApplicationRecord
   scope :active, -> { where(active: true) }
   scope :available_on, ->(date) { active.where("vacation_until IS NULL OR vacation_until < ?", date) }
 
-  def fetch_info
-    SlackClient.instance.get_user_info(slack_id)
+  def fetch_profile
+    ChatPlatform.for_standup(standup).user_profile(slack_id)
   end
 
   def timezone
@@ -34,11 +34,11 @@ class StandupParticipant < ApplicationRecord
   end
 
   def refresh_timezone
-    info = fetch_info
-    resolved_timezone = normalize_timezone(info&.dig("tz"))
+    profile = fetch_profile
+    resolved_timezone = normalize_timezone(profile&.timezone)
 
     cache_timezone(resolved_timezone)
-    cache_avatar_url(info&.dig("avatar_url"))
+    cache_avatar_url(profile&.avatar_url)
     resolved_timezone
   rescue StandardError => error
     Rails.logger.warn "Unable to refresh timezone for participant #{id || slack_id}: #{error.class} - #{error.message}"

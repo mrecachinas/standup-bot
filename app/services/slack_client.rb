@@ -22,6 +22,40 @@ class SlackClient
       Rails.application.config.slack = Rails.application.config_for(:slack)
       instance
     end
+
+    def selection_blocks(text, options, action_id:)
+      [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: text
+          }
+        },
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "static_select",
+              placeholder: {
+                type: "plain_text",
+                text: "Select a standup"
+              },
+              action_id: action_id,
+              options: options.map do |option|
+                {
+                  text: {
+                    type: "plain_text",
+                    text: option[:text]
+                  },
+                  value: option[:value].to_s
+                }
+              end
+            }
+          ]
+        }
+      ]
+    end
   end
 
   def send_standup_questions(slack_id, intro, questions)
@@ -181,38 +215,8 @@ class SlackClient
     end
   end
 
-  def send_standup_selection(channel, text, options)
-    blocks = [
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: text
-        }
-      },
-      {
-        type: "actions",
-        elements: [
-          {
-            type: "static_select",
-            placeholder: {
-              type: "plain_text",
-              text: "Select a standup"
-            },
-            action_id: "standup_selection",
-            options: options.map do |option|
-              {
-                text: {
-                  type: "plain_text",
-                  text: option[:text]
-                },
-                value: option[:value].to_s
-              }
-            end
-          }
-        ]
-      }
-    ]
+  def send_standup_selection(channel, text, options, action_id: "standup_selection")
+    blocks = self.class.selection_blocks(text, options, action_id: action_id)
 
     with_rate_limit_handling("send_standup_selection") do
       @client.chat_postMessage(channel: channel, blocks: blocks, text: text, as_user: true)

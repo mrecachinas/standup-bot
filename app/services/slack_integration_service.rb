@@ -9,7 +9,7 @@ class SlackIntegrationService
     end
   end
 
-  def initialize(client: SlackClient.instance, config: Rails.application.config.slack)
+  def initialize(client: ChatPlatform.for(:slack), config: Rails.application.config.slack)
     @client = client
     @config = config || {}
   end
@@ -40,7 +40,7 @@ class SlackIntegrationService
   def connection_status
     return missing_config_result(:bot_token) unless configured?(:bot_token)
 
-    response = client.auth_test
+    response = client.connection_status
     Result.new(
       status: "ok",
       message: "Slack API authentication succeeded.",
@@ -63,7 +63,7 @@ class SlackIntegrationService
   def discover_users(query: nil, limit: DEFAULT_LIMIT)
     return missing_config_result(:bot_token) unless configured?(:bot_token)
 
-    records = client.list_users(query: query, limit: normalized_limit(limit))
+    records = client.search_users(query: query, limit: normalized_limit(limit))
     Result.new(status: "ok", records: records, message: "Found #{records.size} Slack user(s).")
   rescue StandardError => error
     failure_result(error, "discover Slack users")
@@ -79,7 +79,7 @@ class SlackIntegrationService
 
     return missing_config_result(:bot_token) unless configured?(:bot_token)
 
-    records = client.list_users(query: lookup, limit: normalized_limit(limit))
+    records = client.search_users(query: lookup, limit: normalized_limit(limit))
     matches = exact_user_matches(records, lookup)
     matches = records if matches.empty? && records.one?
 
@@ -118,11 +118,11 @@ class SlackIntegrationService
       )
     end
 
-    response = client.send_message(standup.slack_channel, test_message_text(standup))
+    message = client.send_message(standup.slack_channel, test_message_text(standup))
     Result.new(
       status: "ok",
       message: "Slack accepted the test standup message.",
-      metadata: response.slice("channel", "ts")
+      metadata: { "channel" => message&.channel, "ts" => message&.id }.compact
     )
   rescue StandardError => error
     failure_result(error, "send a test standup message")

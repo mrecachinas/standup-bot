@@ -18,14 +18,16 @@ Ruby on Rails 8.1 Slack standup bot that schedules meetings, asks participants q
 - `StandupResponse`: Tracks user responses to standup questions
 
 ### Services  
-- `SlackClient`: Slack API wrapper
-- `SlackCommands`: Handles slash commands
+- `ChatPlatform`: Adapter registry. Shared code calls `ChatPlatform.for_standup(standup)` (or `ChatPlatform.for(:slack)`) and the `ChatPlatform::Adapter` contract, never a platform SDK
+- `ChatPlatform::SlackAdapter`: Slack implementation (Block Kit and mrkdwn live here); `SlackClient` is the low-level Slack API wrapper underneath it
+- `StandupConversationHandler` / `DirectMessageCommands`: Platform-neutral DM handling (answers, edits, `skip`/`away`/...)
+- `StandupCommandHandler`: Platform-neutral `/standup` commands, returning `ChatPlatform::Reply` objects
 - `SlackSignatureVerifier`: Webhook signature verification
 - `StandupResponseService`: Core business logic for responses
 
 ### Controllers & Formatters
 - `SlackEventsController`: Handles Slack webhooks/events
-- `StandupFormatter`: Formats questions/responses for Slack
+- `StandupFormatter`: Formats questions using the adapter's formatter
 
 ## Development
 
@@ -52,7 +54,7 @@ bin/rails standups:validate # Validate config/standups/*.yml
 - **Framework**: Minitest with fixtures in `test/fixtures/`
 - **Mocking**: Use Mocha for external dependencies (especially Slack API)
 - **Time Testing**: Use `Timecop` for schedule/time-dependent tests
-- **Pattern**: Always mock `SlackClient` service to avoid real API calls
+- **Pattern**: Always mock `SlackClient.instance` (beneath the Slack adapter) or the adapter itself to avoid real API calls. New adapters include `test/support/chat_platform_adapter_contract.rb`
 - **Rake tasks**: Use `capture_io` to suppress puts output in tests
 
 ### Code Style

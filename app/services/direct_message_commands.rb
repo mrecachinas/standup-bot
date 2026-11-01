@@ -1,4 +1,5 @@
-class SlackCommands
+# Commands people can type in their DM with the bot, on any platform.
+class DirectMessageCommands
   COMMANDS = {
     report: {
       pattern: /^report$/i,
@@ -26,8 +27,8 @@ class SlackCommands
     }
   }
 
-  def initialize(slack_client)
-    @slack_client = slack_client
+  def initialize(chat)
+    @chat = chat
   end
 
   def parse(text)
@@ -64,7 +65,7 @@ class SlackCommands
       set_user_active(slack_id, channel)
     else
       Rails.logger.warn "Unknown command: #{command}"
-      @slack_client.send_message(channel, "Sorry, I don't know how to handle that command.")
+      @chat.send_message(channel, "Sorry, I don't know how to handle that command.")
     end
   end
 
@@ -78,7 +79,7 @@ class SlackCommands
       .distinct
 
     if participants.empty?
-      return @slack_client.send_message(channel, "You're not part of any standups.")
+      return @chat.send_message(channel, "You're not part of any standups.")
     end
 
     if participants.count == 1
@@ -89,20 +90,20 @@ class SlackCommands
         participant.standup_date_for(Time.current).iso8601,
         participant.standup_time_zone.tzinfo.name
       )
-      @slack_client.send_message(channel, "Generating report for #{standup.name}. It will be posted to ##{standup.slack_channel} shortly.")
+      @chat.send_message(channel, "Generating report for #{standup.name}. It will be posted to #{@chat.channel_reference(standup.slack_channel)} shortly.")
     else
       options = participants.map { |p| { text: p.standup.name, value: p.standup.id } }
-      @slack_client.send_standup_selection(channel, "Which standup report would you like to generate?", options)
+      @chat.send_selection(channel, "Which standup report would you like to generate?", options, action_id: "standup_selection")
     end
   end
 
   def send_help_message(channel)
     command_descriptions = COMMANDS.map do |cmd, config|
-      "• `#{cmd}` - #{config[:description]}"
+      "• #{@chat.formatter.code(cmd)} - #{config[:description]}"
     end.join("\n")
 
-    help_text = "*Available Commands:*\n#{command_descriptions}"
-    @slack_client.send_message(channel, help_text)
+    help_text = "#{@chat.formatter.bold("Available Commands:")}\n#{command_descriptions}"
+    @chat.send_message(channel, help_text)
   end
 
   def skip_current_question(slack_id, channel)
@@ -110,9 +111,9 @@ class SlackCommands
 
     if standup_response
       StandupResponseService.skip_question(standup_response)
-      @slack_client.send_message(channel, "Question skipped. Moving on to the next one.")
+      @chat.send_message(channel, "Question skipped. Moving on to the next one.")
     else
-      @slack_client.send_message(channel, "You don't have an active standup to skip questions for.")
+      @chat.send_message(channel, "You don't have an active standup to skip questions for.")
     end
   end
 
@@ -121,9 +122,9 @@ class SlackCommands
 
     if standup_response
       standup_response.update!(status: "cancelled")
-      @slack_client.send_message(channel, "Your standup has been cancelled.")
+      @chat.send_message(channel, "Your standup has been cancelled.")
     else
-      @slack_client.send_message(channel, "You don't have an active standup to cancel.")
+      @chat.send_message(channel, "You don't have an active standup to cancel.")
     end
   end
 
@@ -143,12 +144,12 @@ class SlackCommands
       Rails.logger.info "Set #{count} standup participants to inactive for user #{slack_id}"
       SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(slack_id, participant_ids)
 
-      @slack_client.send_message(
+      @chat.send_message(
         channel,
-        "You've been marked as away from standups until #{return_date.strftime('%A, %B %d')}. Type `back` anytime to return early."
+        "You've been marked as away from standups until #{return_date.strftime('%A, %B %d')}. Type #{@chat.formatter.code("back")} anytime to return early."
       )
     else
-      @slack_client.send_message(channel, "You're not currently part of any active standups.")
+      @chat.send_message(channel, "You're not currently part of any active standups.")
     end
   end
 
@@ -165,9 +166,9 @@ class SlackCommands
       participant_ids = participants.pluck(:id)
       count = StandupParticipant.where(id: participant_ids).update_all(active: true, vacation_until: nil)
       Rails.logger.info "Reactivated #{count} standup participants for user #{slack_id}"
-      @slack_client.send_message(channel, "Welcome back! You'll now receive standup prompts again.")
+      @chat.send_message(channel, "Welcome back! You'll now receive standup prompts again.")
     else
-      @slack_client.send_message(channel, "You're already active in all your standups.")
+      @chat.send_message(channel, "You're already active in all your standups.")
     end
   end
 
