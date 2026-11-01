@@ -11,6 +11,7 @@ module Manager
           @runs = @analytics.run_breakdown
           @participant_stats = @summary[:participant_stats].sort_by { |stat| [ stat[:completion_rate], stat[:slack_name].to_s.downcase ] }
           @question_summaries = @analytics.question_summaries(limit: 3)
+          @question_funnel = @analytics.question_funnel
           @blocker_keywords = @analytics.blocker_keywords(limit: 10)
           previous = previous_period_analytics
           @previous_completion_rate = previous.completion_rate if previous.responses?
