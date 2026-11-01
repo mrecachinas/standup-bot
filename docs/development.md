@@ -27,7 +27,7 @@ The console has its own checks, run from `frontend/`:
 ```bash
 npm test                                      # Vitest + React Testing Library
 npm run typecheck                             # TypeScript
-npm run lint                                  # ESLint
+npm run lint                                  # Oxlint
 npm run build                                 # build into public/app
 ```
 
