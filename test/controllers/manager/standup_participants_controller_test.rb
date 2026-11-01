@@ -45,6 +45,16 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     assert_includes response.body, standup_participants(:three).slack_name
   end
 
+  test "roster does not list other standups a participant is in" do
+    @unowned_standup.standup_participants.create!(slack_id: @participant.slack_id, slack_name: @participant.slack_name, active: true)
+    sign_in(@admin, "admin-access-token")
+
+    get manager_standup_participants_path(@owned_standup)
+
+    assert_response :success
+    assert_not_includes response.body, "Also in"
+  end
+
   test "manager creates participant and writes audit log" do
     sign_in(@manager, "manager-access-token")
 
