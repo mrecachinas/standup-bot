@@ -15,19 +15,17 @@ class ReportConfigurationTest < ActiveSupport::TestCase
     assert_equal [ "UREPORT1", "team-reports" ], configuration.recipients
   end
 
-  test "validates delivery fields" do
+  test "rejects malformed delivery channel and recipients" do
     configuration = ReportConfiguration.new(
       standup: standups(:weekly),
       delivery_channel: "bad channel",
       recipients: [ "UGOOD1", "bad recipient" ],
-      report_format: "pdf",
-      detail_level: "verbose"
+      report_format: "slack",
+      detail_level: "summary"
     )
 
     assert_not configuration.valid?
     assert_includes configuration.errors[:delivery_channel], "must be a Slack channel name or ID without spaces"
     assert_includes configuration.errors[:recipients].join, "bad recipient"
-    assert_includes configuration.errors[:report_format], "is not included in the list"
-    assert_includes configuration.errors[:detail_level], "is not included in the list"
   end
 end

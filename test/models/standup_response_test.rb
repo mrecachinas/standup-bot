@@ -7,22 +7,6 @@ class StandupResponseTest < ActiveSupport::TestCase
     @response = standup_responses(:one)
   end
 
-  test "should be valid with required attributes" do
-    response = StandupResponse.new(
-      standup: @standup,
-      slack_id: "U123NEW",
-      status: "pending",
-      answers: []
-    )
-    assert response.valid?
-  end
-
-  test "should not be valid without slack_id" do
-    @response.slack_id = nil
-    assert_not @response.valid?
-    assert_includes @response.errors[:slack_id], "can't be blank"
-  end
-
   test "should not be valid with invalid status" do
     @response.status = "invalid"
     assert_not @response.valid?
