@@ -130,18 +130,18 @@ class StandupTest < ActiveSupport::TestCase
   test "normalizes and validates Slack channel input" do
     standup = Standup.new(
       name: "Channel Validation",
-      slack_channel: " #team-standup ",
+      platform_channel: " #team-standup ",
       questions: [ "Question?" ],
       schedule_type: "daily",
       respect_timezone: true
     )
 
     assert standup.valid?
-    assert_equal "team-standup", standup.slack_channel
+    assert_equal "team-standup", standup.platform_channel
 
-    standup.slack_channel = "bad channel"
+    standup.platform_channel = "bad channel"
     assert_not standup.valid?
-    assert_includes standup.errors[:slack_channel], "must be a Slack channel name or ID without spaces"
+    assert_includes standup.errors[:platform_channel], "must be a Slack channel name or ID without spaces"
   end
 
   test "normalizes blank questions before validation" do
@@ -169,5 +169,27 @@ class StandupTest < ActiveSupport::TestCase
         Time.new(2025, 4, 14, 9, 30, 0, "+00:00")
       ], occurrences
     end
+  end
+
+  test "defaults to the Slack platform" do
+    standup = Standup.create!(name: "Platform default", platform_channel: "team", questions: [ "Q?" ])
+
+    assert_equal "slack", standup.platform
+    assert_instance_of ChatPlatform::SlackAdapter, standup.chat_platform
+  end
+
+  test "rejects unknown platforms" do
+    standup = Standup.new(name: "Unknown", platform: "carrier_pigeon", platform_channel: "team", questions: [ "Q?" ])
+
+    assert_not standup.valid?
+    assert standup.errors[:platform].any?
+  end
+
+  test "platform can't change after creation" do
+    standup = standups(:daily)
+    standup.platform = "other"
+
+    assert_not standup.valid?
+    assert_includes standup.errors[:platform], "can't be changed after the standup is created"
   end
 end

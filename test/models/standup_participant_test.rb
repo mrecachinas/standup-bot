@@ -10,37 +10,37 @@ class StandupParticipantTest < ActiveSupport::TestCase
   test "normalizes and validates Slack user IDs" do
     participant = StandupParticipant.new(
       standup: @standup,
-      slack_id: " uvalid1 ",
-      slack_name: "Valid User"
+      platform_user_id: " uvalid1 ",
+      display_name: "Valid User"
     )
 
     assert participant.valid?
-    assert_equal "UVALID1", participant.slack_id
+    assert_equal "UVALID1", participant.platform_user_id
 
-    participant.slack_id = "not-a-user"
+    participant.platform_user_id = "not-a-user"
     assert_not participant.valid?
-    assert_includes participant.errors[:slack_id], "must be a Slack user ID like U123ABC"
+    assert_includes participant.errors[:platform_user_id], "must be a Slack user ID like U123ABC"
   end
 
-  test "should not allow duplicate slack_id in same standup" do
+  test "should not allow duplicate platform_user_id in same standup" do
     Timecop.freeze(Time.new(2025, 4, 6)) do
       duplicate = StandupParticipant.new(
         standup: @participant.standup,
-        slack_id: @participant.slack_id,
-        slack_name: "Duplicate User"
+        platform_user_id: @participant.platform_user_id,
+        display_name: "Duplicate User"
       )
       assert_not duplicate.valid?
-      assert_includes duplicate.errors[:slack_id], "has already been taken"
+      assert_includes duplicate.errors[:platform_user_id], "has already been taken"
     end
   end
 
-  test "should allow same slack_id in different standups" do
+  test "should allow same platform_user_id in different standups" do
     Timecop.freeze(Time.new(2025, 4, 6)) do
       different_standup = standups(:weekly)
       participant = StandupParticipant.new(
         standup: different_standup,
-        slack_id: @participant.slack_id,
-        slack_name: "Different Standup User"
+        platform_user_id: @participant.platform_user_id,
+        display_name: "Different Standup User"
       )
       assert participant.valid?
     end
@@ -49,7 +49,7 @@ class StandupParticipantTest < ActiveSupport::TestCase
   test "should fetch profile through the standup's chat platform" do
     slack_client_mock = mock()
     user_info = { "name" => "jane", "tz" => "America/New_York", "avatar_url" => "https://example.com/a.png" }
-    slack_client_mock.expects(:get_user_info).with(@participant.slack_id).returns(user_info)
+    slack_client_mock.expects(:get_user_info).with(@participant.platform_user_id).returns(user_info)
 
     SlackClient.expects(:instance).returns(slack_client_mock)
 

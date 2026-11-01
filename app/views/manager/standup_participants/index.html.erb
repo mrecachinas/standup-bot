@@ -34,8 +34,8 @@
         <%= form_with model: @new_participant, url: manager_standup_participants_path(@standup), data: { turbo_frame: "standup_participants" } do |form| %>
           <%= form.hidden_field :active, value: "1" %>
           <div class="input-group">
-            <%= form.label :slack_id, "Slack user", class: "sr-only" %>
-            <%= form.text_field :slack_id, required: true, placeholder: "@jane, Jane Doe, or U123ABC" %>
+            <%= form.label :platform_user_id, "Slack user", class: "sr-only" %>
+            <%= form.text_field :platform_user_id, required: true, placeholder: "@jane, Jane Doe, or U123ABC" %>
             <%= form.submit "Add", class: "btn btn-primary" %>
           </div>
         <% end %>
@@ -135,14 +135,14 @@
                 <tr id="<%= dom_id(participant) %>">
                   <td>
                     <div class="person">
-                      <%= avatar(participant.slack_name.presence || participant.slack_id, url: participant.avatar_url) %>
+                      <%= avatar(participant.display_name.presence || participant.platform_user_id, url: participant.avatar_url) %>
                       <div>
-                        <div class="cell-title"><%= participant.slack_name %></div>
-                        <div class="cell-sub"><span class="mono"><%= participant.slack_id %></span></div>
+                        <div class="cell-title"><%= participant.display_name %></div>
+                        <div class="cell-sub"><span class="mono"><%= participant.platform_user_id %></span></div>
                       </div>
                     </div>
                   </td>
-                  <% manager_id = @manager_ids_by_slack_id[participant.slack_id] %>
+                  <% manager_id = @manager_ids_by_platform_user_id[participant.platform_user_id] %>
                   <td>
                     <div class="flex wrap gap-1">
                       <%= participant.active? ? status_badge("Active", "success") : status_badge("Inactive") %>
@@ -167,7 +167,7 @@
                   </td>
                   <td class="text-right">
                     <details class="menu">
-                      <summary class="btn btn-ghost btn-sm" aria-label="Edit <%= participant.slack_name %>"><%= icon(:edit) %> Edit</summary>
+                      <summary class="btn btn-ghost btn-sm" aria-label="Edit <%= participant.display_name %>"><%= icon(:edit) %> Edit</summary>
                       <div class="menu-panel menu-panel-wide">
                         <%= form_with model: participant, url: manager_standup_participant_path(@standup, participant), data: { turbo_frame: "standup_participants" }, class: "stack-sm card-body" do |form| %>
                           <div class="field">
@@ -185,18 +185,18 @@
                           <% if @managers.size > 1 %>
                             <%= button_to "Remove as manager", manager_standup_manager_path(@standup, manager_id),
                               method: :delete,
-                              form: { data: { turbo_frame: "_top", turbo_confirm: "Remove #{participant.slack_name} as a manager of #{@standup.name}?" } } %>
+                              form: { data: { turbo_frame: "_top", turbo_confirm: "Remove #{participant.display_name} as a manager of #{@standup.name}?" } } %>
                           <% end %>
                         <% else %>
                           <%= button_to "Make manager", manager_standup_managers_path(@standup),
                             method: :post,
                             params: { participant_id: participant.id },
-                            form: { data: { turbo_frame: "_top", turbo_confirm: "Let #{participant.slack_name} manage #{@standup.name}? They'll be able to change its settings, people, and schedule." } } %>
+                            form: { data: { turbo_frame: "_top", turbo_confirm: "Let #{participant.display_name} manage #{@standup.name}? They'll be able to change its settings, people, and schedule." } } %>
                         <% end %>
                         <%= button_to "Remove from standup", manager_standup_participant_path(@standup, participant),
                           method: :delete,
                           class: "danger",
-                          form: { data: { turbo_frame: "standup_participants", turbo_confirm: "Remove #{participant.slack_name} from #{@standup.name}?" } } %>
+                          form: { data: { turbo_frame: "standup_participants", turbo_confirm: "Remove #{participant.display_name} from #{@standup.name}?" } } %>
                       </div>
                     </details>
                   </td>

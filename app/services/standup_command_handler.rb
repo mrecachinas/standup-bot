@@ -86,10 +86,11 @@ class StandupCommandHandler
   def history(days)
     days = days.clamp(1, 90)
     responses = StandupResponse
+      .on_platform(platform)
       .includes(:standup)
-      .where(slack_id: user_id)
-      .where("created_at >= ?", days.days.ago)
-      .order(created_at: :desc)
+      .where(platform_user_id: user_id)
+      .where("standup_responses.created_at >= ?", days.days.ago)
+      .order("standup_responses.created_at DESC")
       .limit(10)
 
     return Reply.text("No standup responses found in the last #{days} day(s).") if responses.empty?
@@ -142,18 +143,22 @@ class StandupCommandHandler
     chat.formatter
   end
 
+  def platform
+    chat.key
+  end
+
   def with_selected_participant(standup_id)
     standup = Standup.find_by(id: standup_id)
     return Reply.text("I couldn't find that standup.") unless standup
 
-    participant = user_id.present? ? standup.standup_participants.find_by(slack_id: user_id, active: true) : nil
+    participant = user_id.present? ? standup.standup_participants.find_by(platform_user_id: user_id, active: true) : nil
     return Reply.text("You are not a participant in that standup.") unless participant
 
     yield standup, participant
   end
 
   def report_queued_reply(standup)
-    Reply.text("Generating report for #{standup.name}. It will be posted to #{chat.channel_reference(standup.slack_channel)} shortly.")
+    Reply.text("Generating report for #{standup.name}. It will be posted to #{chat.channel_reference(standup.platform_channel)} shortly.")
   end
 
   def selection(text, participants, action_id)
@@ -163,16 +168,16 @@ class StandupCommandHandler
 
   def active_participants
     @active_participants ||= StandupParticipant
-      .joins(:standup)
+      .on_platform(platform)
       .includes(:standup)
-      .where(slack_id: user_id, active: true)
+      .where(platform_user_id: user_id, active: true)
       .merge(Standup.active)
       .order("standups.name ASC")
   end
 
   def today_response_for(participant)
     StandupResponse
-      .where(slack_id: user_id, standup_id: participant.standup_id)
+      .where(platform_user_id: user_id, standup_id: participant.standup_id)
       .for_standup_date(current_standup_date(participant), participant.standup_time_zone)
       .order(created_at: :desc)
       .first
@@ -181,7 +186,7 @@ class StandupCommandHandler
   def pending_responses_for(participant)
     StandupResponse
       .pending
-      .where(slack_id: user_id, standup_id: participant.standup_id)
+      .where(platform_user_id: user_id, standup_id: participant.standup_id)
       .for_standup_date(current_standup_date(participant), participant.standup_time_zone)
   end
 

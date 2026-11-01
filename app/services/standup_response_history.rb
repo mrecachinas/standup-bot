@@ -2,11 +2,11 @@ class StandupResponseHistory
   DEFAULT_RANGE_DAYS = 14
   MAX_RANGE_DAYS = 90
 
-  Participant = Struct.new(:slack_id, :slack_name, :active, keyword_init: true) do
+  Participant = Struct.new(:platform_user_id, :display_name, :active, keyword_init: true) do
     def label
-      return slack_id if slack_name.blank? || slack_name == slack_id
+      return platform_user_id if display_name.blank? || display_name == platform_user_id
 
-      "#{slack_name} (#{slack_id})"
+      "#{display_name} (#{platform_user_id})"
     end
 
     def active?
@@ -26,12 +26,12 @@ class StandupResponseHistory
   end
 
   Entry = Struct.new(:date, :participant, :expected, :response, :answers, keyword_init: true) do
-    def slack_id
-      participant.slack_id
+    def platform_user_id
+      participant.platform_user_id
     end
 
-    def slack_name
-      participant.slack_name.presence || participant.slack_id
+    def display_name
+      participant.display_name.presence || participant.platform_user_id
     end
 
     def expected?
@@ -105,11 +105,11 @@ class StandupResponseHistory
   def participant_options
     @participant_options ||= begin
       known_options = all_participants.map { |participant| participant_option(participant) }
-      known_slack_ids = known_options.map(&:slack_id)
-      unknown_options = responses_in_range.map(&:slack_id).uniq.sort.filter_map do |slack_id|
-        next if known_slack_ids.include?(slack_id)
+      known_slack_ids = known_options.map(&:platform_user_id)
+      unknown_options = responses_in_range.map(&:platform_user_id).uniq.sort.filter_map do |platform_user_id|
+        next if known_slack_ids.include?(platform_user_id)
 
-        Participant.new(slack_id: slack_id, slack_name: nil, active: false)
+        Participant.new(platform_user_id: platform_user_id, display_name: nil, active: false)
       end
 
       known_options + unknown_options
@@ -157,20 +157,20 @@ class StandupResponseHistory
   end
 
   def all_participants
-    @all_participants ||= standup.standup_participants.order(:slack_name, :slack_id).to_a
+    @all_participants ||= standup.standup_participants.order(:display_name, :platform_user_id).to_a
   end
 
   def participant_records_for_history
     records = all_participants
     return records if participant_slack_id.blank?
 
-    records.select { |participant| participant.slack_id == participant_slack_id }
+    records.select { |participant| participant.platform_user_id == participant_slack_id }
   end
 
   def participant_option(participant)
     Participant.new(
-      slack_id: participant.slack_id,
-      slack_name: participant.slack_name,
+      platform_user_id: participant.platform_user_id,
+      display_name: participant.display_name,
       active: participant.active?
     )
   end
@@ -190,26 +190,26 @@ class StandupResponseHistory
   def entries_for(date)
     responses_for_date = responses_by_date.fetch(date, {})
     participant_entries = participant_records_for_history.filter_map do |participant|
-      response = responses_for_date[participant.slack_id]
+      response = responses_for_date[participant.platform_user_id]
       expected = participant.available_on?(date)
       next unless expected || response || participant_slack_id.present?
 
       build_entry(date, participant_option(participant), expected, response)
     end
 
-    known_slack_ids = participant_entries.map(&:slack_id)
-    unknown_entries = responses_for_date.keys.sort.filter_map do |slack_id|
-      next if known_slack_ids.include?(slack_id)
+    known_slack_ids = participant_entries.map(&:platform_user_id)
+    unknown_entries = responses_for_date.keys.sort.filter_map do |platform_user_id|
+      next if known_slack_ids.include?(platform_user_id)
 
       build_entry(
         date,
-        Participant.new(slack_id: slack_id, slack_name: nil, active: false),
+        Participant.new(platform_user_id: platform_user_id, display_name: nil, active: false),
         false,
-        responses_for_date[slack_id]
+        responses_for_date[platform_user_id]
       )
     end
 
-    (participant_entries + unknown_entries).sort_by { |entry| [ entry.slack_name.to_s.downcase, entry.slack_id ] }
+    (participant_entries + unknown_entries).sort_by { |entry| [ entry.display_name.to_s.downcase, entry.platform_user_id ] }
   end
 
   def build_entry(date, participant, expected, response)
@@ -224,7 +224,7 @@ class StandupResponseHistory
 
   def responses_by_date
     @responses_by_date ||= responses_in_range.group_by { |response| response_date(response) }.transform_values do |responses|
-      responses.group_by(&:slack_id).transform_values do |participant_responses|
+      responses.group_by(&:platform_user_id).transform_values do |participant_responses|
         participant_responses.max_by { |response| [ response.updated_at || response.created_at, response.created_at ] }
       end
     end
@@ -239,7 +239,7 @@ class StandupResponseHistory
         start_time: start_date.beginning_of_day,
         end_time: end_date.end_of_day
       )
-      relation = relation.where(slack_id: participant_slack_id) if participant_slack_id.present?
+      relation = relation.where(platform_user_id: participant_slack_id) if participant_slack_id.present?
       relation.order(created_at: :desc).to_a
     end
   end

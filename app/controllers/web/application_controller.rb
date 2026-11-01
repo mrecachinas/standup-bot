@@ -19,7 +19,7 @@ module Web
     def current_member
       return @current_member if defined?(@current_member)
 
-      @current_member = Member.for(session[:slack_id], name: session[:slack_name])
+      @current_member = Member.for(session[:member_platform], session[:member_user_id], name: session[:member_name])
     end
 
     def sidebar_standups

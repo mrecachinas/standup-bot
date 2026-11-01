@@ -6,7 +6,6 @@ class Standup < ApplicationRecord
   SCHEDULE_TYPES = %w[daily weekdays weekly biweekly monthly custom].freeze
   BIWEEKLY_REFERENCE_DATE = Date.new(2024, 1, 1)
   HOLIDAYS_CONFIG_PATH = Rails.root.join("config/holidays.yml")
-  SLACK_CHANNEL_PATTERN = /\A#?[A-Za-z0-9][A-Za-z0-9_-]*\z/
   SCHEDULE_EXCEPTION_LOOKBACK_DAYS = 400
   SCHEDULE_EXCEPTION_LOOKAHEAD_DAYS = 400
 
@@ -40,15 +39,15 @@ class Standup < ApplicationRecord
   attribute :reminder_after_minutes, :integer, default: 120
   attribute :max_reminders, :integer, default: 1
 
-  before_validation :normalize_slack_channel
+  before_validation :normalize_platform_channel
   before_validation :normalize_questions
   before_validation :normalize_schedule_days
 
   validates :name, presence: true
-  validates :slack_channel, presence: true
-  validates :slack_channel,
-    format: { with: SLACK_CHANNEL_PATTERN, message: "must be a Slack channel name or ID without spaces" },
-    allow_blank: true
+  validates :platform_channel, presence: true
+  validates :platform, inclusion: { in: ->(_) { ChatPlatform.keys.map(&:to_s) } }
+  validate :platform_channel_must_match_platform
+  validate :platform_unchanged, on: :update
   validates :questions, presence: true
   validates :schedule_type, inclusion: { in: SCHEDULE_TYPES }
   validates :respect_timezone, inclusion: { in: [ true, false ] }
@@ -73,6 +72,10 @@ class Standup < ApplicationRecord
 
   def manageable_by?(user)
     user&.can_manage_standup?(self) || false
+  end
+
+  def chat_platform
+    ChatPlatform.for(platform)
   end
 
   def upcoming_occurrences_in_timezone(timezone, count: 5, from: nil)
@@ -239,10 +242,10 @@ class Standup < ApplicationRecord
 
       standup_identifier = entry["standup_id"] || entry[:standup_id] ||
         entry["standup"] || entry[:standup] ||
-        entry["slack_channel"] || entry[:slack_channel]
+        entry["platform_channel"] || entry[:platform_channel]
       return true if standup_identifier.blank? || standup.blank?
 
-      [ standup.id.to_s, standup.name, standup.slack_channel ].include?(standup_identifier.to_s)
+      [ standup.id.to_s, standup.name, standup.platform_channel ].include?(standup_identifier.to_s)
     end
 
     def normalize_date(date)
@@ -313,8 +316,20 @@ class Standup < ApplicationRecord
     Array(schedule_days).filter_map { |day| Integer(day, exception: false) }
   end
 
-  def normalize_slack_channel
-    self.slack_channel = slack_channel.to_s.strip.sub(/\A#/, "") if slack_channel.present?
+  def normalize_platform_channel
+    self.platform = platform.to_s.strip.downcase.presence || ChatPlatform::DEFAULT.to_s
+    self.platform_channel = chat_platform.normalize_channel(platform_channel) if platform_channel.present? && ChatPlatform.supported?(platform)
+  end
+
+  # Participant IDs only mean something on their own platform.
+  def platform_unchanged
+    errors.add(:platform, "can't be changed after the standup is created") if will_save_change_to_platform?
+  end
+
+  def platform_channel_must_match_platform
+    return if platform_channel.blank? || !ChatPlatform.supported?(platform) || chat_platform.valid_channel?(platform_channel)
+
+    errors.add(:platform_channel, "must be #{chat_platform.channel_hint}")
   end
 
   def normalize_questions

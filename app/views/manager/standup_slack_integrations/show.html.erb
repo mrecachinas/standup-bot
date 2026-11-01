@@ -23,7 +23,7 @@
           <div class="card-header">
             <div>
               <h2>Summary channel</h2>
-              <p class="hint">Currently posting to <span class="mono"><%= @standup.slack_channel %></span></p>
+              <p class="hint">Currently posting to <span class="mono"><%= @standup.platform_channel %></span></p>
             </div>
           </div>
           <div class="card-body">
@@ -32,7 +32,7 @@
             <% end %>
             <%= form_with url: manager_standup_slack_setup_channel_path(@standup), method: :patch, data: { turbo_frame: frame_id }, class: "input-group" do |form| %>
               <%= form.label :channel_id, "Channel ID", class: "sr-only" %>
-              <%= form.text_field :channel_id, value: @standup.slack_channel, placeholder: "Channel ID, like C0123" %>
+              <%= form.text_field :channel_id, value: @standup.platform_channel, placeholder: "Channel ID, like C0123" %>
               <%= form.submit "Save channel", class: "btn" %>
             <% end %>
             <%= form_with url: manager_standup_slack_setup_path(@standup), method: :get, data: { turbo_frame: frame_id }, class: "input-group" do |form| %>
@@ -83,14 +83,14 @@
               <ul class="list">
                 <% @participants.each do |participant| %>
                   <li>
-                    <%= avatar(participant.slack_name, size: "sm", url: participant.avatar_url) %>
+                    <%= avatar(participant.display_name, size: "sm", url: participant.avatar_url) %>
                     <div class="grow">
-                      <div class="small strong"><%= participant.slack_name %></div>
-                      <div class="cell-sub"><span class="mono"><%= participant.slack_id %></span><%= " · inactive" unless participant.active? %></div>
+                      <div class="small strong"><%= participant.display_name %></div>
+                      <div class="cell-sub"><span class="mono"><%= participant.platform_user_id %></span><%= " · inactive" unless participant.active? %></div>
                     </div>
                     <%= button_to "Remove", manager_standup_slack_setup_participant_path(@standup, participant),
                       method: :delete,
-                      form: { data: { turbo_confirm: "Remove #{participant.slack_name} from this standup?", turbo_frame: frame_id } },
+                      form: { data: { turbo_confirm: "Remove #{participant.display_name} from this standup?", turbo_frame: frame_id } },
                       class: "btn btn-ghost btn-sm" %>
                   </li>
                 <% end %>
@@ -104,7 +104,7 @@
         <section id="slack-test-message" class="card">
           <div class="card-header"><h2>Test message</h2></div>
           <div class="card-body">
-            <p class="small muted">Posts a short message to <span class="mono"><%= @standup.slack_channel %></span> so you can confirm the bot can reach it.</p>
+            <p class="small muted">Posts a short message to <span class="mono"><%= @standup.platform_channel %></span> so you can confirm the bot can reach it.</p>
             <% if @test_message_result.present? && !@test_message_result.success? %>
               <div class="alert alert-warning">
                 <%= icon(:alert) %>

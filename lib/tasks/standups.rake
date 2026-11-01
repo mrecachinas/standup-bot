@@ -36,7 +36,7 @@ namespace :standups do
 
   def self.validate_standup_file(file)
     valid_days = %w[sunday monday tuesday wednesday thursday friday saturday]
-    required_keys = %w[name slack_channel questions]
+    required_keys = %w[name platform_channel questions]
     errors = []
 
     begin
@@ -52,6 +52,10 @@ namespace :standups do
     # Required top-level keys
     required_keys.each do |key|
       errors << "Missing required key: '#{key}'" unless data[key].present?
+    end
+
+    if data["platform"].present? && !ChatPlatform.supported?(data["platform"])
+      errors << "platform must be one of: #{ChatPlatform.keys.join(', ')}"
     end
 
     # Questions must be an array of strings
@@ -98,7 +102,7 @@ namespace :standups do
         errors << "'participants' must be an array"
       else
         data["participants"].each_with_index do |p, i|
-          errors << "participants[#{i}] missing 'slack_id'" unless p["slack_id"].present?
+          errors << "participants[#{i}] missing 'platform_user_id'" unless p["platform_user_id"].present?
           errors << "participants[#{i}] missing 'name'" unless p["name"].present?
         end
       end
@@ -122,7 +126,8 @@ namespace :standups do
       standup = Standup.find_or_initialize_by(name: standup_data["name"])
 
       # Update basic attributes
-      standup.slack_channel = standup_data["slack_channel"]
+      standup.platform = standup_data["platform"] if standup_data["platform"].present?
+      standup.platform_channel = standup_data["platform_channel"]
       standup.intro = standup_data["intro"]
       standup.outro = standup_data["outro"]
       standup.questions = standup_data["questions"]
@@ -167,23 +172,23 @@ namespace :standups do
         standup_data["participants"].each do |participant_data|
           participant = StandupParticipant.find_or_initialize_by(
             standup_id: standup.id,
-            slack_id: participant_data["slack_id"]
+            platform_user_id: participant_data["platform_user_id"]
           )
 
-          participant.slack_name = participant_data["name"]
+          participant.display_name = participant_data["name"]
           participant.active = participant_data.fetch("active", true)
 
           if participant.save
-            puts "  - Added participant: #{participant.slack_name}"
+            puts "  - Added participant: #{participant.display_name}"
           else
             puts "  - Error adding participant: #{participant.errors.full_messages.join(', ')}"
           end
         end
 
         # Deactivate any participants not in the YAML file
-        current_slack_ids = standup_data["participants"].map { |p| p["slack_id"] }
+        current_slack_ids = standup_data["participants"].map { |p| p["platform_user_id"] }
         standup.standup_participants
-          .where.not(slack_id: current_slack_ids)
+          .where.not(platform_user_id: current_slack_ids)
           .update_all(active: false)
       end
     end

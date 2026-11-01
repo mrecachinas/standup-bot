@@ -4,11 +4,15 @@ class User < ApplicationRecord
   # "manager" is the standard role: anyone can create standups and manage the
   # ones they own. Admins can manage every standup and see the Admin page.
   ROLES = %w[manager admin].freeze
-  SLACK_PLACEHOLDER_EMAIL_DOMAIN = "slack-users.invalid".freeze
+  PLACEHOLDER_EMAIL_SUFFIX = "-users.invalid".freeze
 
   LinkConflict = Class.new(StandardError)
   TOKEN_DIGEST_PATTERN = /\A\h{64}\z/
 
+  # Who someone is on a chat platform, as returned by sign-in.
+  Identity = Struct.new(:user_id, :team_id, :email, :email_verified, :name, :avatar_url, keyword_init: true)
+
+  has_many :identities, class_name: "UserIdentity", dependent: :destroy, inverse_of: :user
   has_many :standup_ownerships, dependent: :destroy
   has_many :owned_standups, through: :standup_ownerships, source: :standup
   has_many :audit_logs, foreign_key: :actor_id, dependent: :nullify
@@ -31,47 +35,69 @@ class User < ApplicationRecord
     user
   end
 
-  # Find or create the account for someone who signed in with Slack.
-  def self.from_slack_identity(identity)
-    find_by(slack_user_id: identity.slack_id) ||
-      link_slack_identity_by_email(identity) ||
-      create_from_slack_identity!(identity)
+  def self.find_by_identity(platform, platform_user_id)
+    return if platform_user_id.blank?
+
+    joins(:identities).find_by(user_identities: { platform: platform.to_s, platform_user_id: platform_user_id })
   end
 
-  def self.link_slack_identity_by_email(identity)
+  def self.find_by_identity!(platform, platform_user_id)
+    find_by_identity(platform, platform_user_id) || raise(ActiveRecord::RecordNotFound, "No user for #{platform} #{platform_user_id}")
+  end
+
+  # Find or create the account for someone who signed in with a chat platform.
+  def self.from_identity(platform, identity)
+    find_by_identity(platform, identity.user_id) ||
+      link_identity_by_email(platform, identity) ||
+      create_from_identity!(platform, identity)
+  end
+
+  def self.link_identity_by_email(platform, identity)
     return unless identity.email_verified && identity.email.present?
 
     user = find_by(email: normalize_email(identity.email))
     return unless user
-    raise LinkConflict, "That email is already linked to a different Slack account." if user.slack_user_id.present?
 
-    user.update!(slack_user_id: identity.slack_id)
+    if user.platform_user_id_for(platform).present?
+      raise LinkConflict, "That email is already linked to a different #{ChatPlatform.for(platform).label} account."
+    end
+
+    user.link_identity!(platform, identity.user_id)
     user
   end
 
-  def self.create_from_slack_identity!(identity)
+  def self.create_from_identity!(platform, identity)
     email = normalize_email(identity.email)
     if !identity.email_verified || email.blank? || exists?(email: email)
-      email = "#{identity.slack_id.downcase}@#{SLACK_PLACEHOLDER_EMAIL_DOMAIN}"
+      email = placeholder_email(platform, identity.user_id)
     end
 
-    create!(
-      name: identity.name.presence || identity.slack_id,
-      email: email,
-      role: "manager",
-      slack_user_id: identity.slack_id,
-      avatar_url: (identity.avatar_url if SlackAvatar.safe_url?(identity.avatar_url)),
-      access_token: SecureRandom.hex(32)
-    )
+    transaction do
+      user = create!(
+        name: identity.name.presence || identity.user_id,
+        email: email,
+        role: "manager",
+        avatar_url: (identity.avatar_url if SlackAvatar.safe_url?(identity.avatar_url)),
+        access_token: SecureRandom.hex(32)
+      )
+      user.link_identity!(platform, identity.user_id)
+      user
+    end
   end
 
   # The account for someone in a standup, created if they've never signed in.
-  # They'll be matched by Slack user ID when they sign in with Slack later.
+  # They're matched by platform user ID when they sign in later.
   def self.for_participant!(participant)
-    find_by(slack_user_id: participant.slack_id) ||
-      create_from_slack_identity!(
-        SlackSignIn::Identity.new(slack_id: participant.slack_id, name: participant.slack_name, email: nil, email_verified: false, avatar_url: participant.avatar_url)
+    platform = participant.standup.platform
+    find_by_identity(platform, participant.platform_user_id) ||
+      create_from_identity!(
+        platform,
+        Identity.new(user_id: participant.platform_user_id, name: participant.display_name, email: nil, email_verified: false, avatar_url: participant.avatar_url)
       )
+  end
+
+  def self.placeholder_email(platform, platform_user_id)
+    "#{platform_user_id.to_s.downcase}@#{platform}#{PLACEHOLDER_EMAIL_SUFFIX}"
   end
 
   def self.digest_access_token(access_token)
@@ -95,6 +121,21 @@ class User < ApplicationRecord
 
   def admin?
     role == "admin"
+  end
+
+  def platform_user_id_for(platform)
+    identities.find { |identity| identity.platform == platform.to_s }&.platform_user_id
+  end
+
+  def link_identity!(platform, platform_user_id)
+    identity = identities.find_or_initialize_by(platform: platform.to_s)
+    identity.update!(platform_user_id: platform_user_id)
+    identities.reset
+    identity
+  end
+
+  def placeholder_email?
+    email.to_s.end_with?(PLACEHOLDER_EMAIL_SUFFIX)
   end
 
   def manager?

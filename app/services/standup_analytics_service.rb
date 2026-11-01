@@ -60,14 +60,14 @@ class StandupAnalyticsService
 
   def participant_stats
     @participant_stats ||= active_participants.map do |participant|
-      participant_responses = responses.select { |response| response.slack_id == participant.slack_id }
+      participant_responses = responses.select { |response| response.platform_user_id == participant.platform_user_id }
       participant_completed = participant_responses.select { |response| response.status == "completed" }
       expected = expected_dates_for(participant).count
       completed = participant_completed.count
 
       {
-        slack_id: participant.slack_id,
-        slack_name: participant.slack_name,
+        platform_user_id: participant.platform_user_id,
+        display_name: participant.display_name,
         avatar_url: participant.avatar_url,
         completed: completed,
         expected: expected,
@@ -123,7 +123,7 @@ class StandupAnalyticsService
   def frequent_non_responders(limit: 5)
     participant_stats
       .select { |stat| stat[:missed].positive? }
-      .sort_by { |stat| [ -stat[:missed], stat[:completion_rate], stat[:slack_name].to_s.downcase, stat[:slack_id] ] }
+      .sort_by { |stat| [ -stat[:missed], stat[:completion_rate], stat[:display_name].to_s.downcase, stat[:platform_user_id] ] }
       .first(limit)
   end
 
@@ -187,7 +187,7 @@ class StandupAnalyticsService
     period_dates.flat_map do |date|
       responses_for_date = responses_by_date.fetch(date, {})
       export_participants_for(date, responses_for_date).flat_map do |participant|
-        response = responses_for_date[participant.slack_id]
+        response = responses_for_date[participant.platform_user_id]
         build_csv_rows(date, participant, response)
       end
     end
@@ -208,9 +208,9 @@ class StandupAnalyticsService
 
   private
 
-  Participant = Struct.new(:slack_id, :slack_name, :record, keyword_init: true) do
+  Participant = Struct.new(:platform_user_id, :display_name, :record, keyword_init: true) do
     def label
-      slack_name.presence || slack_id
+      display_name.presence || platform_user_id
     end
 
     def available_on?(date)
@@ -271,7 +271,7 @@ class StandupAnalyticsService
 
   def responses_by_date
     @responses_by_date ||= responses.group_by { |response| response_date(response) }.transform_values do |date_responses|
-      date_responses.group_by(&:slack_id).transform_values do |participant_responses|
+      date_responses.group_by(&:platform_user_id).transform_values do |participant_responses|
         participant_responses.max_by { |response| [ response.updated_at || response.created_at, response.created_at ] }
       end
     end
@@ -286,21 +286,21 @@ class StandupAnalyticsService
   end
 
   def active_participants
-    @active_participants ||= standup.standup_participants.active.order(:slack_name, :slack_id).to_a
+    @active_participants ||= standup.standup_participants.active.order(:display_name, :platform_user_id).to_a
   end
 
   def all_participants
-    @all_participants ||= standup.standup_participants.order(:slack_name, :slack_id).to_a
+    @all_participants ||= standup.standup_participants.order(:display_name, :platform_user_id).to_a
   end
 
   def participants_by_slack_id
-    @participants_by_slack_id ||= all_participants.index_by(&:slack_id)
+    @participants_by_slack_id ||= all_participants.index_by(&:platform_user_id)
   end
 
-  def participant_for(slack_id)
-    record = participants_by_slack_id[slack_id]
+  def participant_for(platform_user_id)
+    record = participants_by_slack_id[platform_user_id]
 
-    Participant.new(slack_id: slack_id, slack_name: record&.slack_name, record: record)
+    Participant.new(platform_user_id: platform_user_id, display_name: record&.display_name, record: record)
   end
 
   def expected_responses
@@ -311,12 +311,12 @@ class StandupAnalyticsService
   # are now inactive or a later vacation covers the date. This keeps rates <= 100%.
   def expected_count_for(date)
     ids = completed_ids_on(date)
-    ids |= active_participants.select { |participant| participant.available_on?(date) }.map(&:slack_id) if scheduled_on?(date)
+    ids |= active_participants.select { |participant| participant.available_on?(date) }.map(&:platform_user_id) if scheduled_on?(date)
     ids.size
   end
 
   def completed_ids_on(date)
-    responses_by_date.fetch(date, {}).filter_map { |slack_id, response| slack_id if response.status == "completed" }
+    responses_by_date.fetch(date, {}).filter_map { |platform_user_id, response| platform_user_id if response.status == "completed" }
   end
 
   # De-duplicated per person per day so it lines up with expected_count_for.
@@ -331,7 +331,7 @@ class StandupAnalyticsService
   end
 
   def expected_on?(participant, date)
-    responses_by_date.fetch(date, {})[participant.slack_id]&.status == "completed" ||
+    responses_by_date.fetch(date, {})[participant.platform_user_id]&.status == "completed" ||
       (scheduled_on?(date) && participant.available_on?(date))
   end
 
@@ -442,8 +442,8 @@ class StandupAnalyticsService
       .map do |entry|
         response = entry[:response]
         {
-          slack_id: response.slack_id,
-          slack_name: participant_for(response.slack_id).label,
+          platform_user_id: response.platform_user_id,
+          display_name: participant_for(response.platform_user_id).label,
           answer: entry[:answer].to_s.squish,
           submitted_at: response.created_at&.iso8601,
           answered_at: answer_time(entry)&.iso8601
@@ -488,12 +488,12 @@ class StandupAnalyticsService
 
   def export_participants_for(date, responses_for_date)
     expected_participants = active_participants.select { |participant| expected_on?(participant, date) }
-    response_participants = responses_for_date.keys.map { |slack_id| participants_by_slack_id[slack_id] }.compact
-    unknown_participants = responses_for_date.keys.reject { |slack_id| participants_by_slack_id.key?(slack_id) }
+    response_participants = responses_for_date.keys.map { |platform_user_id| participants_by_slack_id[platform_user_id] }.compact
+    unknown_participants = responses_for_date.keys.reject { |platform_user_id| participants_by_slack_id.key?(platform_user_id) }
 
-    ((expected_participants + response_participants).uniq.sort_by { |participant| [ participant.slack_name.to_s.downcase, participant.slack_id ] }.map do |participant|
-      Participant.new(slack_id: participant.slack_id, slack_name: participant.slack_name, record: participant)
-    end) + unknown_participants.sort.map { |slack_id| Participant.new(slack_id: slack_id, slack_name: nil, record: nil) }
+    ((expected_participants + response_participants).uniq.sort_by { |participant| [ participant.display_name.to_s.downcase, participant.platform_user_id ] }.map do |participant|
+      Participant.new(platform_user_id: participant.platform_user_id, display_name: participant.display_name, record: participant)
+    end) + unknown_participants.sort.map { |platform_user_id| Participant.new(platform_user_id: platform_user_id, display_name: nil, record: nil) }
   end
 
   def build_csv_rows(date, participant, response)
@@ -504,7 +504,7 @@ class StandupAnalyticsService
       {
         "Date" => date.iso8601,
         "Standup" => standup.name,
-        "Slack ID" => participant.slack_id,
+        "Slack ID" => participant.platform_user_id,
         "Participant" => participant.label,
         "Expected" => expected_for_export?(date, participant) ? "yes" : "no",
         "Status" => export_status(date, participant, response),

@@ -10,7 +10,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
   test "sends no-responses message when no completed responses exist today" do
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       @mock_slack_client.expects(:send_message).with(
-        @standup.slack_channel,
+        @standup.platform_channel,
         "No standup responses have been submitted today for #{@standup.name}."
       )
 
@@ -22,7 +22,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "U123456",
+        platform_user_id: "U123456",
         status: "completed",
         answers: [
           { "question" => "What did you do yesterday?", "answer" => "Fixed bugs", "timestamp" => Time.current },
@@ -35,7 +35,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
       )
 
       @mock_slack_client.expects(:send_standup_summary).with(
-        @standup.slack_channel,
+        @standup.platform_channel,
         is_a(String),
         @standup.outro
       )
@@ -49,7 +49,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     response_time = Time.new(2025, 4, 6, 20, 0, 0, "+00:00")
     StandupResponse.create!(
       standup: @standup,
-      slack_id: "ULOCAL",
+      platform_user_id: "ULOCAL",
       status: "completed",
       standup_date: Date.new(2025, 4, 6),
       answers: [ { "question" => "Q?", "answer" => "A", "timestamp" => response_time } ],
@@ -68,13 +68,13 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "UAAA",
+        platform_user_id: "UAAA",
         status: "completed",
         answers: [ { "question" => "What did you do yesterday?", "answer" => "Task A", "timestamp" => Time.current } ]
       )
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "UBBB",
+        platform_user_id: "UBBB",
         status: "completed",
         answers: [ { "question" => "What did you do yesterday?", "answer" => "Task B", "timestamp" => Time.current } ]
       )
@@ -83,7 +83,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
       @mock_slack_client.expects(:get_user_info).with("UBBB").returns({ "name" => "bob" })
 
       @mock_slack_client.expects(:send_standup_summary).with do |channel, summary, outro|
-        channel == @standup.slack_channel &&
+        channel == @standup.platform_channel &&
           summary.include?("alice") &&
           summary.include?("bob") &&
           summary.include?("---")
@@ -98,7 +98,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
       # One user with all skipped answers
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "USKIP",
+        platform_user_id: "USKIP",
         status: "completed",
         answers: [
           { "question" => "Q1?", "answer" => "(skipped)", "timestamp" => Time.current },
@@ -108,7 +108,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
       # Another user with real answers
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "UREAL",
+        platform_user_id: "UREAL",
         status: "completed",
         answers: [ { "question" => "Q1?", "answer" => "Did stuff", "timestamp" => Time.current } ]
       )
@@ -128,7 +128,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "UNODISPLAY",
+        platform_user_id: "UNODISPLAY",
         status: "completed",
         answers: [ { "question" => "Q?", "answer" => "A", "timestamp" => Time.current } ]
       )
@@ -149,7 +149,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "UGHOST",
+        platform_user_id: "UGHOST",
         status: "completed",
         answers: [ { "question" => "Q?", "answer" => "A", "timestamp" => Time.current } ]
       )
@@ -180,7 +180,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     )
     StandupResponse.create!(
       standup: @standup,
-      slack_id: "UREPORT",
+      platform_user_id: "UREPORT",
       status: "completed",
       standup_date: Date.new(2025, 4, 7),
       answers: [ { "question" => "Q?", "answer" => "Report answer", "timestamp" => Time.current } ]
@@ -226,7 +226,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     )
     StandupResponse.create!(
       standup: @standup,
-      slack_id: "USUMMARY",
+      platform_user_id: "USUMMARY",
       status: "completed",
       standup_date: Date.new(2025, 4, 7),
       answers: [ { "question" => "Q?", "answer" => "Compact answer", "timestamp" => Time.current } ]
@@ -292,11 +292,11 @@ class StandupCollectionJobTest < ActiveJob::TestCase
 
   test "ignores pending and skipped responses" do
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
-      StandupResponse.create!(standup: @standup, slack_id: "UPEND", status: "pending", answers: [])
-      StandupResponse.create!(standup: @standup, slack_id: "USKIP", status: "skipped", answers: [])
+      StandupResponse.create!(standup: @standup, platform_user_id: "UPEND", status: "pending", answers: [])
+      StandupResponse.create!(standup: @standup, platform_user_id: "USKIP", status: "skipped", answers: [])
 
       @mock_slack_client.expects(:send_message).with(
-        @standup.slack_channel,
+        @standup.platform_channel,
         "No standup responses have been submitted today for #{@standup.name}."
       )
 

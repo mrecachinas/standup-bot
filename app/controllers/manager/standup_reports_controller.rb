@@ -58,7 +58,7 @@ module Manager
 
     def current_report_configuration
       @standup.report_configuration || @standup.build_report_configuration(
-        delivery_channel: @standup.slack_channel,
+        delivery_channel: @standup.platform_channel,
         report_format: "slack",
         detail_level: "detailed",
         recipients: []

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_01_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_000100) do
   create_table "audit_logs", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "action", null: false
     t.string "actor_email"
@@ -84,13 +84,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_01_180000) do
     t.string "cached_timezone"
     t.datetime "cached_timezone_updated_at"
     t.datetime "created_at", null: false
-    t.string "slack_id", null: false
-    t.string "slack_name", null: false
+    t.string "platform_user_id", null: false
+    t.string "display_name", null: false
     t.bigint "standup_id", null: false
     t.datetime "updated_at", null: false
     t.date "vacation_until"
     t.string "avatar_url"
-    t.index ["standup_id", "slack_id"], name: "index_standup_participants_on_standup_id_and_slack_id", unique: true
+    t.index ["standup_id", "platform_user_id"], name: "index_standup_participants_on_standup_id_and_platform_user_id", unique: true
     t.index ["standup_id"], name: "index_standup_participants_on_standup_id"
   end
 
@@ -99,15 +99,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_01_180000) do
     t.datetime "created_at", null: false
     t.datetime "last_reminder_at"
     t.integer "reminder_count", default: 0, null: false
-    t.string "slack_channel"
-    t.string "slack_id", null: false
-    t.string "slack_message_ts"
+    t.string "dm_channel"
+    t.string "platform_user_id", null: false
+    t.string "platform_message_id"
     t.date "standup_date"
     t.bigint "standup_id", null: false
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false
-    t.index ["slack_id", "status"], name: "index_standup_responses_on_slack_id_and_status"
-    t.index ["standup_id", "slack_id", "standup_date"], name: "idx_standup_responses_on_standup_user_date", unique: true
+    t.index ["platform_user_id", "status"], name: "index_standup_responses_on_platform_user_id_and_status"
+    t.index ["standup_id", "platform_user_id", "standup_date"], name: "idx_standup_responses_on_standup_user_date", unique: true
     t.index ["standup_id"], name: "index_standup_responses_on_standup_id"
   end
 
@@ -142,8 +142,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_01_180000) do
     t.boolean "respect_timezone", default: true, null: false
     t.json "schedule_days"
     t.string "schedule_type", default: "daily", null: false
-    t.string "slack_channel", null: false
+    t.string "platform_channel", null: false
     t.datetime "updated_at", null: false
+    t.string "platform", default: "slack", null: false
+    t.index ["platform"], name: "index_standups_on_platform"
+  end
+
+  create_table "user_identities", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "platform", null: false
+    t.string "platform_user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["platform", "platform_user_id"], name: "index_user_identities_on_platform_and_platform_user_id", unique: true
+    t.index ["user_id", "platform"], name: "index_user_identities_on_user_id_and_platform", unique: true
   end
 
   create_table "users", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -155,11 +167,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_01_180000) do
     t.string "name", null: false
     t.string "role", default: "manager", null: false
     t.datetime "updated_at", null: false
-    t.string "slack_user_id"
     t.string "avatar_url"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["role"], name: "index_users_on_role"
-    t.index ["slack_user_id"], name: "index_users_on_slack_user_id", unique: true
   end
 
   add_foreign_key "audit_logs", "users", column: "actor_id"
@@ -171,4 +181,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_01_180000) do
   add_foreign_key "standup_ownerships", "users"
   add_foreign_key "standup_participants", "standups"
   add_foreign_key "standup_schedule_exceptions", "standups"
+  add_foreign_key "user_identities", "users"
 end

@@ -60,7 +60,7 @@
                   <span class="dot <%= standup.active? ? "dot-success" : "dot-warning" %>"></span>
                   <div class="grow">
                     <div class="small strong truncate"><%= standup.name %></div>
-                    <div class="cell-sub mono">#<%= standup.slack_channel.to_s.delete_prefix("#") %></div>
+                    <div class="cell-sub mono">#<%= standup.platform_channel.to_s.delete_prefix("#") %></div>
                   </div>
                   <%= link_to "Configure", manager_standup_slack_setup_path(standup), data: { turbo_frame: "_top" }, class: "btn btn-sm" %>
                 </li>

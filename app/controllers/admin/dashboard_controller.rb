@@ -8,7 +8,7 @@ module Admin
     def show
       @health = HealthCheckService.call
       @metrics = HealthCheckService.metrics
-      @users = User.order(:name).to_a
+      @users = User.includes(:identities).order(:name).to_a
       @owned_standup_counts = StandupOwnership.group(:user_id).count
       @audit_logs = AuditLog.includes(:actor).recent.limit(15)
       @failed_reports = ReportGeneration.includes(:standup).where(status: "failed").recent.limit(5)

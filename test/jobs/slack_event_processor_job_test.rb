@@ -5,7 +5,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     @slack_commands = mock("DirectMessageCommands")
     DirectMessageCommands.stubs(:new).returns(@slack_commands)
 
-    @slack_id = "U12345"
+    @platform_user_id = "U12345"
     @channel_id = "C12345"
 
     # Create a pending standup response for testing
@@ -18,7 +18,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
       cached_timezone_updated_at: Time.current
     )
     @standup_response = StandupResponse.create!(
-      slack_id: @slack_id,
+      platform_user_id: @platform_user_id,
       standup_id: @standup.id,
       status: "pending",
       answers: [],
@@ -40,13 +40,13 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     command_info = { command: :help }
     @slack_commands.stubs(:parse).returns(nil)
     @slack_commands.stubs(:parse).with("help").returns(command_info)
-    @slack_commands.expects(:process).with(command_info, @slack_id, @channel_id).once
+    @slack_commands.expects(:process).with(command_info, @platform_user_id, @channel_id).once
     StandupResponseService.expects(:record_answer).with(@standup_response, "I worked on feature X").once
 
     perform_message("help")
     perform_message("I worked on feature X")
 
-    StandupResponse.where(slack_id: @slack_id).delete_all
+    StandupResponse.where(platform_user_id: @platform_user_id).delete_all
     perform_message("Hello world")
   end
 
@@ -65,12 +65,12 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
       "subtype" => "message_changed",
       "channel" => @channel_id,
       "message" => {
-        "user" => @slack_id,
+        "user" => @platform_user_id,
         "text" => "I worked on feature X and also fixed bug Y",
         "ts" => "1234567890.123456"
       },
       "previous_message" => {
-        "user" => @slack_id,
+        "user" => @platform_user_id,
         "text" => "I worked on feature X",
         "ts" => "1234567890.123456"
       }
@@ -91,7 +91,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
 
     # Create a completed standup response
     completed_response = StandupResponse.create!(
-      slack_id: @slack_id,
+      platform_user_id: @platform_user_id,
       standup_id: @standup.id,
       status: "completed",
       answers: [
@@ -106,7 +106,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
           "timestamp" => Time.current
         }
       ],
-      slack_message_ts: "1234567890.123456",
+      platform_message_id: "1234567890.123456",
       created_at: Time.zone.today.beginning_of_day + 1.hour # Ensure it's from today
     )
 
@@ -119,12 +119,12 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
       "subtype" => "message_changed",
       "channel" => @channel_id,
       "message" => {
-        "user" => @slack_id,
+        "user" => @platform_user_id,
         "text" => "I worked on feature X and also fixed bug Z",
         "ts" => "1234567890.123456"
       },
       "previous_message" => {
-        "user" => @slack_id,
+        "user" => @platform_user_id,
         "text" => "I worked on feature X",
         "ts" => "1234567890.123456"
       }
@@ -146,7 +146,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
 
     Timecop.freeze(Time.new(2025, 4, 7, 6, 30, 0, "+00:00")) do
       completed_response = StandupResponse.create!(
-        slack_id: @slack_id,
+        platform_user_id: @platform_user_id,
         standup_id: @standup.id,
         status: "completed",
         standup_date: Date.new(2025, 4, 6),
@@ -157,7 +157,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
             "timestamp" => Time.current
           }
         ],
-        slack_message_ts: "1234567890.123456",
+        platform_message_id: "1234567890.123456",
         created_at: Time.new(2025, 4, 6, 20, 0, 0, "+00:00")
       )
 
@@ -168,7 +168,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
         "subtype" => "message_changed",
         "channel" => @channel_id,
         "message" => {
-          "user" => @slack_id,
+          "user" => @platform_user_id,
           "text" => "I worked on feature X and fixed bug Z",
           "ts" => "1234567890.123456"
         }
@@ -182,7 +182,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
 
   test "ignores edited message with no matching standup response" do
     # Delete all existing standup responses for this test
-    StandupResponse.where(slack_id: @slack_id).delete_all
+    StandupResponse.where(platform_user_id: @platform_user_id).delete_all
 
     # StandupResponseService should not be called
     StandupResponseService.expects(:repost_response).never
@@ -193,12 +193,12 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
       "subtype" => "message_changed",
       "channel" => @channel_id,
       "message" => {
-        "user" => @slack_id,
+        "user" => @platform_user_id,
         "text" => "This is an edited message with no standup response",
         "ts" => "1234567890.123456"
       },
       "previous_message" => {
-        "user" => @slack_id,
+        "user" => @platform_user_id,
         "text" => "This is a message with no standup response",
         "ts" => "1234567890.123456"
       }
@@ -215,7 +215,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
 
     # Create a completed standup response with answers that won't match the edited text
     completed_response = StandupResponse.create!(
-      slack_id: @slack_id,
+      platform_user_id: @platform_user_id,
       standup_id: @standup.id,
       status: "completed",
       answers: [
@@ -230,7 +230,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
           "timestamp" => Time.current
         }
       ],
-      slack_message_ts: "1234567890.123456",
+      platform_message_id: "1234567890.123456",
       created_at: Time.zone.today.beginning_of_day + 1.hour # Ensure it's from today
     )
 
@@ -243,12 +243,12 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
       "subtype" => "message_changed",
       "channel" => @channel_id,
       "message" => {
-        "user" => @slack_id,
+        "user" => @platform_user_id,
         "text" => "I completely forgot to mention I'm also helping with project C",
         "ts" => "1234567890.123456"
       },
       "previous_message" => {
-        "user" => @slack_id,
+        "user" => @platform_user_id,
         "text" => "Some previous text",
         "ts" => "1234567890.123456"
       }
@@ -270,7 +270,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
   def perform_message(text)
     SlackEventProcessorJob.perform_now(
       "type" => "message",
-      "user" => @slack_id,
+      "user" => @platform_user_id,
       "text" => text,
       "channel" => @channel_id
     )

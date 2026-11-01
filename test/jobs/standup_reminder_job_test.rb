@@ -13,7 +13,7 @@ class StandupReminderJobTest < ActiveJob::TestCase
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       response = StandupResponse.create!(
         standup: @standup,
-        slack_id: "UREMIND",
+        platform_user_id: "UREMIND",
         status: "pending",
         answers: [ { "question" => @standup.questions.first, "answer" => "Done", "timestamp" => Time.current } ],
         created_at: 2.hours.ago
@@ -33,14 +33,14 @@ class StandupReminderJobTest < ActiveJob::TestCase
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "UTOOSOON",
+        platform_user_id: "UTOOSOON",
         status: "pending",
         answers: [],
         created_at: 30.minutes.ago
       )
       StandupResponse.create!(
         standup: @standup,
-        slack_id: "UMAXED",
+        platform_user_id: "UMAXED",
         status: "pending",
         answers: [],
         reminder_count: 2,
@@ -57,7 +57,7 @@ class StandupReminderJobTest < ActiveJob::TestCase
     Timecop.freeze(Time.zone.local(2026, 5, 1, 12, 0, 0)) do
       paused_response = StandupResponse.create!(
         standup: @standup,
-        slack_id: "UPAUSED",
+        platform_user_id: "UPAUSED",
         status: "pending",
         answers: [],
         standup_date: Date.new(2026, 5, 1),

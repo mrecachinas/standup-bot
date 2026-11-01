@@ -23,19 +23,19 @@ class SchedulingJob < ApplicationJob
         end
 
         unless participant.available_on?(standup_date)
-          Rails.logger.info "Skipping participant #{participant.slack_id} for #{standup_date}; unavailable"
+          Rails.logger.info "Skipping participant #{participant.platform_user_id} for #{standup_date}; unavailable"
           next
         end
 
         if StandupResponse
-            .where(slack_id: participant.slack_id, standup_id: standup.id)
+            .where(platform_user_id: participant.platform_user_id, standup_id: standup.id)
             .for_standup_date(standup_date, participant.standup_time_zone)
             .exists?
-          Rails.logger.info "Skipping participant #{participant.slack_id}; response already exists for #{standup_date}"
+          Rails.logger.info "Skipping participant #{participant.platform_user_id}; response already exists for #{standup_date}"
           next
         end
 
-        StandupMessageJob.set(wait_until: send_at).perform_later(participant.slack_id, standup.id, standup_date.iso8601)
+        StandupMessageJob.set(wait_until: send_at).perform_later(participant.platform_user_id, standup.id, standup_date.iso8601)
         scheduled_count += 1
       end
     end

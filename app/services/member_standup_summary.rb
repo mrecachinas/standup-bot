@@ -4,7 +4,7 @@ class MemberStandupSummary
 
   attr_reader :participant
 
-  delegate :standup, :slack_id, to: :participant
+  delegate :standup, :platform_user_id, to: :participant
 
   def initialize(participant, now: Time.current)
     @participant = participant
@@ -14,7 +14,7 @@ class MemberStandupSummary
   def stats
     return @stats if defined?(@stats)
 
-    @stats = analytics.participant_stats.find { |stat| stat[:slack_id] == slack_id }
+    @stats = analytics.participant_stats.find { |stat| stat[:platform_user_id] == platform_user_id }
   end
 
   def completion_rate
@@ -32,15 +32,15 @@ class MemberStandupSummary
   def today_response
     return @today_response if defined?(@today_response)
 
-    @today_response = standup.standup_responses.find_by(slack_id: slack_id, standup_date: participant.standup_date_for(@now))
+    @today_response = standup.standup_responses.find_by(platform_user_id: platform_user_id, standup_date: participant.standup_date_for(@now))
   end
 
   def last_completed_at
-    standup.standup_responses.where(slack_id: slack_id, status: "completed").maximum(:updated_at)
+    standup.standup_responses.where(platform_user_id: platform_user_id, status: "completed").maximum(:updated_at)
   end
 
   def teammates
-    @teammates ||= standup.standup_participants.active.where.not(slack_id: slack_id).order(:slack_name).pluck(:slack_name, :avatar_url)
+    @teammates ||= standup.standup_participants.active.where.not(platform_user_id: platform_user_id).order(:display_name).pluck(:display_name, :avatar_url)
   end
 
   def away?

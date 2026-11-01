@@ -31,6 +31,10 @@ class DirectMessageCommands
     @chat = chat
   end
 
+  def platform
+    @chat.key
+  end
+
   def parse(text)
     normalized_text = text.to_s.strip
     return nil if normalized_text.blank?
@@ -43,26 +47,26 @@ class DirectMessageCommands
     nil
   end
 
-  def process(command_info, slack_id, channel)
+  def process(command_info, platform_user_id, channel)
     command = command_info[:command]
     match = command_info[:match]
 
-    Rails.logger.info "Processing command: #{command} from user: #{slack_id} in channel: #{channel}"
+    Rails.logger.info "Processing command: #{command} from user: #{platform_user_id} in channel: #{channel}"
 
     case command
     when :report
-      generate_report(slack_id, channel)
+      generate_report(platform_user_id, channel)
     when :help
       send_help_message(channel)
     when :skip
-      skip_current_question(slack_id, channel)
+      skip_current_question(platform_user_id, channel)
     when :cancel
-      cancel_standup(slack_id, channel)
+      cancel_standup(platform_user_id, channel)
     when :away
       days = match[1]&.to_i || 7
-      set_user_away(slack_id, days, channel)
+      set_user_away(platform_user_id, days, channel)
     when :back
-      set_user_active(slack_id, channel)
+      set_user_active(platform_user_id, channel)
     else
       Rails.logger.warn "Unknown command: #{command}"
       @chat.send_message(channel, "Sorry, I don't know how to handle that command.")
@@ -71,11 +75,11 @@ class DirectMessageCommands
 
   private
 
-  def generate_report(slack_id, channel)
+  def generate_report(platform_user_id, channel)
     participants = StandupParticipant
-      .joins(:standup)
+      .on_platform(platform)
       .merge(Standup.active)
-      .where(slack_id: slack_id, active: true)
+      .where(platform_user_id: platform_user_id, active: true)
       .distinct
 
     if participants.empty?
@@ -90,7 +94,7 @@ class DirectMessageCommands
         participant.standup_date_for(Time.current).iso8601,
         participant.standup_time_zone.tzinfo.name
       )
-      @chat.send_message(channel, "Generating report for #{standup.name}. It will be posted to #{@chat.channel_reference(standup.slack_channel)} shortly.")
+      @chat.send_message(channel, "Generating report for #{standup.name}. It will be posted to #{@chat.channel_reference(standup.platform_channel)} shortly.")
     else
       options = participants.map { |p| { text: p.standup.name, value: p.standup.id } }
       @chat.send_selection(channel, "Which standup report would you like to generate?", options, action_id: "standup_selection")
@@ -106,8 +110,8 @@ class DirectMessageCommands
     @chat.send_message(channel, help_text)
   end
 
-  def skip_current_question(slack_id, channel)
-    standup_response = pending_response_for(slack_id)
+  def skip_current_question(platform_user_id, channel)
+    standup_response = pending_response_for(platform_user_id)
 
     if standup_response
       StandupResponseService.skip_question(standup_response)
@@ -117,8 +121,8 @@ class DirectMessageCommands
     end
   end
 
-  def cancel_standup(slack_id, channel)
-    standup_response = pending_response_for(slack_id)
+  def cancel_standup(platform_user_id, channel)
+    standup_response = pending_response_for(platform_user_id)
 
     if standup_response
       standup_response.update!(status: "cancelled")
@@ -128,11 +132,11 @@ class DirectMessageCommands
     end
   end
 
-  def set_user_away(slack_id, days, channel)
+  def set_user_away(platform_user_id, days, channel)
     participants = StandupParticipant
-      .joins(:standup)
+      .on_platform(platform)
       .merge(Standup.active)
-      .where(slack_id: slack_id, active: true)
+      .where(platform_user_id: platform_user_id, active: true)
       .distinct
 
     if participants.any?
@@ -141,8 +145,8 @@ class DirectMessageCommands
 
       return_date = Date.today + days.days
       count = StandupParticipant.where(id: participant_ids).update_all(active: false, vacation_until: return_date)
-      Rails.logger.info "Set #{count} standup participants to inactive for user #{slack_id}"
-      SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(slack_id, participant_ids)
+      Rails.logger.info "Set #{count} standup participants to inactive for user #{platform_user_id}"
+      SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(platform_user_id, participant_ids, platform.to_s)
 
       @chat.send_message(
         channel,
@@ -153,28 +157,28 @@ class DirectMessageCommands
     end
   end
 
-  def set_user_active(slack_id, channel)
+  def set_user_active(platform_user_id, channel)
     # Inactive rows (from `away`) plus rows paused with a current away date (set on the web)
     participants = StandupParticipant
-      .joins(:standup)
+      .on_platform(platform)
       .merge(Standup.active)
-      .where(slack_id: slack_id)
+      .where(platform_user_id: platform_user_id)
       .where("standup_participants.active = ? OR standup_participants.vacation_until >= ?", false, Date.current)
       .distinct
 
     if participants.any?
       participant_ids = participants.pluck(:id)
       count = StandupParticipant.where(id: participant_ids).update_all(active: true, vacation_until: nil)
-      Rails.logger.info "Reactivated #{count} standup participants for user #{slack_id}"
+      Rails.logger.info "Reactivated #{count} standup participants for user #{platform_user_id}"
       @chat.send_message(channel, "Welcome back! You'll now receive standup prompts again.")
     else
       @chat.send_message(channel, "You're already active in all your standups.")
     end
   end
 
-  def pending_response_for(slack_id)
+  def pending_response_for(platform_user_id)
     StandupResponse
-      .authorized_for_slack_user(slack_id)
+      .authorized_for(platform, platform_user_id)
       .where(status: "pending")
       .order("standup_responses.created_at DESC")
       .first

@@ -149,7 +149,7 @@
     const template = form?.querySelector("[data-person-template]");
     if (!container || !template) return;
 
-    const existing = new Set([...container.querySelectorAll("input[name$='[slack_id]']")].map((field) => field.value.toLowerCase()));
+    const existing = new Set([...container.querySelectorAll("input[name$='[platform_user_id]']")].map((field) => field.value.toLowerCase()));
     input.value.split(/[,\n]/).map((handle) => handle.trim()).filter(Boolean).forEach((handle) => {
       if (existing.has(handle.toLowerCase())) return;
       existing.add(handle.toLowerCase());

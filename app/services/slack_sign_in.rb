@@ -4,7 +4,6 @@ class SlackSignIn
   SCOPES = %w[openid email profile].freeze
 
   Error = Class.new(StandardError)
-  Identity = Struct.new(:slack_id, :team_id, :email, :email_verified, :name, :avatar_url, keyword_init: true)
 
   def self.configured?
     config_value(:client_id).present? && config_value(:client_secret).present?
@@ -54,8 +53,8 @@ class SlackSignIn
     slack_id = info["https://slack.com/user_id"].presence || info["sub"].presence
     raise Error, "Slack didn't return a user ID." if slack_id.blank?
 
-    Identity.new(
-      slack_id: slack_id,
+    User::Identity.new(
+      user_id: slack_id,
       team_id: info["https://slack.com/team_id"],
       email: info["email"],
       email_verified: ActiveModel::Type::Boolean.new.cast(info["email_verified"]),
@@ -77,7 +76,7 @@ class SlackSignIn
   # Guests can't sign in: anyone who can sign in can create standups and use
   # the bot's workspace lookups. Fail closed if Slack can't confirm the account.
   def verify_full_member!(identity)
-    profile = ChatPlatform.for(:slack).user_profile(identity.slack_id)
+    profile = ChatPlatform.for(:slack).user_profile(identity.user_id)
     raise Error, "Slack sign-in couldn't confirm your account. Please try again." if profile.nil?
     raise Error, "Guest accounts can't sign in to Standup Bot." if profile.guest?
     raise Error, "That Slack account can't sign in to Standup Bot." if profile.deleted? || profile.bot?

@@ -9,7 +9,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     @standup = Standup.new(
       id: 1,
       name: "Test Standup",
-      slack_channel: "general",
+      platform_channel: "general",
       questions: [ "What did you work on yesterday?", "What are you working on today?", "Any blockers?" ],
       intro: "Time for standup!",
       outro: "Thanks for your update!"
@@ -19,7 +19,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     @standup_response = StandupResponse.new(
       id: 1,
       standup_id: @standup.id,
-      slack_id: "U12345",
+      platform_user_id: "U12345",
       status: "pending",
       answers: []
     )
@@ -106,7 +106,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     completed_response = StandupResponse.new(
       id: 2,
       standup_id: @standup.id,
-      slack_id: "U12345",
+      platform_user_id: "U12345",
       status: "completed",
       answers: [
         {
@@ -120,7 +120,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
           "timestamp" => Time.current
         }
       ],
-      slack_message_ts: "1234567890.123456"
+      platform_message_id: "1234567890.123456"
     )
 
     completed_response.stubs(:standup).returns(@standup)
@@ -132,7 +132,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
 
     # Expect update_message call with appropriate parameters
     @mock_slack_client.expects(:update_message).with(
-      @standup.slack_channel,
+      @standup.platform_channel,
       "1234567890.123456",
       is_a(String),
       is_a(Array)
@@ -146,7 +146,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     completed_response = StandupResponse.new(
       id: 2,
       standup_id: @standup.id,
-      slack_id: "U12345",
+      platform_user_id: "U12345",
       status: "completed",
       answers: [
         {
@@ -160,7 +160,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
           "timestamp" => Time.current
         }
       ],
-      slack_message_ts: nil # No stored timestamp
+      platform_message_id: nil # No stored timestamp
     )
 
     completed_response.stubs(:standup).returns(@standup)
@@ -184,7 +184,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     completed_response = StandupResponse.new(
       id: 2,
       standup_id: @standup.id,
-      slack_id: "U12345",
+      platform_user_id: "U12345",
       status: "completed",
       answers: [
         {
@@ -198,7 +198,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
           "timestamp" => Time.current
         }
       ],
-      slack_message_ts: "1234567890.123456"
+      platform_message_id: "1234567890.123456"
     )
 
     completed_response.stubs(:standup).returns(@standup)
@@ -220,7 +220,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       # Create a real standup for testing
       test_standup = Standup.create!(
         name: "Test Cancel Standup",
-        slack_channel: "general",
+        platform_channel: "general",
         questions: [ "Question 1", "Question 2" ],
         intro: "Test intro",
         outro: "Test outro"
@@ -229,7 +229,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       # Create a pending response from yesterday
       yesterday_response = StandupResponse.create!(
         standup_id: test_standup.id,
-        slack_id: "U12345",
+        platform_user_id: "U12345",
         status: "pending",
         answers: [ { "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current } ],
         created_at: 1.day.ago,
@@ -239,7 +239,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       # Create a pending response from today (should not be canceled)
       today_response = StandupResponse.create!(
         standup_id: test_standup.id,
-        slack_id: "U12345",
+        platform_user_id: "U12345",
         status: "pending",
         answers: [],
         created_at: Time.current,
@@ -249,7 +249,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       # Create a completed response from an earlier day (should not be canceled)
       completed_response = StandupResponse.create!(
         standup_id: test_standup.id,
-        slack_id: "U12345",
+        platform_user_id: "U12345",
         status: "completed",
         answers: [ { "question" => "Test", "answer" => "Test answer", "timestamp" => Time.current } ],
         created_at: 2.days.ago,
@@ -275,7 +275,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     # Create a real standup for testing
     test_standup = Standup.create!(
       name: "Test No Pending Standup",
-      slack_channel: "general",
+      platform_channel: "general",
       questions: [ "Question 1", "Question 2" ],
       intro: "Test intro",
       outro: "Test outro"
@@ -292,7 +292,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       # Create real standups for testing
       test_standup1 = Standup.create!(
         name: "Test User Standup 1",
-        slack_channel: "general",
+        platform_channel: "general",
         questions: [ "Question 1", "Question 2" ],
         intro: "Test intro",
         outro: "Test outro"
@@ -300,7 +300,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
 
       test_standup2 = Standup.create!(
         name: "Test User Standup 2",
-        slack_channel: "general",
+        platform_channel: "general",
         questions: [ "Question 1", "Question 2" ],
         intro: "Test intro",
         outro: "Test outro"
@@ -309,7 +309,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       # Create pending responses for different users and standups
       user1_standup1 = StandupResponse.create!(
         standup_id: test_standup1.id,
-        slack_id: "U12345",
+        platform_user_id: "U12345",
         status: "pending",
         answers: [],
         created_at: 1.day.ago,
@@ -318,7 +318,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
 
       user2_standup1 = StandupResponse.create!(
         standup_id: test_standup1.id,
-        slack_id: "U67890",
+        platform_user_id: "U67890",
         status: "pending",
         answers: [],
         created_at: 1.day.ago,
@@ -327,7 +327,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
 
       user1_standup2 = StandupResponse.create!(
         standup_id: test_standup2.id,
-        slack_id: "U12345",
+        platform_user_id: "U12345",
         status: "pending",
         answers: [],
         created_at: 1.day.ago,

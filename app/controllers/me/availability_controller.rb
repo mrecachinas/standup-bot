@@ -60,7 +60,7 @@ module Me
     def audit!(participant, action, metadata = {})
       AuditLogger.log!(
         actor: current_user,
-        actor_label: "#{current_member.name} (#{current_member.slack_id})",
+        actor_label: "#{current_member.name} (#{current_member.platform_user_id})",
         action: action,
         auditable: participant,
         metadata: metadata.merge(standup_id: participant.standup_id),

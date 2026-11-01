@@ -39,7 +39,7 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
         params: {
           standup: {
             name: "Admin Created",
-            slack_channel: "admin-created",
+            platform_channel: "admin-created",
             questions: [ "What changed?", "Any blockers?" ],
             schedule_type: "daily",
             default_hour: 9,
@@ -55,6 +55,19 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_response :created
     body = JSON.parse(response.body)
     assert_equal "Admin Created", body.dig("standup", "name")
+    assert_equal "slack", body.dig("standup", "platform")
+    assert_equal "admin-created", body.dig("standup", "platform_channel")
+    assert_not body["standup"].key?("slack_channel")
+  end
+
+  test "rejects changing a standup's platform" do
+    patch api_standup_path(@standup),
+      params: { standup: { platform: "other" } },
+      headers: admin_headers,
+      as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal "slack", @standup.reload.platform
   end
 
   test "updates standup" do
@@ -73,7 +86,7 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
   test "deletes standup" do
     standup = Standup.create!(
       name: "Temporary Standup",
-      slack_channel: "temporary",
+      platform_channel: "temporary",
       questions: [ "Question?" ],
       schedule_type: "daily",
       respect_timezone: true

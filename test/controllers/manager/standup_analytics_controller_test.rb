@@ -36,10 +36,10 @@ class Manager::StandupAnalyticsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "date filters exclude analytics outside selected range" do
-    @owned_standup.standup_participants.create!(slack_id: "UFILTER160", slack_name: "Filter User")
+    @owned_standup.standup_participants.create!(platform_user_id: "UFILTER160", display_name: "Filter User")
     StandupResponse.create!(
       standup: @owned_standup,
-      slack_id: "UFILTER160",
+      platform_user_id: "UFILTER160",
       status: "completed",
       answers: [ { "question" => "Any blockers?", "answer" => "Outside analytics range" } ],
       standup_date: Date.new(2025, 4, 5),

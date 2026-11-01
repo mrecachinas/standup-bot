@@ -14,13 +14,14 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
       def channel_reference(channel) = "the #{channel} channel"
     end
 
+    def key = :slack
     def formatter = Formatter
     def channel_reference(channel) = Formatter.channel_reference(channel)
   end
 
   setup do
     @participant = standup_participants(:one)
-    @handler = StandupCommandHandler.new(chat: MarkdownChat.new, user_id: @participant.slack_id, base_command: "standup", status_command: nil)
+    @handler = StandupCommandHandler.new(chat: MarkdownChat.new, user_id: @participant.platform_user_id, base_command: "standup", status_command: nil)
   end
 
   test "help uses the platform's command name and formatting" do
@@ -44,16 +45,16 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
   end
 
   test "report with one standup queues the report and names the channel" do
-    StandupParticipant.where(slack_id: @participant.slack_id).where.not(id: @participant.id).delete_all
+    StandupParticipant.where(platform_user_id: @participant.platform_user_id).where.not(id: @participant.id).delete_all
 
     assert_enqueued_with(job: StandupCollectionJob) do
       reply = @handler.run("report")
-      assert_includes reply.text, "It will be posted to the #{@participant.standup.slack_channel} channel shortly."
+      assert_includes reply.text, "It will be posted to the #{@participant.standup.platform_channel} channel shortly."
     end
   end
 
   test "start with several standups returns a selection" do
-    standups(:weekly).standup_participants.create!(slack_id: @participant.slack_id, slack_name: "John Doe", active: true)
+    standups(:weekly).standup_participants.create!(platform_user_id: @participant.platform_user_id, display_name: "John Doe", active: true)
 
     reply = @handler.run("start")
 

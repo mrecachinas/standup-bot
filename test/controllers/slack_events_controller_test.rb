@@ -141,7 +141,7 @@ class SlackEventsControllerTest < ActionDispatch::IntegrationTest
     participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
     payload = {
       type: "block_actions",
-      user: { id: participant.slack_id },
+      user: { id: participant.platform_user_id },
       actions: [
         {
           action_id: "standup_selection",

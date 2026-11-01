@@ -22,7 +22,7 @@ class SlackSignInTest < ActiveSupport::TestCase
 
     identity = SlackSignIn.new.identity_for(code: "abc", redirect_uri: "https://app.example.com/auth/slack/callback")
 
-    assert_equal "U123456", identity.slack_id
+    assert_equal "U123456", identity.user_id
     assert_equal "john@example.com", identity.email
     assert identity.email_verified
     assert_equal "John Doe", identity.name

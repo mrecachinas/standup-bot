@@ -64,7 +64,7 @@ module Manager
         end_date: analytics.start_date - 1
       )
       @previous_completion_rate = previous.completion_rate if previous.responses?
-      @participants = @standup.standup_participants.order(:slack_name, :slack_id).to_a
+      @participants = @standup.standup_participants.order(:display_name, :platform_user_id).to_a
       @latest_responses = latest_run_responses
     end
 
@@ -188,7 +188,7 @@ module Manager
     def standup_params
       permitted = params.require(:standup).permit(
         :name,
-        :slack_channel,
+        :platform_channel,
         :intro,
         :outro,
         :schedule_type,
@@ -209,7 +209,7 @@ module Manager
         questions: [],
         schedule_days: [],
         days: [],
-        participants: [ :id, :slack_id, :original_slack_id, :slack_name, :cached_timezone, :active, :_destroy ]
+        participants: [ :id, :platform_user_id, :original_slack_id, :display_name, :cached_timezone, :active, :_destroy ]
       )
       attrs = permitted.to_h
       attrs.delete("participants")
@@ -332,14 +332,16 @@ module Manager
 
     # Whoever creates a standup usually takes part in it, so start with them on the roster.
     def creator_participant_rows
-      slack_id = current_user.slack_user_id.presence || session[:slack_id].presence
-      return [] unless slack_id
+      platform = @standup&.platform.presence || ChatPlatform::DEFAULT.to_s
+      member_user_id = session[:member_user_id] if session[:member_platform].to_s == platform
+      platform_user_id = current_user.platform_user_id_for(platform).presence || member_user_id.presence
+      return [] unless platform_user_id
 
-      known = StandupParticipant.where(slack_id: slack_id).order(Arel.sql("cached_timezone IS NULL"), updated_at: :desc).first
+      known = StandupParticipant.where(platform_user_id: platform_user_id).order(Arel.sql("cached_timezone IS NULL"), updated_at: :desc).first
       [ {
         id: nil,
-        slack_id: slack_id,
-        slack_name: known&.slack_name.presence || current_user.name,
+        platform_user_id: platform_user_id,
+        display_name: known&.display_name.presence || current_user.name,
         cached_timezone: known&.cached_timezone,
         avatar_url: known&.avatar_url || current_user.avatar_url,
         active: true,
@@ -366,11 +368,11 @@ module Manager
     def participant_rows_for(standup)
       return [] unless standup.persisted?
 
-      standup.standup_participants.order(:slack_name, :slack_id).map do |participant|
+      standup.standup_participants.order(:display_name, :platform_user_id).map do |participant|
         {
           id: participant.id,
-          slack_id: participant.slack_id,
-          slack_name: participant.slack_name,
+          platform_user_id: participant.platform_user_id,
+          display_name: participant.display_name,
           cached_timezone: participant.cached_timezone,
           avatar_url: participant.avatar_url,
           active: participant.active?,
@@ -384,7 +386,7 @@ module Manager
 
       permitted = params.require(:standup).permit(
         :participant_handles,
-        participants: [ :id, :slack_id, :original_slack_id, :slack_name, :cached_timezone, :active, :_destroy ]
+        participants: [ :id, :platform_user_id, :original_slack_id, :display_name, :cached_timezone, :active, :_destroy ]
       )
 
       ordered_participant_rows(permitted[:participants]).map { |row| sanitize_participant_row(row) } +
@@ -394,7 +396,7 @@ module Manager
     # "Add people" accepts several handles separated by commas or new lines.
     def participant_handle_rows(text)
       text.to_s.split(/[,\n]/).map(&:strip).reject(&:blank?).uniq.map do |handle|
-        { id: nil, slack_id: normalize_participant_identifier(handle), slack_name: "", cached_timezone: nil, active: true, destroy: false }
+        { id: nil, platform_user_id: normalize_participant_identifier(handle), display_name: "", cached_timezone: nil, active: true, destroy: false }
       end
     end
 
@@ -413,15 +415,15 @@ module Manager
 
     def sanitize_participant_row(row)
       attributes = row.to_h
-      slack_id = normalize_participant_identifier(attributes["slack_id"].to_s.strip)
+      platform_user_id = normalize_participant_identifier(attributes["platform_user_id"].to_s.strip)
       # If someone typed a different person into a pre-filled row, the cached
       # name and timezone belong to the old person, so look the new one up instead.
       original_slack_id = attributes["original_slack_id"].to_s.strip
-      replaced = original_slack_id.present? && slack_id != normalize_participant_identifier(original_slack_id)
+      replaced = original_slack_id.present? && platform_user_id != normalize_participant_identifier(original_slack_id)
       {
         id: attributes["id"].presence,
-        slack_id: slack_id,
-        slack_name: replaced ? "" : attributes["slack_name"].to_s.strip,
+        platform_user_id: platform_user_id,
+        display_name: replaced ? "" : attributes["display_name"].to_s.strip,
         cached_timezone: replaced ? nil : attributes["cached_timezone"].to_s.strip.presence,
         active: boolean_param(attributes.key?("active") ? attributes["active"] : true),
         destroy: boolean_param(attributes["_destroy"])
@@ -442,23 +444,23 @@ module Manager
         end
         next if row[:destroy]
 
-        @standup.errors.add(:base, "#{row_label} Slack ID can't be blank") if row[:slack_id].blank?
-        @standup.errors.add(:base, "#{row_label} name can't be blank") if row[:slack_name].blank?
+        @standup.errors.add(:base, "#{row_label} #{@standup.chat_platform.label} ID can't be blank") if row[:platform_user_id].blank?
+        @standup.errors.add(:base, "#{row_label} name can't be blank") if row[:display_name].blank?
 
-        if row[:slack_id].present? && !row[:slack_id].match?(StandupParticipant::SLACK_USER_ID_PATTERN)
-          @standup.errors.add(:base, "#{row_label} Slack ID must look like U123ABC")
+        if row[:platform_user_id].present? && !@standup.chat_platform.valid_user_id?(row[:platform_user_id])
+          @standup.errors.add(:base, "#{row_label} #{@standup.chat_platform.label} ID must be #{@standup.chat_platform.user_id_hint}")
         end
 
         if row[:cached_timezone].present? && !StandupParticipant.valid_timezone?(row[:cached_timezone])
           @standup.errors.add(:base, "#{row_label} timezone is not valid")
         end
 
-        next if row[:slack_id].blank?
+        next if row[:platform_user_id].blank?
 
-        if seen_slack_ids.key?(row[:slack_id])
-          @standup.errors.add(:base, "#{row_label} duplicates #{seen_slack_ids[row[:slack_id]]}")
+        if seen_slack_ids.key?(row[:platform_user_id])
+          @standup.errors.add(:base, "#{row_label} duplicates #{seen_slack_ids[row[:platform_user_id]]}")
         else
-          seen_slack_ids[row[:slack_id]] = row_label
+          seen_slack_ids[row[:platform_user_id]] = row_label
         end
       end
 
@@ -468,30 +470,30 @@ module Manager
     def validate_existing_participant_conflicts(rows, submitted_ids)
       return unless @standup.persisted?
 
-      existing_slack_ids = @standup.standup_participants.where.not(id: submitted_ids).pluck(:slack_id)
+      existing_slack_ids = @standup.standup_participants.where.not(id: submitted_ids).pluck(:platform_user_id)
       rows.each_with_index do |row, index|
-        next if row[:destroy] || row[:slack_id].blank? || !existing_slack_ids.include?(row[:slack_id])
+        next if row[:destroy] || row[:platform_user_id].blank? || !existing_slack_ids.include?(row[:platform_user_id])
 
-        @standup.errors.add(:base, "Participant #{index + 1} Slack ID is already in this standup")
+        @standup.errors.add(:base, "Participant #{index + 1} #{@standup.chat_platform.label} ID is already in this standup")
       end
     end
 
     def normalize_participant_identifier(identifier)
       normalized = identifier.delete_prefix("@")
       upcased = normalized.upcase
-      looks_like_id = (normalized == upcased && upcased.match?(StandupParticipant::SLACK_USER_ID_PATTERN)) ||
+      looks_like_id = (normalized == upcased && upcased.match?(ChatPlatform::SlackAdapter::USER_ID_PATTERN)) ||
         upcased.match?(/\A[UW][A-Z0-9]*\d[A-Z0-9]*\z/)
       looks_like_id ? upcased : identifier
     end
 
     def resolve_participant_rows(rows)
       rows.each_with_index do |row, index|
-        next if blank_participant_row?(row) || row[:destroy] || row[:slack_id].blank?
-        next if row[:slack_id].match?(StandupParticipant::SLACK_USER_ID_PATTERN) && row[:slack_name].present?
+        next if blank_participant_row?(row) || row[:destroy] || row[:platform_user_id].blank?
+        next if @standup.chat_platform.valid_user_id?(row[:platform_user_id]) && row[:display_name].present?
 
-        resolved_user = slack_user_resolver.resolve(row[:slack_id], fallback_name: row[:slack_name])
-        row[:slack_id] = resolved_user.slack_id
-        row[:slack_name] = row[:slack_name].presence || resolved_user.slack_name
+        resolved_user = slack_user_resolver.resolve(row[:platform_user_id], fallback_name: row[:display_name])
+        row[:platform_user_id] = resolved_user.platform_user_id
+        row[:display_name] = row[:display_name].presence || resolved_user.display_name
         row[:cached_timezone] = row[:cached_timezone].presence || resolved_user.cached_timezone
         row[:avatar_url] = resolved_user.avatar_url
       rescue SlackUserResolver::ResolutionError => error
@@ -538,8 +540,8 @@ module Manager
 
     def participant_attributes(row)
       attributes = {
-        slack_id: row[:slack_id],
-        slack_name: row[:slack_name],
+        platform_user_id: row[:platform_user_id],
+        display_name: row[:display_name],
         cached_timezone: row[:cached_timezone],
         active: row[:active]
       }
@@ -548,7 +550,7 @@ module Manager
     end
 
     def participant_snapshot(participant)
-      participant.attributes.slice("id", "slack_id", "slack_name", "cached_timezone", "active")
+      participant.attributes.slice("id", "platform_user_id", "display_name", "cached_timezone", "active")
     end
 
     def participant_change(action, participant, before: nil)
@@ -559,8 +561,8 @@ module Manager
 
     def blank_participant_row?(row)
       row[:id].blank? &&
-        row[:slack_id].blank? &&
-        row[:slack_name].blank? &&
+        row[:platform_user_id].blank? &&
+        row[:display_name].blank? &&
         row[:cached_timezone].blank?
     end
 
@@ -658,7 +660,7 @@ module Manager
       standup.attributes.slice(
         "id",
         "name",
-        "slack_channel",
+        "platform_channel",
         "schedule_type",
         "schedule_days",
         "default_hour",

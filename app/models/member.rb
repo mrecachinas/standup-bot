@@ -1,21 +1,23 @@
-# A person who takes part in standups, identified by their Slack user ID.
-# Members don't have a User record; they sign in with Slack.
+# A person who takes part in standups, identified by their chat platform and
+# user ID on it. Members don't have a User record; they sign in with the platform.
 class Member
-  attr_reader :slack_id
+  attr_reader :platform, :platform_user_id
 
-  def self.for(slack_id, name: nil)
-    return if slack_id.blank? || !StandupParticipant.exists?(slack_id: slack_id)
+  def self.for(platform, platform_user_id, name: nil)
+    return if platform.blank? || platform_user_id.blank? || !ChatPlatform.supported?(platform)
+    return unless StandupParticipant.on_platform(platform).exists?(platform_user_id: platform_user_id)
 
-    new(slack_id, name: name)
+    new(platform, platform_user_id, name: name)
   end
 
-  def initialize(slack_id, name: nil)
-    @slack_id = slack_id
+  def initialize(platform, platform_user_id, name: nil)
+    @platform = platform.to_s
+    @platform_user_id = platform_user_id
     @name = name
   end
 
   def name
-    @name.presence || participants.first&.slack_name.presence || slack_id
+    @name.presence || participants.first&.display_name.presence || platform_user_id
   end
 
   def avatar_url
@@ -23,7 +25,12 @@ class Member
   end
 
   def participants
-    @participants ||= StandupParticipant.includes(standup: :standup_schedule_exceptions).where(slack_id: slack_id).joins(:standup).order("standups.name").to_a
+    @participants ||= StandupParticipant
+      .on_platform(platform)
+      .includes(standup: :standup_schedule_exceptions)
+      .where(platform_user_id: platform_user_id)
+      .order("standups.name")
+      .to_a
   end
 
   def participant_for(standup_id)
@@ -35,7 +42,7 @@ class Member
   end
 
   def responses
-    StandupResponse.includes(:standup).where(slack_id: slack_id, standup_id: participants.map(&:standup_id))
+    StandupResponse.includes(:standup).where(platform_user_id: platform_user_id, standup_id: participants.map(&:standup_id))
   end
 
   def away_until

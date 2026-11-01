@@ -85,10 +85,10 @@ class Me::MemberAreaTest < ActionDispatch::IntegrationTest
 
   private
 
-  def sign_in_member(slack_id)
+  def sign_in_member(platform_user_id)
     get slack_sign_in_path
     state = Rack::Utils.parse_query(URI.parse(response.location).query)["state"]
-    identity = SlackSignIn::Identity.new(slack_id: slack_id, team_id: "T1", email: "#{slack_id.downcase}@example.com", email_verified: true, name: "Member #{slack_id}")
+    identity = User::Identity.new(user_id: platform_user_id, team_id: "T1", email: "#{platform_user_id.downcase}@example.com", email_verified: true, name: "Member #{platform_user_id}")
     SlackSignIn.any_instance.stubs(:identity_for).returns(identity)
     get slack_sign_in_callback_path, params: { code: "oauth-code", state: state }
     assert_redirected_to me_root_path

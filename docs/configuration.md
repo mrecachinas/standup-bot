@@ -62,7 +62,8 @@ Besides the web console, you can define standups as YAML files in `config/standu
 
 ```yaml
 name: "Engineering Team Daily Standup"
-slack_channel: "eng-standup"
+platform: "slack"
+platform_channel: "eng-standup"
 
 schedule:
   timezone: "America/Los_Angeles"
@@ -77,15 +78,15 @@ questions:
 outro: "Thanks! Have a productive day."
 
 participants:
-  - slack_id: "U01ABC123"
+  - platform_user_id: "U01ABC123"
     name: "Sarah Thompson"
     active: true
-  - slack_id: "U02DEF456"
+  - platform_user_id: "U02DEF456"
     name: "Michael Chen"
     active: false # on vacation
 ```
 
-`name`, `slack_channel`, and `questions` are required. A `days` list of Monday through Friday becomes a weekdays schedule, all seven days becomes daily, and anything else becomes a weekly schedule on those days. When `timezone` is set, each participant gets their DM at `time` in their own Slack timezone.
+`name`, `platform_channel`, and `questions` are required. `platform` is optional and defaults to `slack`. A `days` list of Monday through Friday becomes a weekdays schedule, all seven days becomes daily, and anything else becomes a weekly schedule on those days. When `timezone` is set, each participant gets their DM at `time` in their own Slack timezone.
 
 Check your files, then load them into the database:
 

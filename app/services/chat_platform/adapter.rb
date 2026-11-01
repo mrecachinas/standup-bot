@@ -81,6 +81,27 @@ module ChatPlatform
       raise NotImplementedError
     end
 
+    def normalize_user_id(value)
+      raise NotImplementedError
+    end
+
+    # Completes "must be ..." in validation errors.
+    def user_id_hint
+      raise NotImplementedError
+    end
+
+    def valid_channel?(value)
+      raise NotImplementedError
+    end
+
+    def normalize_channel(value)
+      raise NotImplementedError
+    end
+
+    def channel_hint
+      raise NotImplementedError
+    end
+
     # Shared helpers
 
     def display_name_for(user_id)

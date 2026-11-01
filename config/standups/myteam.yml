@@ -1,5 +1,5 @@
 name: "Engineering Team Daily Standup"
-slack_channel: "eng-standup"
+platform_channel: "eng-standup"
 schedule:
   timezone: "America/Los_Angeles"
   days:
@@ -22,15 +22,15 @@ outro: "Thanks for completing your standup! Have a productive day."
 
 participants:
   # EXAMPLE ONLY - replace these placeholders with real Slack user IDs before importing.
-  - slack_id: "EXAMPLE_USER_1"
+  - platform_user_id: "EXAMPLE_USER_1"
     name: "Example User 1"
     active: true
-  - slack_id: "EXAMPLE_USER_2"
+  - platform_user_id: "EXAMPLE_USER_2"
     name: "Example User 2"
     active: true
-  - slack_id: "EXAMPLE_USER_3"
+  - platform_user_id: "EXAMPLE_USER_3"
     name: "Example User 3"
     active: true
-  - slack_id: "EXAMPLE_USER_4"
+  - platform_user_id: "EXAMPLE_USER_4"
     name: "Example User 4"
     active: false # On vacation

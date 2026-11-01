@@ -13,7 +13,7 @@ class StandupMetricsTest < ActiveSupport::TestCase
 
     Timecop.freeze(Time.zone.local(2026, 6, 9, 13, 20, 0)) do
       expected_timestamp = Time.current.iso8601
-      StandupMetrics.track("standup.sent", standup_id: 42, slack_id: nil)
+      StandupMetrics.track("standup.sent", standup_id: 42, platform_user_id: nil)
       assert_equal expected_timestamp, StandupMetrics.last_seen("standup.sent")
     end
 

@@ -138,7 +138,7 @@
                   <%= avatar(user.name, url: user.avatar_url) %>
                   <div>
                     <div class="cell-title"><%= user.name %></div>
-                    <div class="cell-sub"><%= user.email.end_with?("@#{User::SLACK_PLACEHOLDER_EMAIL_DOMAIN}") ? "Slack #{user.slack_user_id}" : user.email %></div>
+                    <div class="cell-sub"><%= user.placeholder_email? ? user.identities.map { |identity| "#{ChatPlatform.for(identity.platform).label} #{identity.platform_user_id}" }.join(", ") : user.email %></div>
                   </div>
                 </div>
               </td>

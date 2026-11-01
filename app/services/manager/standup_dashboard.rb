@@ -44,7 +44,7 @@ module Manager
       end
 
       def participant_names
-        active_participant_rows.map { |name, slack_id, _url| name.presence || slack_id }
+        active_participant_rows.map { |name, platform_user_id, _url| name.presence || platform_user_id }
       end
 
       def participant_slack_ids
@@ -52,7 +52,7 @@ module Manager
       end
 
       def participant_avatars
-        active_participant_rows.map { |name, slack_id, url| [ name.presence || slack_id, url ] }
+        active_participant_rows.map { |name, platform_user_id, url| [ name.presence || platform_user_id, url ] }
       end
 
       def runs
@@ -124,7 +124,7 @@ module Manager
       end
 
       def active_participant_rows
-        @active_participant_rows ||= standup.standup_participants.active.order(:slack_name).pluck(:slack_name, :slack_id, :avatar_url)
+        @active_participant_rows ||= standup.standup_participants.active.order(:display_name).pluck(:display_name, :platform_user_id, :avatar_url)
       end
 
       def analytics

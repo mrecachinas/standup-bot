@@ -22,8 +22,8 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     get manager_standup_participants_path(@owned_standup)
 
     assert_response :success
-    assert_includes response.body, @participant.slack_name
-    assert_includes response.body, @participant.slack_id
+    assert_includes response.body, @participant.display_name
+    assert_includes response.body, @participant.platform_user_id
     assert_includes response.body, "America/New_York"
     assert_includes response.body, "Away through #{Date.current.iso8601}"
   end
@@ -42,11 +42,11 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     get manager_standup_participants_path(@unowned_standup)
 
     assert_response :success
-    assert_includes response.body, standup_participants(:three).slack_name
+    assert_includes response.body, standup_participants(:three).display_name
   end
 
   test "roster does not list other standups a participant is in" do
-    @unowned_standup.standup_participants.create!(slack_id: @participant.slack_id, slack_name: @participant.slack_name, active: true)
+    @unowned_standup.standup_participants.create!(platform_user_id: @participant.platform_user_id, display_name: @participant.display_name, active: true)
     sign_in(@admin, "admin-access-token")
 
     get manager_standup_participants_path(@owned_standup)
@@ -63,8 +63,8 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
         post manager_standup_participants_path(@owned_standup),
           params: {
             standup_participant: {
-              slack_id: "UCREATE1",
-              slack_name: "Created User",
+              platform_user_id: "UCREATE1",
+              display_name: "Created User",
               cached_timezone: "UTC",
               active: true
             }
@@ -73,8 +73,8 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     end
 
     assert_redirected_to manager_standup_participants_path(@owned_standup)
-    participant = @owned_standup.standup_participants.find_by!(slack_id: "UCREATE1")
-    assert_equal "Created User", participant.slack_name
+    participant = @owned_standup.standup_participants.find_by!(platform_user_id: "UCREATE1")
+    assert_equal "Created User", participant.display_name
 
     audit_log = AuditLog.where(action: "standup_participant.create").order(:created_at).last
     assert_equal @manager, audit_log.actor
@@ -85,23 +85,23 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
   test "manager can create participant from Slack username" do
     SlackUserResolver.any_instance.expects(:resolve)
       .with("@created", fallback_name: "")
-      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UCREATE2", slack_name: "Created From Slack", cached_timezone: "America/New_York"))
+      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UCREATE2", display_name: "Created From Slack", cached_timezone: "America/New_York"))
     sign_in(@manager, "manager-access-token")
 
     assert_difference "StandupParticipant.count", 1 do
       post manager_standup_participants_path(@owned_standup),
         params: {
           standup_participant: {
-            slack_id: "@created",
-            slack_name: "",
+            platform_user_id: "@created",
+            display_name: "",
             active: true
           }
         }
     end
 
     assert_redirected_to manager_standup_participants_path(@owned_standup)
-    participant = @owned_standup.standup_participants.find_by!(slack_id: "UCREATE2")
-    assert_equal "Created From Slack", participant.slack_name
+    participant = @owned_standup.standup_participants.find_by!(platform_user_id: "UCREATE2")
+    assert_equal "Created From Slack", participant.display_name
     assert_equal "America/New_York", participant.cached_timezone
   end
 
@@ -112,8 +112,8 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
       post manager_standup_participants_path(@owned_standup),
         params: {
           standup_participant: {
-            slack_id: "UBADTZ",
-            slack_name: "Bad Timezone",
+            platform_user_id: "UBADTZ",
+            display_name: "Bad Timezone",
             cached_timezone: "Invalid/Zone",
             active: true
           }
@@ -131,7 +131,7 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
       patch manager_standup_participant_path(@owned_standup, @participant),
         params: {
           standup_participant: {
-            slack_name: "Updated Participant",
+            display_name: "Updated Participant",
             cached_timezone: "America/Chicago",
             active: false,
             vacation_until: Date.current.iso8601
@@ -141,13 +141,13 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
 
     assert_redirected_to manager_standup_participants_path(@owned_standup)
     @participant.reload
-    assert_equal "Updated Participant", @participant.slack_name
+    assert_equal "Updated Participant", @participant.display_name
     assert_equal "America/Chicago", @participant.cached_timezone
     assert_not @participant.active
     assert_equal Date.current, @participant.vacation_until
 
     audit_log = AuditLog.where(action: "standup_participant.update").order(:created_at).last
-    assert_equal [ "John Doe", "Updated Participant" ], audit_log.metadata.dig("changes", "slack_name")
+    assert_equal [ "John Doe", "Updated Participant" ], audit_log.metadata.dig("changes", "display_name")
   end
 
   test "manager removes participant and writes audit log" do
@@ -162,7 +162,7 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     assert_redirected_to manager_standup_participants_path(@owned_standup)
     audit_log = AuditLog.where(action: "standup_participant.destroy").order(:created_at).last
     assert_equal @participant.id, audit_log.auditable_id
-    assert_equal @participant.slack_id, audit_log.metadata.dig("attributes", "slack_id")
+    assert_equal @participant.platform_user_id, audit_log.metadata.dig("attributes", "platform_user_id")
   end
 
   test "manager cannot mutate unowned participants" do
@@ -170,13 +170,13 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
 
     assert_no_difference [ "StandupParticipant.count", "AuditLog.count" ] do
       post manager_standup_participants_path(@unowned_standup),
-        params: { standup_participant: { slack_id: "UBLOCKED", slack_name: "Blocked" } }
+        params: { standup_participant: { platform_user_id: "UBLOCKED", display_name: "Blocked" } }
     end
     assert_response :forbidden
 
     assert_no_difference "AuditLog.count" do
       patch manager_standup_participant_path(@unowned_standup, standup_participants(:three)),
-        params: { standup_participant: { slack_name: "Blocked Update" } }
+        params: { standup_participant: { display_name: "Blocked Update" } }
     end
     assert_response :forbidden
   end
@@ -194,14 +194,14 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     end
 
     assert_redirected_to manager_standup_participants_path(@owned_standup)
-    assert_equal "Alice Bulk", @owned_standup.standup_participants.find_by!(slack_id: "UBULK1").slack_name
-    assert_not @owned_standup.standup_participants.find_by!(slack_id: "UBULK2").active
+    assert_equal "Alice Bulk", @owned_standup.standup_participants.find_by!(platform_user_id: "UBULK1").display_name
+    assert_not @owned_standup.standup_participants.find_by!(platform_user_id: "UBULK2").active
   end
 
   test "bulk import resolves Slack usernames" do
     SlackUserResolver.any_instance.expects(:resolve)
       .with("@bulk", fallback_name: "Bulk User")
-      .returns(SlackUserResolver::ResolvedUser.new(slack_id: "UBULK3", slack_name: "Bulk User", cached_timezone: "UTC"))
+      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UBULK3", display_name: "Bulk User", cached_timezone: "UTC"))
     sign_in(@manager, "manager-access-token")
 
     assert_difference "StandupParticipant.count", 1 do
@@ -210,7 +210,7 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     end
 
     assert_redirected_to manager_standup_participants_path(@owned_standup)
-    assert_equal "Bulk User", @owned_standup.standup_participants.find_by!(slack_id: "UBULK3").slack_name
+    assert_equal "Bulk User", @owned_standup.standup_participants.find_by!(platform_user_id: "UBULK3").display_name
   end
 
   test "bulk import surfaces validation errors" do
@@ -228,21 +228,21 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
   test "sync imports Slack channel members and can deactivate missing participants" do
     standup = Standup.create!(
       name: "Sync Standup",
-      slack_channel: "sync-channel",
+      platform_channel: "sync-channel",
       questions: [ "Update?" ],
       schedule_type: "daily",
       respect_timezone: true
     )
     standup.standup_ownerships.create!(user: @manager)
-    existing = StandupParticipant.create!(standup: standup, slack_id: "USYNC1", slack_name: "Old Sync", active: true)
-    missing = StandupParticipant.create!(standup: standup, slack_id: "USYNC2", slack_name: "Missing Sync", active: true)
+    existing = StandupParticipant.create!(standup: standup, platform_user_id: "USYNC1", display_name: "Old Sync", active: true)
+    missing = StandupParticipant.create!(standup: standup, platform_user_id: "USYNC2", display_name: "Missing Sync", active: true)
 
-    @manager.update!(slack_user_id: "UMGRSYNC")
+    @manager.link_identity!(:slack, "UMGRSYNC")
     slack_client = mock("SlackClient")
-    slack_client.expects(:channel_members).with("sync-channel").returns([ "UMGRSYNC", existing.slack_id ])
+    slack_client.expects(:channel_members).with("sync-channel").returns([ "UMGRSYNC", existing.platform_user_id ])
     slack_client.expects(:channel_member_profiles).with("sync-channel").returns([
-      { "slack_id" => existing.slack_id, "slack_name" => "Synced User", "cached_timezone" => "America/Los_Angeles" },
-      { "slack_id" => "USYNC3", "slack_name" => "New Sync", "cached_timezone" => "UTC" }
+      { "platform_user_id" => existing.platform_user_id, "display_name" => "Synced User", "cached_timezone" => "America/Los_Angeles" },
+      { "platform_user_id" => "USYNC3", "display_name" => "New Sync", "cached_timezone" => "UTC" }
     ])
     SlackClient.stubs(:instance).returns(slack_client)
 
@@ -256,14 +256,14 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
     end
 
     assert_redirected_to manager_standup_participants_path(standup)
-    assert_equal "Synced User", existing.reload.slack_name
+    assert_equal "Synced User", existing.reload.display_name
     assert_equal "America/Los_Angeles", existing.cached_timezone
     assert_not missing.reload.active
-    assert standup.standup_participants.exists?(slack_id: "USYNC3")
+    assert standup.standup_participants.exists?(platform_user_id: "USYNC3")
   end
 
   test "sync surfaces Slack lookup errors without auditing" do
-    @manager.update!(slack_user_id: "UMGRSYNC")
+    @manager.link_identity!(:slack, "UMGRSYNC")
     slack_client = mock("SlackClient")
     slack_client.expects(:channel_members).with("empty-channel").returns([ "UMGRSYNC" ])
     slack_client.expects(:channel_member_profiles).with("empty-channel").returns([])
@@ -280,7 +280,7 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "managers can only sync people from channels they're in" do
-    @manager.update!(slack_user_id: "UOUTSIDER")
+    @manager.link_identity!(:slack, "UOUTSIDER")
     slack_client = mock("SlackClient")
     slack_client.expects(:channel_members).with("secret-channel").returns([ "USOMEONE" ])
     slack_client.expects(:channel_member_profiles).never

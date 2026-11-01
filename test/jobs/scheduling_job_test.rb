@@ -35,7 +35,7 @@ class SchedulingJobTest < ActiveJob::TestCase
     assert_enqueued_with(
       job: StandupMessageJob,
       at: @scheduled_time,
-      args: [ @participant.slack_id, @active_standup.id, @standup_date.iso8601 ]
+      args: [ @participant.platform_user_id, @active_standup.id, @standup_date.iso8601 ]
     ) do
       SchedulingJob.perform_now
     end
@@ -94,7 +94,7 @@ class SchedulingJobTest < ActiveJob::TestCase
     assert_enqueued_with(
       job: StandupMessageJob,
       at: send_at,
-      args: [ @participant.slack_id, @active_standup.id, @standup_date.iso8601 ]
+      args: [ @participant.platform_user_id, @active_standup.id, @standup_date.iso8601 ]
     ) do
       SchedulingJob.perform_now
     end
@@ -135,7 +135,7 @@ class SchedulingJobTest < ActiveJob::TestCase
       assert_enqueued_with(
         job: StandupMessageJob,
         at: rescheduled_at,
-        args: [ @participant.slack_id, @active_standup.id, original_date.iso8601 ]
+        args: [ @participant.platform_user_id, @active_standup.id, original_date.iso8601 ]
       ) do
         SchedulingJob.perform_now
       end
@@ -146,7 +146,7 @@ class SchedulingJobTest < ActiveJob::TestCase
     StandupParticipant.where.not(id: @participant.id).delete_all
     response = StandupResponse.create!(
       standup: @active_standup,
-      slack_id: @participant.slack_id,
+      platform_user_id: @participant.platform_user_id,
       status: "pending",
       answers: [],
       created_at: @scheduled_time

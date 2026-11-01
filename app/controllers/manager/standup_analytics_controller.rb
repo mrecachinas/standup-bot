@@ -9,7 +9,7 @@ module Manager
         format.html do
           @summary = @analytics.summary
           @runs = @analytics.run_breakdown
-          @participant_stats = @summary[:participant_stats].sort_by { |stat| [ stat[:completion_rate], stat[:slack_name].to_s.downcase ] }
+          @participant_stats = @summary[:participant_stats].sort_by { |stat| [ stat[:completion_rate], stat[:display_name].to_s.downcase ] }
           @question_summaries = @analytics.question_summaries(limit: 3)
           @question_funnel = @analytics.question_funnel
           @blocker_keywords = @analytics.blocker_keywords(limit: 10)

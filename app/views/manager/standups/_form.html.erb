@@ -31,10 +31,10 @@
               <%= form.text_field :name, required: true, placeholder: "Platform daily", autofocus: standup.new_record? %>
             </div>
             <div class="field">
-              <%= form.label :slack_channel, "Post summaries to" %>
+              <%= form.label :platform_channel, "Post summaries to" %>
               <div class="input-prefix">
                 <span>#</span>
-                <%= form.text_field :slack_channel, value: standup.slack_channel.to_s.delete_prefix("#"), required: true, placeholder: "eng-standup" %>
+                <%= form.text_field :platform_channel, value: standup.platform_channel.to_s.delete_prefix("#"), required: true, placeholder: "eng-standup" %>
               </div>
             </div>
           </div></div>
@@ -142,7 +142,7 @@
             </div>
             <template data-person-template>
               <span class="person-chip is-pending" data-person-chip>
-                <input type="hidden" name="standup[participants][__INDEX__][slack_id]" data-person-handle>
+                <input type="hidden" name="standup[participants][__INDEX__][platform_user_id]" data-person-handle>
                 <input type="hidden" name="standup[participants][__INDEX__][active]" value="1">
                 <%= avatar("?", size: "sm") %>
                 <span class="person-chip-name" data-person-label></span>

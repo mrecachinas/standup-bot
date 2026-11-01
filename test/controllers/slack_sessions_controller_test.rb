@@ -39,7 +39,7 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "signs a participant into the member area" do
-    sign_in_with_slack(slack_id: "U123456", email: "john@example.com")
+    sign_in_with_slack(platform_user_id: "U123456", email: "john@example.com")
 
     assert_redirected_to me_root_path
     follow_redirect!
@@ -48,31 +48,31 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "links an existing account by verified email and lands owners in the console" do
-    sign_in_with_slack(slack_id: "U999999", email: users(:manager).email)
+    sign_in_with_slack(platform_user_id: "U999999", email: users(:manager).email)
 
     assert_redirected_to manager_standups_path
-    assert_equal "U999999", users(:manager).reload.slack_user_id
+    assert_equal "U999999", users(:manager).reload.platform_user_id_for(:slack)
     follow_redirect!
     assert_response :success
   end
 
   test "does not link accounts when Slack hasn't verified the email" do
     assert_difference "User.count", 1 do
-      sign_in_with_slack(slack_id: "U123456", email: users(:admin).email, email_verified: false)
+      sign_in_with_slack(platform_user_id: "U123456", email: users(:admin).email, email_verified: false)
     end
 
     assert_redirected_to me_root_path
-    assert_nil users(:admin).reload.slack_user_id
+    assert_nil users(:admin).reload.platform_user_id_for(:slack)
     get admin_root_path
     assert_response :forbidden
   end
 
   test "anyone in the workspace can sign in and start a standup" do
     assert_difference "User.count", 1 do
-      sign_in_with_slack(slack_id: "UVTEAM1", email: "lead@example.com")
+      sign_in_with_slack(platform_user_id: "UVTEAM1", email: "lead@example.com")
     end
 
-    user = User.find_by!(slack_user_id: "UVTEAM1")
+    user = User.find_by_identity!(:slack, "UVTEAM1")
     assert_equal "manager", user.role
     assert_redirected_to manager_standups_path
     follow_redirect!
@@ -80,18 +80,18 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "returning users are matched by Slack user ID" do
-    users(:other_manager).update!(slack_user_id: "URETURN")
+    users(:other_manager).link_identity!(:slack, "URETURN")
 
     assert_no_difference "User.count" do
-      sign_in_with_slack(slack_id: "URETURN", email: "changed@example.com")
+      sign_in_with_slack(platform_user_id: "URETURN", email: "changed@example.com")
     end
     assert_redirected_to manager_standups_path
   end
 
   test "turned-off accounts can't sign in with Slack" do
-    users(:inactive_manager).update!(slack_user_id: "UOFF")
+    users(:inactive_manager).link_identity!(:slack, "UOFF")
 
-    sign_in_with_slack(slack_id: "UOFF", email: users(:inactive_manager).email)
+    sign_in_with_slack(platform_user_id: "UOFF", email: users(:inactive_manager).email)
 
     assert_redirected_to new_session_path
     follow_redirect!
@@ -99,29 +99,29 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "refuses to relink an email that belongs to another Slack account" do
-    users(:manager).update!(slack_user_id: "UORIGINAL")
+    users(:manager).link_identity!(:slack, "UORIGINAL")
 
-    sign_in_with_slack(slack_id: "UIMPOSTER", email: users(:manager).email)
+    sign_in_with_slack(platform_user_id: "UIMPOSTER", email: users(:manager).email)
 
     assert_redirected_to new_session_path
-    assert_equal "UORIGINAL", users(:manager).reload.slack_user_id
+    assert_equal "UORIGINAL", users(:manager).reload.platform_user_id_for(:slack)
   end
 
   test "signing in saves the Slack photo on the account and the person's standups" do
     url = "https://avatars.slack-edge.com/john.png"
 
-    sign_in_with_slack(slack_id: "U123456", email: "john@example.com", avatar_url: url)
+    sign_in_with_slack(platform_user_id: "U123456", email: "john@example.com", avatar_url: url)
 
-    assert_equal url, User.find_by!(slack_user_id: "U123456").avatar_url
+    assert_equal url, User.find_by_identity!(:slack, "U123456").avatar_url
     assert_equal url, standup_participants(:one).reload.avatar_url
   end
 
   private
 
-  def sign_in_with_slack(slack_id:, email:, email_verified: true, avatar_url: nil)
+  def sign_in_with_slack(platform_user_id:, email:, email_verified: true, avatar_url: nil)
     get slack_sign_in_path
     state = Rack::Utils.parse_query(URI.parse(response.location).query)["state"]
-    identity = SlackSignIn::Identity.new(slack_id: slack_id, team_id: "T123", email: email, email_verified: email_verified, name: "Slack Person", avatar_url: avatar_url)
+    identity = User::Identity.new(user_id: platform_user_id, team_id: "T123", email: email, email_verified: email_verified, name: "Slack Person", avatar_url: avatar_url)
     SlackSignIn.any_instance.stubs(:identity_for).returns(identity)
 
     get slack_sign_in_callback_path, params: { code: "oauth-code", state: state }

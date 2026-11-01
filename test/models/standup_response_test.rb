@@ -42,7 +42,7 @@ class StandupResponseTest < ActiveSupport::TestCase
     # Create a skipped response
     skipped_response = StandupResponse.create!(
       standup: @response.standup,
-      slack_id: "U99999",
+      platform_user_id: "U99999",
       status: "skipped",
       answers: []
     )
@@ -69,7 +69,7 @@ class StandupResponseTest < ActiveSupport::TestCase
   test "for_date_in_timezone should use timezone local day" do
     response = StandupResponse.create!(
       standup: @standup,
-      slack_id: "UTZTEST",
+      platform_user_id: "UTZTEST",
       status: "completed",
       answers: [],
       created_at: Time.new(2025, 4, 6, 15, 0, 0, "+00:00")
@@ -83,7 +83,7 @@ class StandupResponseTest < ActiveSupport::TestCase
   test "for_standup_date includes nil standup_date rows by created_at fallback" do
     response = StandupResponse.create!(
       standup: @standup,
-      slack_id: "UNILDATE",
+      platform_user_id: "UNILDATE",
       status: "pending",
       answers: [],
       created_at: Time.new(2025, 4, 6, 15, 0, 0, "+00:00")
@@ -97,7 +97,7 @@ class StandupResponseTest < ActiveSupport::TestCase
   test "cancelled scope should return only cancelled responses" do
     cancelled_response = StandupResponse.create!(
       standup: @standup,
-      slack_id: "UCANCELLED",
+      platform_user_id: "UCANCELLED",
       status: "cancelled",
       answers: []
     )
@@ -106,9 +106,9 @@ class StandupResponseTest < ActiveSupport::TestCase
     assert_not_includes StandupResponse.cancelled, standup_responses(:pending)
   end
 
-  test "should find participant by slack_id" do
+  test "should find participant by platform_user_id" do
     participant = standup_participants(:one)
-    @response.slack_id = participant.slack_id
+    @response.platform_user_id = participant.platform_user_id
     @response.standup = participant.standup
 
     assert_equal participant, @response.participant
@@ -146,24 +146,34 @@ class StandupResponseTest < ActiveSupport::TestCase
     assert_match(/exceeds maximum length/, @response.errors[:answers].join)
   end
 
-  test "authorized_for_slack_user scope requires standup membership" do
+  test "authorized_for scope requires standup membership" do
     authorized_participant = standup_participants(:one)
     authorized_response = StandupResponse.create!(
       standup: authorized_participant.standup,
-      slack_id: authorized_participant.slack_id,
+      platform_user_id: authorized_participant.platform_user_id,
       status: "pending",
       answers: []
     )
     unauthorized_response = StandupResponse.create!(
       standup: standups(:weekly),
-      slack_id: authorized_participant.slack_id,
+      platform_user_id: authorized_participant.platform_user_id,
       status: "pending",
       answers: []
     )
 
-    scoped_responses = StandupResponse.authorized_for_slack_user(authorized_participant.slack_id)
+    scoped_responses = StandupResponse.authorized_for(:slack, authorized_participant.platform_user_id)
 
     assert_includes scoped_responses, authorized_response
     assert_not_includes scoped_responses, unauthorized_response
+  end
+
+  test "authorized_for only matches standups on the given platform" do
+    participant = standup_participants(:one)
+    response = StandupResponse.create!(standup: participant.standup, platform_user_id: participant.platform_user_id, status: "pending", answers: [], standup_date: Date.current - 30)
+
+    assert_includes StandupResponse.authorized_for(:slack, participant.platform_user_id), response
+
+    participant.standup.update_column(:platform, "elsewhere")
+    assert_not_includes StandupResponse.authorized_for(:slack, participant.platform_user_id), response
   end
 end
