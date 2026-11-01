@@ -5,58 +5,24 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  root "manager/standups#index"
+  # Console pages are served by the React app (see the catch-all at the end).
+  # These named routes let server-side redirects, such as after sign-in, point at them.
+  root "spa#show"
+  scope controller: :spa, action: :show, format: false do
+    get "session/new", as: :new_session
+    get "me", as: :me_root
+    get "manager/standups", as: :manager_standups
+    get "admin", as: :admin_root
+  end
 
-  resource :session, only: [ :new, :create, :destroy ]
+  # Old console URLs that may still be bookmarked or linked from chat.
+  get "manager/slack_integration", to: redirect("/manager/integrations")
+  get "manager/standups/:standup_id/slack_setup", to: redirect { |params, _request| "/manager/standups/#{params[:standup_id]}/chat_setup" }
+
   get "auth/slack", to: "slack_sessions#new", as: :slack_sign_in
   get "auth/slack/callback", to: "slack_sessions#callback", as: :slack_sign_in_callback
   get "auth/microsoft", to: "microsoft_sessions#new", as: :microsoft_sign_in
   get "auth/microsoft/callback", to: "microsoft_sessions#callback", as: :microsoft_sign_in_callback
-
-  namespace :me do
-    root "standups#index"
-    resources :responses, only: [ :index ]
-    resource :availability, only: [ :show, :update ], controller: "availability" do
-      delete :clear, on: :member
-    end
-  end
-
-  namespace :manager do
-    get "integrations", to: "chat_integrations#show", as: :integrations
-    get "slack_integration", to: redirect("/manager/integrations")
-
-    resources :standups, only: [ :index, :show, :new, :edit, :create, :update, :destroy ] do
-      match :preview, via: [ :post, :patch ], on: :collection
-
-      member do
-        patch :pause
-        patch :resume
-      end
-
-      get "chat_setup", to: "standup_chat_integrations#show", as: :chat_setup
-      patch "chat_setup/channel", to: "standup_chat_integrations#update_channel", as: :chat_setup_channel
-      post "chat_setup/participants", to: "standup_chat_integrations#add_participant", as: :chat_setup_participants
-      delete "chat_setup/participants/:participant_id", to: "standup_chat_integrations#remove_participant", as: :chat_setup_participant
-      post "chat_setup/test_message", to: "standup_chat_integrations#test_message", as: :chat_setup_test_message
-      get "slack_setup", to: redirect { |params, _request| "/manager/standups/#{params[:standup_id]}/chat_setup" }
-
-      resources :participants, controller: "standup_participants", only: [ :index, :create, :update, :destroy ] do
-        post :bulk_import, on: :collection
-        post :sync, on: :collection
-      end
-      resources :responses, controller: "standup_responses", only: [ :index ]
-      resource :analytics, controller: "standup_analytics", only: [ :show ]
-      resource :report, controller: "standup_reports", only: [ :show, :update ] do
-        post :generate
-      end
-      resources :schedule_exceptions, controller: "standup_schedule_exceptions", only: [ :index, :create, :destroy ]
-      resources :managers, controller: "standup_managers", only: [ :create, :destroy ]
-    end
-  end
-
-  namespace :admin do
-    root "dashboard#show"
-  end
 
   post "/slack/install", to: "slack_events#install", as: :install
   post "/slack/events", to: "slack_events#events", as: :events

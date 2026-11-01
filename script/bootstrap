@@ -6,3 +6,6 @@ cd "$(dirname "$0")/.."
 
 echo "==> Installing dependencies..."
 bundle install
+
+echo "==> Installing frontend dependencies..."
+(cd frontend && npm ci)

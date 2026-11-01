@@ -3,7 +3,6 @@
 class PlatformSerializer
   COPY = {
     slack: {
-      icon: :hash,
       user_placeholder: "@jane, Jane Doe, or U123ABC",
       user_lookup_hint: "Use a Slack @username, display name, mention, or user ID. Name and timezone are looked up in Slack.",
       user_search_placeholder: "Search by name, @username, or ID",
@@ -15,7 +14,6 @@ class PlatformSerializer
       recipients_hint: "Optional. Slack user IDs get a DM; channel IDs get a post."
     },
     teams: {
-      icon: :users,
       user_placeholder: "jane@contoso.com, Jane Doe, or an object ID",
       user_lookup_hint: "Use a Teams name, email, or Microsoft Entra object ID. Names and timezones are looked up in Microsoft 365.",
       user_search_placeholder: "Search by name or email",

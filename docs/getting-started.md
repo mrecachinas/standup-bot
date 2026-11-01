@@ -50,16 +50,17 @@ Then export the values in your shell and run `docker compose up` again. With nat
 ### Prerequisites
 
 - Ruby (the version in [`.ruby-version`](../.ruby-version))
+- Node (the version in [`.node-version`](../.node-version)) for the web console
 - MySQL 8, or Docker so the scripts can start MySQL for you
 
 ### Run it
 
 ```bash
-script/bootstrap   # install gems
-script/server      # start MySQL if needed, prepare and seed the database, start Rails
+script/bootstrap   # install gems and the console's npm packages
+script/server      # start MySQL if needed, prepare and seed the database, start Rails and the console
 ```
 
-`script/server` seeds the same `admin@example.com` / `local-manager-token` admin as Docker Compose, and the sign-in form is pre-filled in development.
+Open <http://localhost:5173>. `script/server` seeds the same `admin@example.com` / `local-manager-token` admin as Docker Compose, and the sign-in form is pre-filled in development.
 
 Rails handles web requests, but scheduling, sending DMs, and posting summaries all happen in background jobs. To run them, start the job worker in a second terminal:
 
@@ -67,7 +68,7 @@ Rails handles web requests, but scheduling, sending DMs, and posting summaries a
 bin/jobs
 ```
 
-If you'd rather set things up by hand, `bin/setup` installs gems, prepares the database, and starts the server. You can also run `bundle install`, `bin/rails db:prepare`, and `bin/rails server` yourself.
+If you'd rather set things up by hand, `bin/setup` installs gems and npm packages, prepares the database, and starts `bin/dev`. You can also run `bundle install`, `(cd frontend && npm ci)`, `bin/rails db:prepare`, and `bin/dev` yourself. See [Development](development.md#running-the-app) for more on `bin/dev`.
 
 ### Database settings
 

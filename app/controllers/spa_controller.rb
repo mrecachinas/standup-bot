@@ -8,7 +8,10 @@ class SpaController < ActionController::Base
     <!DOCTYPE html>
     <html lang="en">
       <head><meta charset="utf-8"><title>Standup Bot</title></head>
-      <body><div id="root"></div><noscript>Standup Bot needs JavaScript.</noscript></body>
+      <body>
+        <div id="root"></div>
+        <p>The console hasn't been built. Run <code>bin/dev</code> and open http://localhost:5173, or run <code>npm run build</code> in <code>frontend/</code>.</p>
+      </body>
     </html>
   HTML
 

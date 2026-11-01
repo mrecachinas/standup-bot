@@ -1,7 +1,5 @@
-class SlackSessionsController < Web::ApplicationController
+class SlackSessionsController < ActionController::Base
   include PlatformSignIn
-
-  skip_after_action :verify_authorized
 
   STATE_SESSION_KEY = :slack_sign_in_state
 

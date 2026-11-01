@@ -1,6 +1,6 @@
 # Deployment
 
-Standup Bot ships as a single Docker image. Every deployment runs two processes from that image:
+Standup Bot ships as a single Docker image. The image build compiles the web console (`frontend/`) in a Node stage and copies only the result into `public/app`, so the running image doesn't need Node. Every deployment runs two processes from that image:
 
 - **Web** (`./bin/thrust ./bin/rails server`, on port 80) serves Slack webhooks, the web console, and the API.
 - **Worker** (`bin/jobs`) runs scheduling, DMs, reminders, and cleanup. Without it, no standups go out.
