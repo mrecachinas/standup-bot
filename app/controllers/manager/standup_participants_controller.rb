@@ -126,6 +126,8 @@ module Manager
       @deactivate_missing = false if @deactivate_missing.nil?
       @participants = @standup.standup_participants.order(:slack_name, :slack_id).to_a
       @other_standups_by_slack_id = other_standups_by_slack_id(@participants.map(&:slack_id))
+      @managers = @standup.standup_ownerships.includes(:user).map(&:user).sort_by { |user| user.name.downcase }
+      @manager_ids_by_slack_id = @managers.select(&:slack_user_id).to_h { |user| [ user.slack_user_id, user.id ] }
       replace_invalid_participant
     end
 

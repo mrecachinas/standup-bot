@@ -46,6 +46,7 @@ Rails.application.routes.draw do
         post :generate
       end
       resources :schedule_exceptions, controller: "standup_schedule_exceptions", only: [ :index, :create, :destroy ]
+      resources :managers, controller: "standup_managers", only: [ :create, :destroy ]
     end
   end
 

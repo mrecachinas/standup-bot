@@ -64,6 +64,15 @@ class User < ApplicationRecord
     )
   end
 
+  # The account for someone in a standup, created if they've never signed in.
+  # They'll be matched by Slack user ID when they sign in with Slack later.
+  def self.for_participant!(participant)
+    find_by(slack_user_id: participant.slack_id) ||
+      create_from_slack_identity!(
+        SlackSignIn::Identity.new(slack_id: participant.slack_id, name: participant.slack_name, email: nil, email_verified: false)
+      )
+  end
+
   def self.digest_access_token(access_token)
     OpenSSL::Digest::SHA256.hexdigest(access_token.to_s)
   end

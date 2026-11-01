@@ -115,6 +115,8 @@ The web console uses cookie-backed sessions and serves three kinds of people:
 2. If there isn't one, it links an existing account by a Slack-verified email.
 3. Otherwise it creates a standard account.
 
+Anyone who manages a standup can make other people in it managers, or remove them, from the Participants tab (`Manager::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their Slack user ID, and they're matched to it when they first sign in with Slack. A standup always keeps at least one manager.
+
 Slack guests are refused at sign-in. Since anyone else can sign in, non-admins only see public channels in channel discovery, and can only sync participants from channels they belong to.
 
 Everyone signed in with Slack can use the console for the standups they own, and the member area under `/me` (`Me::*` controllers) for the standups they're in. Accounts can also sign in with an email and access token. Only a SHA-256 digest of the token is stored.

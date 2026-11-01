@@ -77,6 +77,39 @@
       </details>
     </section>
 
+    <section class="card card-flush" id="standup-managers">
+      <div class="card-header">
+        <div>
+          <h2>Managers</h2>
+          <p class="hint">Managers can change this standup's settings, people, and schedule. It doesn't give them access to any other standup.</p>
+        </div>
+      </div>
+      <% if @managers.any? %>
+        <ul class="list">
+          <% @managers.each do |user| %>
+            <li>
+              <%= avatar(user.name) %>
+              <div class="grow">
+                <div class="cell-title"><%= user.name %><% if user == current_user %> <span class="muted small">(you)</span><% end %></div>
+                <div class="cell-sub"><%= user.admin? ? "Admin" : "Manager" %></div>
+              </div>
+              <% if @managers.size > 1 %>
+                <%= button_to "Remove", manager_standup_manager_path(@standup, user),
+                  method: :delete,
+                  class: "btn btn-ghost btn-sm",
+                  form: { data: { turbo_frame: "_top", turbo_confirm: user == current_user ? "Stop managing #{@standup.name}? You'll lose access to it." : "Remove #{user.name} as a manager of #{@standup.name}?" } } %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+        <% if @managers.size == 1 %>
+          <p class="empty-inline">Make someone else a manager from the list below before you can step down.</p>
+        <% end %>
+      <% else %>
+        <p class="empty-inline">Only admins manage this standup right now. Make someone a manager from the list below.</p>
+      <% end %>
+    </section>
+
     <section class="card card-flush">
       <div class="card-header">
         <h2>People</h2>
@@ -109,7 +142,13 @@
                       </div>
                     </div>
                   </td>
-                  <td><%= participant.active? ? status_badge("Active", "success") : status_badge("Inactive") %></td>
+                  <% manager_id = @manager_ids_by_slack_id[participant.slack_id] %>
+                  <td>
+                    <div class="flex wrap gap-1">
+                      <%= participant.active? ? status_badge("Active", "success") : status_badge("Inactive") %>
+                      <% if manager_id %><%= status_badge("Manager", "accent") %><% end %>
+                    </div>
+                  </td>
                   <td class="hide-sm">
                     <div><%= participant.cached_timezone.presence || "Unknown" %></div>
                     <div class="cell-sub" title="<%= participant.timezone_cache_status_description %>">
@@ -142,6 +181,18 @@
                           <%= form.submit "Save", class: "btn btn-primary btn-sm w-full" %>
                         <% end %>
                         <hr>
+                        <% if manager_id %>
+                          <% if @managers.size > 1 %>
+                            <%= button_to "Remove as manager", manager_standup_manager_path(@standup, manager_id),
+                              method: :delete,
+                              form: { data: { turbo_frame: "_top", turbo_confirm: "Remove #{participant.slack_name} as a manager of #{@standup.name}?" } } %>
+                          <% end %>
+                        <% else %>
+                          <%= button_to "Make manager", manager_standup_managers_path(@standup),
+                            method: :post,
+                            params: { participant_id: participant.id },
+                            form: { data: { turbo_frame: "_top", turbo_confirm: "Let #{participant.slack_name} manage #{@standup.name}? They'll be able to change its settings, people, and schedule." } } %>
+                        <% end %>
                         <%= button_to "Remove from standup", manager_standup_participant_path(@standup, participant),
                           method: :delete,
                           class: "danger",
