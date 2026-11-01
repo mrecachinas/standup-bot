@@ -4,19 +4,13 @@ require_relative "../../support/teams_test_helper"
 class Api::IntegrationsTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
-  ADMIN_TOKEN = "test-admin-token".freeze
+  ADMIN_TOKEN = "admin-access-token".freeze
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = ADMIN_TOKEN
     @manager = users(:manager)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
     stub_slack_status
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires authentication" do
@@ -70,7 +64,7 @@ class Api::IntegrationsTest < ActionDispatch::IntegrationTest
     assert_equal Standup.count, response.parsed_body["standups"].size
   end
 
-  test "the token can read integration status" do
+  test "an admin's token can read integration status" do
     get api_integrations_path(platform: "slack"), headers: token_headers, as: :json
 
     assert_response :success

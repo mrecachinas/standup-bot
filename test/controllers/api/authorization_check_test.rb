@@ -14,15 +14,6 @@ class Api::AuthorizationProbeController < Api::BaseController
 end
 
 class Api::AuthorizationCheckTest < ActionDispatch::IntegrationTest
-  setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
-  end
-
   test "raises when an action never checks authorization" do
     with_probe_routes do
       assert_raises(Api::BaseController::AuthorizationNotPerformed) { get "/probe/unchecked", headers: token_headers }
@@ -56,7 +47,7 @@ class Api::AuthorizationCheckTest < ActionDispatch::IntegrationTest
   private
 
   def token_headers
-    { "Authorization" => "Bearer test-admin-token" }
+    { "Authorization" => "Bearer admin-access-token" }
   end
 
   def with_probe_routes

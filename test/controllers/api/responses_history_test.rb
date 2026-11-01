@@ -2,16 +2,10 @@ require "test_helper"
 
 class Api::ResponsesHistoryTest < ActionDispatch::IntegrationTest
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "manager views owned response history with completion status and answers" do
@@ -137,7 +131,7 @@ class Api::ResponsesHistoryTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Answered"
   end
 
-  test "the token can read history" do
+  test "an admin's token can read history" do
     get api_standup_responses_path(@unowned_standup, view: "history", start_date: "2025-04-06", end_date: "2025-04-06"),
       headers: token_headers,
       as: :json
@@ -201,7 +195,7 @@ class Api::ResponsesHistoryTest < ActionDispatch::IntegrationTest
   end
 
   def token_headers
-    { "Authorization" => "Bearer test-admin-token" }
+    { "Authorization" => "Bearer admin-access-token" }
   end
 
   def sign_in(user, access_token)

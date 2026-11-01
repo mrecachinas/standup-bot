@@ -44,7 +44,7 @@ This runs the whole app (web console, background worker, and Postgres) without c
 | [Microsoft Teams setup](docs/teams-setup.md) | Registering the bot, Graph permissions, the Teams app manifest, and Teams commands |
 | [Configuration](docs/configuration.md) | Environment variables and YAML standup files |
 | [Architecture](docs/architecture.md) | How the pieces fit together: models, jobs, the React console, and permissions |
-| [API](docs/api.md) | The JSON API (admin token or console session) and health check endpoints |
+| [API](docs/api.md) | The JSON API (access token or console session) and health check endpoints |
 | [Deployment](docs/deployment.md) | Docker, Kamal, and Kubernetes |
 | [Development](docs/development.md) | Tests, linting, security scans, and troubleshooting |
 

@@ -4,21 +4,15 @@ require_relative "../../support/teams_test_helper"
 class Api::ChatSetupTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
-  ADMIN_TOKEN = "test-admin-token".freeze
+  ADMIN_TOKEN = "admin-access-token".freeze
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = ADMIN_TOKEN
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
     @participant = standup_participants(:one)
     stub_slack_status
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires authentication" do
@@ -88,7 +82,7 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
     assert_equal "daily", response.parsed_body["channel_query"]
   end
 
-  test "admins and the token see private channels" do
+  test "admins see private channels, with a session or a token" do
     SlackIntegrationService.any_instance.expects(:discover_channels).with(query: nil, include_private: true).twice
       .returns(SlackIntegrationService::Result.new(status: "ok", records: []))
 
@@ -269,13 +263,12 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "the token updates the channel and is audited as the admin API" do
+  test "a bearer token updates the channel, audited as its user" do
     patch channel_api_standup_chat_setup_path(@unowned_standup), params: { channel_id: "CTOKEN" }, headers: token_headers, as: :json
 
     assert_response :success
     log = AuditLog.where(action: "slack.channel.update").order(:created_at).last
-    assert_nil log.actor_id
-    assert_equal "admin_api", log.actor_label
+    assert_equal users(:admin), log.actor
   end
 
   test "Teams standups are labeled for Teams and find Teams channels" do

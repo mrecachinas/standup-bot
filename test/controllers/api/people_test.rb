@@ -5,15 +5,6 @@ require_relative "../../support/teams_test_helper"
 class Api::PeopleTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
-  setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
-  end
-
   test "requires authentication" do
     get api_people_path(q: "ada"), as: :json
 
@@ -87,12 +78,12 @@ class Api::PeopleTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  test "clamps the limit and lets the token search" do
+  test "clamps the limit and lets an admin's token search" do
     SlackIntegrationService.any_instance.expects(:discover_users).with(query: nil, limit: ChatIntegrationService::MAX_LIMIT).returns(
       ChatIntegrationService::Result.new(status: "ok", message: "Found 0 Slack user(s).", records: [])
     )
 
-    get api_people_path(platform: "slack", limit: 10_000), headers: { "Authorization" => "Bearer test-admin-token" }, as: :json
+    get api_people_path(platform: "slack", limit: 10_000), headers: { "Authorization" => "Bearer admin-access-token" }, as: :json
 
     assert_response :success
     assert_empty response.parsed_body["people"]

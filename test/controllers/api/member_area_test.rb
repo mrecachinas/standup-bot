@@ -4,17 +4,11 @@ require_relative "../../support/teams_test_helper"
 class Api::MemberAreaTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
-  ADMIN_TOKEN = "test-admin-token".freeze
+  ADMIN_TOKEN = "admin-access-token".freeze
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = ADMIN_TOKEN
     Rails.application.config.stubs(:slack).returns({ client_id: "123.456", client_secret: "client-secret" })
     @daily = standups(:daily)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires sign-in" do
@@ -23,7 +17,7 @@ class Api::MemberAreaTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
-  test "the token has no member identity" do
+  test "an admin's token has no member identity" do
     headers = { "Authorization" => "Bearer #{ADMIN_TOKEN}" }
 
     get api_me_responses_path, headers: headers, as: :json

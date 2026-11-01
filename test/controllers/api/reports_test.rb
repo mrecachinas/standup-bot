@@ -5,11 +5,9 @@ class Api::ReportsTest < ActionDispatch::IntegrationTest
   include ActiveJob::TestHelper
   include TeamsTestHelper
 
-  ADMIN_TOKEN = "test-admin-token".freeze
+  ADMIN_TOKEN = "admin-access-token".freeze
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = ADMIN_TOKEN
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
@@ -18,7 +16,6 @@ class Api::ReportsTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
     clear_enqueued_jobs
     clear_performed_jobs
   end
@@ -177,17 +174,16 @@ class Api::ReportsTest < ActionDispatch::IntegrationTest
     assert ReportGeneration.recent.first.failed?
   end
 
-  test "the token can queue a report and is audited as the admin API" do
+  test "a bearer token queues a report and is audited as its user" do
     assert_difference "ReportGeneration.count", 1 do
       post generate_api_standup_report_path(@owned_standup), headers: token_headers, as: :json
     end
 
     assert_response :success
-    assert_nil ReportGeneration.recent.first.actor
+    assert_equal users(:admin), ReportGeneration.recent.first.actor
     log = AuditLog.where(action: "report.manual_generation.queued").order(:created_at).last
-    assert_nil log.actor_id
-    assert_equal "admin_api", log.actor_label
-    assert_equal "admin_api_token", log.metadata["auth_method"]
+    assert_equal users(:admin), log.actor
+    assert_equal "access_token", log.metadata["auth_method"]
   end
 
   test "manager can't configure or trigger reports for a standup they don't own" do

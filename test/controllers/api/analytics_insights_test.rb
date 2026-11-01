@@ -2,19 +2,13 @@ require "test_helper"
 require "csv"
 
 class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "test-admin-token".freeze
+  ADMIN_TOKEN = "admin-access-token".freeze
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = ADMIN_TOKEN
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires authentication" do
@@ -108,7 +102,7 @@ class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
     assert_not_includes parsed.map { |row| row["Answer"] }, "Fixed bugs"
   end
 
-  test "csv export works with the token" do
+  test "csv export works with an admin's token" do
     get api_standup_analytics_path(@unowned_standup, format: :csv), params: { start_date: "2025-04-06", end_date: "2025-04-06" }, headers: token_headers
 
     assert_response :success
@@ -137,7 +131,7 @@ class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Complete project X"
   end
 
-  test "the token gets insights too" do
+  test "an admin's token gets insights too" do
     get api_standup_analytics_path(@unowned_standup, view: "insights"), headers: token_headers, as: :json
 
     assert_response :success

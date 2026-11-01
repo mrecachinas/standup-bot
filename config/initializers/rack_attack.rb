@@ -2,7 +2,6 @@
 
 require "json"
 require Rails.root.join("app/services/slack_signature_verifier")
-require Rails.root.join("app/services/admin_api_token")
 
 class Rack::Attack
   SLACK_PATHS = %w[
@@ -46,11 +45,11 @@ class Rack::Attack
     sign_in_email(request) if api_sign_in?(request)
   end
 
-  # Ban an IP for a while after repeated wrong admin tokens.
+  # Ban an IP for a while after repeated wrong access tokens.
   blocklist("api/bad_token") do |request|
     Rack::Attack::Allow2Ban.filter("api-bad-token-#{request.ip}", maxretry: 10, findtime: 1.minute, bantime: 10.minutes) do
-      api_request?(request) && request.get_header("HTTP_AUTHORIZATION") &&
-        AdminApiToken.configured? && !AdminApiToken.valid?(AdminApiToken.from_header(request.get_header("HTTP_AUTHORIZATION")))
+      authorization = request.get_header("HTTP_AUTHORIZATION")
+      api_request?(request) && authorization && User.authenticate_bearer(authorization[/\ABearer (.+)\z/, 1]).nil?
     end
   end
 

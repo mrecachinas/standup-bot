@@ -164,29 +164,29 @@ Anyone who manages a standup can make other people in it managers, or remove the
 
 ### One API, two ways in
 
-Everything the console shows comes from `/api`, the same API that scripts use. `Api::BaseController` decides how each request authenticated, and it picks exactly one mode:
+Everything the console shows comes from `/api`, the same API that scripts use. Every request acts as a user, who can arrive one of two ways, and `Api::BaseController` picks exactly one per request:
 
 ```mermaid
 flowchart TD
     R[Request to /api] --> H{Authorization header?}
-    H -->|yes| T{Matches ADMIN_API_TOKEN?}
+    H -->|yes| T{Bearer token matches<br/>an active user's access token?}
     T -->|no| U401[401]
-    T -->|yes| TP[Token principal<br/>acts as an admin<br/>no CSRF, no session]
+    T -->|yes| TP[That user<br/>no CSRF, no session]
     H -->|no| S[Session cookie]
     S --> C{Changes data?}
     C -->|yes| X{Valid X-CSRF-Token?}
     X -->|no| E422[422]
-    X -->|yes| SP[Session principal<br/>current user and member]
+    X -->|yes| SP[Signed-in user<br/>and member]
     C -->|no| SP
 ```
 
-A wrong token is always rejected; it never falls back to the cookie. Both modes end up as a `Principal` (`app/models/principal.rb`), so authorization doesn't care how someone signed in. The token can manage every standup, a signed-in admin can too, and anyone else can only manage the standups they own. Audit log entries record the signed-in user, or `admin_api` for the token.
+A wrong token is always rejected; it never falls back to the cookie. Both ways end up as a `Principal` (`app/models/principal.rb`) for the same user, so authorization doesn't care how someone arrived: admins can manage every standup, and everyone else only the standups they own. Audit log entries record that user, with `auth_method: "access_token"` for token requests. Tokens are looked up by their SHA-256 digest, and a digest shared by two accounts is refused.
 
 Every `/api` action has to check authorization. `Api::BaseController` runs `verify_authorized` after each action, and it raises `AuthorizationNotPerformed` unless the action called one of:
 
 - `authorize_standup!`, for actions on one standup (`set_standup` does this for nested routes)
 - `require_admin!`, for admin-only endpoints
-- `require_member!`, for the member area (`/api/me/*`), which only reads the signed-in member's own data and refuses the token
+- `require_member!`, for the member area (`/api/me/*`), which only reads the signed-in member's own data and needs a session
 - `skip_authorization`, for actions any signed-in user may take, such as creating a standup or listing the ones they manage
 
 `test/controllers/api/authorization_check_test.rb` fails if any routed `/api` controller is missing this check.
@@ -224,4 +224,4 @@ sequenceDiagram
 
 When you add a console feature, add or extend an `Api::` endpoint first. Scope records with `principal.manageable_standups` or `set_standup`, and record changes with `audit_change!` so they show up in `AuditLog`. Then build the page in `frontend/src/pages` (see [`frontend/README.md`](../frontend/README.md)).
 
-See [API](api.md) for using the API from scripts with the admin token.
+See [API](api.md) for using the API from scripts with an access token.

@@ -1,16 +1,7 @@
 require "test_helper"
 
 class Api::AdminDashboardTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "test-admin-token".freeze
-
-  setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = ADMIN_TOKEN
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
-  end
+  ADMIN_TOKEN = "admin-access-token".freeze
 
   test "requires authentication" do
     get api_admin_dashboard_path, as: :json
@@ -90,7 +81,7 @@ class Api::AdminDashboardTest < ActionDispatch::IntegrationTest
     assert today["title"].present?
   end
 
-  test "the token is an admin" do
+  test "an admin's token opens the admin dashboard" do
     get api_admin_dashboard_path, headers: { "Authorization" => "Bearer #{ADMIN_TOKEN}" }, as: :json
 
     assert_response :success

@@ -1,13 +1,13 @@
 module Api
-  # One API for two kinds of caller:
+  # Every request acts as a user, who arrives one of two ways:
   #
-  # * Scripts send the admin token in an Authorization header. They act as an
-  #   admin, the session cookie is never read, and CSRF doesn't apply.
-  # * The console sends its session cookie and an X-CSRF-Token header, and only
-  #   sees what the signed-in person may manage.
+  # * Scripts send that user's access token as "Authorization: Bearer <token>".
+  #   The session cookie is never read, and CSRF doesn't apply.
+  # * The console sends its session cookie and an X-CSRF-Token header.
   #
-  # A request with an Authorization header is always a token request. A wrong
-  # token is rejected outright; it never falls back to the cookie.
+  # Either way the user only sees what they may manage (admins see everything).
+  # A request with an Authorization header is always a token request; a wrong
+  # token is rejected outright and never falls back to the cookie.
   class BaseController < ActionController::Base
     AuthorizationNotPerformed = Class.new(StandardError)
 
@@ -43,23 +43,23 @@ module Api
     end
 
     def principal_from_token
-      unless AdminApiToken.configured?
-        render json: { error: "Admin API token is not configured" }, status: :service_unavailable
+      user = User.authenticate_bearer(request.authorization.to_s[/\ABearer (.+)\z/, 1])
+      unless user
+        render_unauthorized
         return
       end
 
-      return Principal.admin_token if AdminApiToken.valid?(AdminApiToken.from_header(request.authorization))
-
-      render_unauthorized
-      nil
+      @current_user = user
+      Principal.from_bearer(user)
     end
 
     def authenticate!
       render_unauthorized unless principal&.authenticated?
     end
 
+    # The bearer token's user, or the signed-in user from the session.
     def current_user
-      return if token_request?
+      return @current_user if token_request?
 
       @current_user ||= User.active.find_by(id: session[:user_id]) if session[:user_id].present?
     end
@@ -71,7 +71,7 @@ module Api
       @current_member = Member.for(session[:member_platform], session[:member_user_id], name: session[:member_name])
     end
 
-    # The management side of the console: the token, or anyone with an account.
+    # The management side of the console: anyone with an account.
     def require_manager!
       return if principal.manager?
 

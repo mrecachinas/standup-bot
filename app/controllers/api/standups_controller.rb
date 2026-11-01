@@ -321,12 +321,12 @@ module Api
     end
 
     # Whoever creates a standup usually takes part in it, so start with them
-    # on the roster. The token has no person behind it.
+    # on the roster.
     def creator_participant_rows
       return [] unless current_user
 
       platform = @standup.platform.presence || ChatPlatform::DEFAULT.to_s
-      member_user_id = session[:member_user_id] if session[:member_platform].to_s == platform
+      member_user_id = current_member.platform_user_id if current_member&.platform.to_s == platform
       platform_user_id = current_user.platform_user_id_for(platform).presence || member_user_id.presence
       return [] unless platform_user_id
 

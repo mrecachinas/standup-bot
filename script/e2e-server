@@ -9,7 +9,6 @@ cd "$(dirname "$0")/.."
 
 export RAILS_ENV=development
 export DATABASE_URL="${E2E_DATABASE_URL:-mysql2://${DB_USER:-root}:${DB_PASSWORD:-}@${DB_HOST:-127.0.0.1}:${DB_PORT:-3306}/nerdbot_e2e}"
-export ADMIN_API_TOKEN="${ADMIN_API_TOKEN:-e2e-admin-api-token}"
 
 if [ ! -f public/app/index.html ]; then
   echo "public/app/index.html is missing. Run 'npm run build' in frontend/ first." >&2

@@ -1,56 +1,54 @@
-# Who is making an /api request. It's either the admin API token (scripts and
-# internal tools) or someone signed in to the console through their session
-# cookie. Authorization checks ask the principal rather than branching on how
-# the request authenticated.
+# Who is making an /api request: always a user. Browsers authenticate with
+# their session cookie (plus a member identity after Slack or Microsoft
+# sign-in); scripts send that user's access token as a bearer token.
+# Authorization only looks at the user, so both behave the same way.
 class Principal
   attr_reader :user, :member
 
-  def self.admin_token
-    new(token: true)
+  def self.from_bearer(user)
+    new(user: user, bearer: true)
   end
 
   def self.from_session(user:, member:)
     new(user: user, member: member)
   end
 
-  def initialize(user: nil, member: nil, token: false)
+  def initialize(user: nil, member: nil, bearer: false)
     @user = user
     @member = member
-    @token = token
+    @bearer = bearer
   end
 
-  def token?
-    @token
+  def bearer?
+    @bearer
   end
 
   def authenticated?
-    token? || user.present? || member.present?
+    user.present? || member.present?
   end
 
   def admin?
-    token? || user&.admin? || false
+    user&.admin? || false
   end
 
-  # People who can use the management side of the console (or the token).
+  # People who can use the management side of the console.
   def manager?
-    token? || user.present?
+    user.present?
   end
 
   def can_manage?(standup)
-    token? || standup.manageable_by?(user)
+    standup.manageable_by?(user)
   end
 
   def manageable_standups
-    token? ? Standup.all : Standup.manageable_by(user)
+    Standup.manageable_by(user)
   end
 
   def audit_attributes
-    return { actor: nil, actor_label: "admin_api" } if token?
-
     { actor: user }
   end
 
   def audit_metadata
-    token? ? { auth_method: "admin_api_token" } : {}
+    bearer? ? { auth_method: "access_token" } : {}
   end
 end

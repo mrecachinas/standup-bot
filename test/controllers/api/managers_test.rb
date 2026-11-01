@@ -5,16 +5,10 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
     @manager = users(:manager)
     @daily = standups(:daily)
     @weekly = standups(:weekly)
     @member = standup_participants(:two)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "a standup's manager can make someone in it a manager" do
@@ -139,7 +133,7 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "admins and the token manage any standup's managers" do
+  test "admins manage any standup's managers, with a session or a token" do
     sign_in(users(:admin), "admin-access-token")
     post api_standup_managers_path(@weekly), params: { participant_id: standup_participants(:three).id }, as: :json
     assert_response :created
@@ -150,7 +144,8 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert response.parsed_body["can_manage"]
     audit_log = AuditLog.where(action: "standup.manager.remove").order(:created_at).last
-    assert_equal "admin_api", audit_log.actor_label
+    assert_equal users(:admin), audit_log.actor
+    assert_equal "access_token", audit_log.metadata["auth_method"]
   end
 
   test "promoting a Teams participant links a Teams identity" do
@@ -183,7 +178,7 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
   private
 
   def token_headers
-    { "Authorization" => "Bearer test-admin-token" }
+    { "Authorization" => "Bearer admin-access-token" }
   end
 
   def sign_in(user, access_token)

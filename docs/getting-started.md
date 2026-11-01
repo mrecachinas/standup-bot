@@ -20,12 +20,11 @@ Sign in with the seeded admin:
 
 You don't need Slack or Teams credentials for this. Chat features in the console will tell you they're not configured until you [connect Slack or Teams](#connecting-slack-or-teams).
 
-To use your own admin credentials and API token:
+To use your own admin credentials (the token also works for the [API](api.md)):
 
 ```bash
 MANAGER_ADMIN_EMAIL=you@example.com \
 MANAGER_ADMIN_TOKEN=replace-with-a-long-random-token \
-ADMIN_API_TOKEN=replace-with-a-long-random-token \
 docker compose up --build
 ```
 

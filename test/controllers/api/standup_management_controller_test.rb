@@ -2,14 +2,8 @@ require "test_helper"
 
 class Api::StandupManagementControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @admin_token = "test-admin-token"
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = @admin_token
+    @admin_token = "admin-access-token"
     @standup = standups(:daily)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "manages participants" do

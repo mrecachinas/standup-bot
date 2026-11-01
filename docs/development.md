@@ -67,7 +67,7 @@ bin/rails standups:validate                   # check config/standups/*.yml
 | Path | What's there |
 | --- | --- |
 | `app/controllers/slack_*` | Slack events, interactions, and slash commands |
-| `app/controllers/api/` | The JSON API, for scripts (admin token) and the console (session) |
+| `app/controllers/api/` | The JSON API, for scripts (access token) and the console (session) |
 | `app/serializers/` | JSON shapes and display values for the API |
 | `app/controllers/spa_controller.rb` | Serves the console's `index.html` for console URLs |
 | `frontend/` | The web console: React, TypeScript, and Primer React (see [`frontend/README.md`](../frontend/README.md)) |

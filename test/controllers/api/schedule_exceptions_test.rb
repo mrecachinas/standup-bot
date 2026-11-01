@@ -5,17 +5,11 @@ class Api::ScheduleExceptionsTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
     @owned_standup.update!(schedule_type: "daily", default_hour: 9, default_minute: 0, active: true)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires authentication" do
@@ -261,7 +255,7 @@ class Api::ScheduleExceptionsTest < ActionDispatch::IntegrationTest
     assert_equal @admin, AuditLog.order(:created_at).last.actor
   end
 
-  test "the token manages exceptions with an admin_api audit" do
+  test "an admin's token manages exceptions, audited as that admin" do
     get api_standup_schedule_exceptions_path(@unowned_standup), headers: token_headers, as: :json
     assert_response :success
 
@@ -272,7 +266,7 @@ class Api::ScheduleExceptionsTest < ActionDispatch::IntegrationTest
 
     assert_response :created
     audit_log = AuditLog.where(action: "standup.schedule_exception.holiday").last
-    assert_equal "admin_api", audit_log.actor_label
+    assert_equal users(:admin), audit_log.actor
   end
 
   test "Teams standups use the same schedule exceptions" do
@@ -297,7 +291,7 @@ class Api::ScheduleExceptionsTest < ActionDispatch::IntegrationTest
   private
 
   def token_headers
-    { "Authorization" => "Bearer test-admin-token" }
+    { "Authorization" => "Bearer admin-access-token" }
   end
 
   def sign_in(user, access_token)

@@ -3,17 +3,11 @@ require "test_helper"
 # GET /api/overview: the console's home page across the standups someone manages.
 class Api::OverviewTest < ActionDispatch::IntegrationTest
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
     @inactive_standup = standups(:inactive)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires authentication" do
@@ -155,8 +149,8 @@ class Api::OverviewTest < ActionDispatch::IntegrationTest
     assert_empty response.parsed_body["standups"]
   end
 
-  test "the token sees every standup" do
-    get api_overview_path, headers: { "Authorization" => "Bearer test-admin-token" }, as: :json
+  test "an admin's token sees every standup" do
+    get api_overview_path, headers: { "Authorization" => "Bearer admin-access-token" }, as: :json
 
     assert_response :success
     assert_equal Standup.count, response.parsed_body["standups"].size

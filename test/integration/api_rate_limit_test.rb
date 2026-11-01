@@ -1,15 +1,6 @@
 require "test_helper"
 
 class ApiRateLimitTest < ActionDispatch::IntegrationTest
-  setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
-  end
-
   test "throttles repeated sign-in attempts from one IP" do
     10.times do |attempt|
       post api_session_path, params: { email: "nobody-#{attempt}@example.com", access_token: "nope" }, as: :json
@@ -36,7 +27,7 @@ class ApiRateLimitTest < ActionDispatch::IntegrationTest
       assert_response :unauthorized
     end
 
-    get api_standups_path, headers: { "Authorization" => "Bearer test-admin-token" }, as: :json
+    get api_standups_path, headers: { "Authorization" => "Bearer admin-access-token" }, as: :json
     assert_response :forbidden
     assert_equal "blocked", response.parsed_body["error"]
   end

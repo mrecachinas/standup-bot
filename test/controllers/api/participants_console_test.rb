@@ -5,17 +5,11 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
     @participant = standup_participants(:one)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires authentication" do
@@ -345,13 +339,13 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "token updates participants with an admin_api audit" do
+  test "a bearer token updates participants, audited as its user" do
     patch api_standup_participant_path(@owned_standup, @participant), params: { participant: { active: false } }, headers: token_headers, as: :json
 
     assert_response :success
     audit_log = AuditLog.where(action: "standup_participant.update").order(:created_at).last
-    assert_equal "admin_api", audit_log.actor_label
-    assert_equal "admin_api_token", audit_log.metadata["auth_method"]
+    assert_equal users(:admin), audit_log.actor
+    assert_equal "access_token", audit_log.metadata["auth_method"]
   end
 
   test "bulk import creates participants and writes summary audit" do
@@ -478,7 +472,7 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal [ "Unable to sync Slack channel. Check the channel and Slack app permissions, then try again." ], response.parsed_body["errors"]
   end
 
-  test "the token can sync any channel and syncs Teams channels" do
+  test "an admin's token can sync any channel and syncs Teams channels" do
     enable_teams!
     standup = create_teams_standup!
     ChatPlatform::TeamsAdapter.any_instance.expects(:channel_member_ids).never
@@ -497,7 +491,7 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
   private
 
   def token_headers
-    { "Authorization" => "Bearer test-admin-token" }
+    { "Authorization" => "Bearer admin-access-token" }
   end
 
   def sign_in(user, access_token)

@@ -1,19 +1,13 @@
 require "test_helper"
 
-# How /api decides who is calling. Token requests and cookie requests share
-# controllers, so these pin the boundary between them.
+# How /api decides who is calling. Bearer-token requests and cookie requests
+# share controllers and both act as a user, so these pin the boundary.
 class Api::AuthenticationTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "test-admin-token".freeze
+  ADMIN_TOKEN = "admin-access-token".freeze
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = ADMIN_TOKEN
     @owned = standups(:daily)
     @not_owned = standups(:weekly)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "rejects requests with no credentials" do
@@ -21,7 +15,7 @@ class Api::AuthenticationTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
-  test "the admin token sees every standup" do
+  test "an admin's token sees every standup" do
     get api_standups_path, headers: token_headers, as: :json
 
     assert_response :success
@@ -39,6 +33,41 @@ class Api::AuthenticationTest < ActionDispatch::IntegrationTest
     sign_in(users(:admin), "admin-access-token")
 
     get api_standups_path, headers: { "Authorization" => "" }, as: :json
+    assert_response :unauthorized
+  end
+
+  test "a manager's token only sees the standups they manage" do
+    headers = { "Authorization" => "Bearer manager-access-token" }
+
+    get api_standups_path, headers: headers, as: :json
+    assert_equal [ @owned.id ], response.parsed_body["standups"].map { |standup| standup["id"] }
+
+    get api_standup_path(@not_owned), headers: headers, as: :json
+    assert_response :forbidden
+    get api_admin_dashboard_path, headers: headers, as: :json
+    assert_response :forbidden
+  end
+
+  test "creating a standup with a manager's token makes them an owner" do
+    post api_standups_path, params: { standup: standup_attributes }, headers: { "Authorization" => "Bearer manager-access-token" }, as: :json
+
+    assert_response :created
+    standup = Standup.find(response.parsed_body.dig("standup", "id"))
+    assert standup.manageable_by?(users(:manager))
+    assert_equal users(:manager), AuditLog.where(action: "standup.create", auditable: standup).sole.actor
+  end
+
+  test "a turned-off account's token is rejected" do
+    users(:inactive_manager).update!(access_token: "turned-off-token")
+
+    get api_standups_path, headers: { "Authorization" => "Bearer turned-off-token" }, as: :json
+    assert_response :unauthorized
+  end
+
+  test "a token shared by two accounts is rejected" do
+    users(:other_manager).update_columns(access_token_digest: users(:manager).access_token_digest)
+
+    get api_standups_path, headers: { "Authorization" => "Bearer manager-access-token" }, as: :json
     assert_response :unauthorized
   end
 
@@ -83,16 +112,15 @@ class Api::AuthenticationTest < ActionDispatch::IntegrationTest
     assert_equal users(:manager).id, log.actor_id
   end
 
-  test "creating a standup with the token makes no owner and audits as the admin API" do
+  test "creating a standup with an admin's token makes no owner and audits as that admin" do
     post api_standups_path, params: { standup: standup_attributes }, headers: token_headers, as: :json
 
     assert_response :created
     standup = Standup.find(response.parsed_body.dig("standup", "id"))
     assert_empty standup.standup_ownerships
     log = AuditLog.where(action: "standup.create", auditable: standup).sole
-    assert_nil log.actor_id
-    assert_equal "admin_api", log.actor_label
-    assert_equal "admin_api_token", log.metadata["auth_method"]
+    assert_equal users(:admin), log.actor
+    assert_equal "access_token", log.metadata["auth_method"]
   end
 
   test "validation errors keep the message array and add field errors" do
@@ -104,12 +132,12 @@ class Api::AuthenticationTest < ActionDispatch::IntegrationTest
     assert body["field_errors"].key?("name")
   end
 
-  test "session endpoints refuse the token" do
+  test "session endpoints refuse bearer tokens" do
     get api_session_path, headers: token_headers, as: :json
     assert_response :forbidden
   end
 
-  test "member endpoints refuse the token" do
+  test "member endpoints refuse bearer tokens" do
     get api_me_standups_path, headers: token_headers, as: :json
     assert_response :forbidden
   end

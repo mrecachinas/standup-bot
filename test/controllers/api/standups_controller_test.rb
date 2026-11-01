@@ -2,26 +2,13 @@ require "test_helper"
 
 class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @admin_token = "test-admin-token"
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = @admin_token
+    @admin_token = "admin-access-token"
     @standup = standups(:daily)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires bearer token" do
     get api_standups_path
     assert_response :unauthorized
-  end
-
-  test "does not expose admin endpoints when token is unconfigured" do
-    ENV.delete("ADMIN_API_TOKEN")
-
-    get api_standups_path, headers: admin_headers
-    assert_response :service_unavailable
   end
 
   test "lists standups" do
@@ -71,7 +58,7 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "updates standup" do
-    assert_difference "AuditLog.where(action: 'standup.update', actor_label: 'admin_api').count", 1 do
+    assert_difference "AuditLog.where(action: 'standup.update', actor: users(:admin)).count", 1 do
       patch api_standup_path(@standup),
         params: { standup: { name: "Updated Name", active: false } },
         headers: admin_headers,

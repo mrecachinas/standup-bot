@@ -1,23 +1,23 @@
 # API
 
-Standup Bot has one JSON API under `/api`. Scripts and internal tools use it with the admin token, and the web console uses it with the signed-in person's session. There are also a few health check endpoints for load balancers and monitoring.
+Standup Bot has one JSON API under `/api`. Scripts use it with a person's access token, and the web console uses it with that person's session. Either way, requests act as that person. There are also a few health check endpoints for load balancers and monitoring.
 
 ## Authentication
 
 Each request uses exactly one of these:
 
-- **Admin token** (scripts). Send the token in the `Authorization` header:
+- **Access token** (scripts). Send a person's access token, the same one they can sign in with, in the `Authorization` header:
 
   ```bash
-  curl -H "Authorization: Bearer $ADMIN_API_TOKEN" http://localhost:3000/api/standups
+  curl -H "Authorization: Bearer $STANDUP_BOT_TOKEN" http://localhost:3000/api/standups
   ```
 
-  Set the token with the `ADMIN_API_TOKEN` environment variable, or store it in Rails credentials as `admin.api_token`. The token can see and change every standup, and changes are recorded in the audit log as `admin_api`.
-- **Session cookie** (the console). The browser signs in through `/auth/slack`, `/auth/microsoft`, or `POST /api/session`, and gets a session cookie. Requests that change data must also send the CSRF token from `GET /api/session` in an `X-CSRF-Token` header. A session only sees the standups that person manages (admins see all of them), and changes are recorded as that person.
+  Here `STANDUP_BOT_TOKEN` is just a shell variable holding the token. The request acts as that person: it sees and changes only the standups they manage (admins see all of them), and changes are recorded in the audit log as them. See [Accounts](configuration.md#accounts) for creating accounts and tokens.
+- **Session cookie** (the console). The browser signs in through `/auth/slack`, `/auth/microsoft`, or `POST /api/session`, and gets a session cookie. Requests that change data must also send the CSRF token from `GET /api/session` in an `X-CSRF-Token` header.
 
-Any request with an `Authorization` header counts as a token request. If the token is wrong you get `401`, even when the browser also sent a valid session cookie. If no token is configured, token requests get `503`.
+Any request with an `Authorization` header counts as a token request: the session cookie is ignored and CSRF doesn't apply. If the token is wrong, or belongs to a turned-off account, you get `401`, even when the browser also sent a valid session cookie. `/api/session` and the member area (`/api/me/*`) only work with a session.
 
-> **Changed with the React console:** requests with no `Authorization` header used to get `503` when no token was configured. They're now treated as session requests, so they get `401` unless there's a signed-in session.
+> **Changed with the React console:** the shared `ADMIN_API_TOKEN` is gone. Use an admin's access token instead to keep the same access. Requests with no `Authorization` header are session requests, so they get `401` unless someone is signed in.
 
 Rate limits: 600 requests a minute per IP across `/api`, and 10 sign-ins a minute per IP and 5 per email. After 10 wrong tokens in a minute, the IP is blocked from `/api` for 10 minutes (`403 {"error": "blocked"}`).
 
@@ -65,7 +65,7 @@ Create a standup:
 
 ```bash
 curl -X POST http://localhost:3000/api/standups \
-  -H "Authorization: Bearer $ADMIN_API_TOKEN" \
+  -H "Authorization: Bearer $STANDUP_BOT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "standup": {
@@ -84,7 +84,7 @@ Add a participant:
 
 ```bash
 curl -X POST http://localhost:3000/api/standups/1/participants \
-  -H "Authorization: Bearer $ADMIN_API_TOKEN" \
+  -H "Authorization: Bearer $STANDUP_BOT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "participant": { "platform_user_id": "U01ABC123", "display_name": "Sarah Thompson" } }'
 ```
@@ -92,13 +92,13 @@ curl -X POST http://localhost:3000/api/standups/1/participants \
 Get completed responses since a given date:
 
 ```bash
-curl -H "Authorization: Bearer $ADMIN_API_TOKEN" \
+curl -H "Authorization: Bearer $STANDUP_BOT_TOKEN" \
   "http://localhost:3000/api/standups/1/responses?status=completed&since=2026-10-01"
 ```
 
 ## Console endpoints
 
-The console uses these too, and so can the token, except where noted. They're shaped for the console's pages, so treat their payloads as less stable than the standups API above. See `app/controllers/api/` for the details.
+The console uses these too, and so can scripts with an access token, except where noted. They're shaped for the console's pages, so treat their payloads as less stable than the standups API above. See `app/controllers/api/` for the details.
 
 | Path | What it's for |
 | --- | --- |
@@ -117,7 +117,7 @@ The console uses these too, and so can the token, except where noted. They're sh
 | `/api/standups/:id/report` | Report settings and on-demand reports |
 | `/api/standups/:id/chat_setup` | Channel, people, discovery, and test messages for one standup |
 | `GET /api/integrations` | Slack and Teams connection status and discovery |
-| `GET /api/admin/dashboard` | Installation health, usage, users, and audit log. Admins and the token only. |
+| `GET /api/admin/dashboard` | Installation health, usage, users, and audit log. Admins only. |
 | `/api/me/standups`, `/api/me/responses`, `/api/me/availability` | The signed-in member's own standups, answers, and time away. Session only. |
 
 ## Health checks

@@ -4,20 +4,14 @@ require_relative "../../support/teams_test_helper"
 # The console's standup pages, as JSON: the editor (new/edit/create/update),
 # the overview (?include=overview), the live schedule preview, and pause/resume.
 class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "test-admin-token".freeze
+  ADMIN_TOKEN = "admin-access-token".freeze
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = ADMIN_TOKEN
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
     @inactive_standup = standups(:inactive)
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "requires authentication" do
@@ -115,7 +109,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal %w[date day label local_time month scheduled_at short_date time weekday], occurrence.keys.sort
   end
 
-  test "the token gets a form without a creator row" do
+  test "an admin's token gets a form without a creator row" do
     get "/api/standups/new", headers: token_headers, as: :json
 
     assert_response :success
@@ -291,13 +285,12 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal false, response.parsed_body.dig("standup", "active")
   end
 
-  test "the token can pause a standup and is audited as the admin API" do
+  test "a bearer token pauses a standup, audited as its user" do
     patch pause_api_standup_path(@owned_standup), headers: token_headers, as: :json
 
     assert_response :success
     audit_log = AuditLog.where(action: "standup.pause").order(:created_at).last
-    assert_nil audit_log.actor
-    assert_equal "admin_api", audit_log.actor_label
+    assert_equal @admin, audit_log.actor
   end
 
   test "manager cannot update unowned standup" do
@@ -372,7 +365,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal @admin, AuditLog.where(action: "standup.create").order(:created_at).last.actor
   end
 
-  test "admin-shaped token create behaves exactly as before" do
+  test "admin-shaped token create keeps the script semantics" do
     assert_difference "Standup.count", 1 do
       assert_no_difference [ "StandupOwnership.count", "StandupParticipant.count" ] do
         post api_standups_path,
@@ -394,8 +387,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert body["standup"].key?("participants_count")
 
     audit_log = AuditLog.where(action: "standup.create").order(:created_at).last
-    assert_nil audit_log.actor
-    assert_equal "admin_api", audit_log.actor_label
+    assert_equal @admin, audit_log.actor
     assert_equal "Token Standup", audit_log.metadata.dig("attributes", "name")
     assert_equal "slack", audit_log.metadata.dig("attributes", "platform")
     assert_not audit_log.metadata.key?("participants")
@@ -794,17 +786,11 @@ class Api::TeamsStandupsConsoleTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
   setup do
-    @previous_admin_token = ENV["ADMIN_API_TOKEN"]
-    ENV["ADMIN_API_TOKEN"] = "test-admin-token"
     enable_teams!
     @manager = users(:manager)
     TeamsIntegrationService.any_instance.stubs(:discover_channels).returns(
       ChatIntegrationService::Result.new(status: "ok", records: [ { "id" => TEAMS_CHANNEL, "label" => "Engineering › Standup" } ], message: "Found 1 Microsoft Teams channel(s).")
     )
-  end
-
-  teardown do
-    ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
   test "new standup offers both platforms and a Teams channel picker" do
@@ -956,13 +942,13 @@ class Api::TeamsStandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  test "the token can list channel options including private ones" do
+  test "an admin's token can list channel options including private ones" do
     TeamsIntegrationService.any_instance.unstub(:discover_channels)
     TeamsIntegrationService.any_instance.expects(:discover_channels)
       .with(limit: ChatIntegrationService::MAX_LIMIT, include_private: true)
       .returns(ChatIntegrationService::Result.new(status: "ok", records: [], message: "Found 0."))
 
-    get channel_options_api_standups_path(platform: "teams"), headers: { "Authorization" => "Bearer test-admin-token" }, as: :json
+    get channel_options_api_standups_path(platform: "teams"), headers: { "Authorization" => "Bearer admin-access-token" }, as: :json
 
     assert_response :success
   end
