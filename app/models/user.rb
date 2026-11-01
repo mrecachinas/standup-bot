@@ -60,6 +60,7 @@ class User < ApplicationRecord
       email: email,
       role: "manager",
       slack_user_id: identity.slack_id,
+      avatar_url: (identity.avatar_url if SlackAvatar.safe_url?(identity.avatar_url)),
       access_token: SecureRandom.hex(32)
     )
   end
@@ -69,7 +70,7 @@ class User < ApplicationRecord
   def self.for_participant!(participant)
     find_by(slack_user_id: participant.slack_id) ||
       create_from_slack_identity!(
-        SlackSignIn::Identity.new(slack_id: participant.slack_id, name: participant.slack_name, email: nil, email_verified: false)
+        SlackSignIn::Identity.new(slack_id: participant.slack_id, name: participant.slack_name, email: nil, email_verified: false, avatar_url: participant.avatar_url)
       )
   end
 

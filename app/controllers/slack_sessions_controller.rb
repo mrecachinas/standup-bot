@@ -26,6 +26,7 @@ class SlackSessionsController < Web::ApplicationController
     session[:slack_id] = identity.slack_id
     session[:slack_name] = identity.name
     user.update!(last_signed_in_at: Time.current)
+    refresh_avatar(user, identity)
 
     redirect_to landing_path_for(user, identity), status: :see_other
   rescue SlackSignIn::Error, User::LinkConflict, ActiveRecord::RecordInvalid => error
@@ -45,6 +46,14 @@ class SlackSessionsController < Web::ApplicationController
     return manager_standups_path if user.admin? || user.standup_ownerships.exists?
 
     Member.for(identity.slack_id) ? me_root_path : manager_standups_path
+  end
+
+  # Sign-in is a free chance to pick up a changed Slack photo everywhere it's shown.
+  def refresh_avatar(user, identity)
+    return unless SlackAvatar.safe_url?(identity.avatar_url)
+
+    user.update_columns(avatar_url: identity.avatar_url) if user.avatar_url != identity.avatar_url
+    StandupParticipant.where(slack_id: identity.slack_id).update_all(avatar_url: identity.avatar_url)
   end
 
   def fail_sign_in(message)

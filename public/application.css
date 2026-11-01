@@ -1154,6 +1154,19 @@ a.cell-title:hover {
   letter-spacing: 0.02em;
 }
 
+.avatar {
+  position: relative;
+  overflow: hidden;
+}
+
+.avatar-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .avatar-sm {
   width: 1.625rem;
   height: 1.625rem;

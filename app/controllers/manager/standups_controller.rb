@@ -302,6 +302,7 @@ module Manager
         slack_id: slack_id,
         slack_name: known&.slack_name.presence || current_user.name,
         cached_timezone: known&.cached_timezone,
+        avatar_url: known&.avatar_url || current_user.avatar_url,
         active: true,
         destroy: false
       } ]
@@ -331,6 +332,7 @@ module Manager
           slack_id: participant.slack_id,
           slack_name: participant.slack_name,
           cached_timezone: participant.cached_timezone,
+          avatar_url: participant.avatar_url,
           active: participant.active?,
           destroy: false
         }
@@ -442,6 +444,7 @@ module Manager
         row[:slack_id] = resolved_user.slack_id
         row[:slack_name] = row[:slack_name].presence || resolved_user.slack_name
         row[:cached_timezone] = row[:cached_timezone].presence || resolved_user.cached_timezone
+        row[:avatar_url] = resolved_user.avatar_url
       rescue SlackUserResolver::ResolutionError => error
         @standup.errors.add(:base, "Participant #{index + 1}: #{error.message}")
       end
@@ -485,12 +488,14 @@ module Manager
     end
 
     def participant_attributes(row)
-      {
+      attributes = {
         slack_id: row[:slack_id],
         slack_name: row[:slack_name],
         cached_timezone: row[:cached_timezone],
         active: row[:active]
       }
+      attributes[:avatar_url] = row[:avatar_url] if SlackAvatar.safe_url?(row[:avatar_url])
+      attributes
     end
 
     def participant_snapshot(participant)

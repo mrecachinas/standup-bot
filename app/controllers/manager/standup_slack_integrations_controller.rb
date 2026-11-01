@@ -42,6 +42,7 @@ module Manager
 
       participant = @standup.standup_participants.find_or_initialize_by(slack_id: slack_id)
       participant.assign_attributes(slack_name: slack_name, active: true)
+      participant.avatar_url = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
 
       if participant.save
         audit_manager_change!(

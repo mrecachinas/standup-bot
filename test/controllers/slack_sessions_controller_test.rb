@@ -107,12 +107,21 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "UORIGINAL", users(:manager).reload.slack_user_id
   end
 
+  test "signing in saves the Slack photo on the account and the person's standups" do
+    url = "https://avatars.slack-edge.com/john.png"
+
+    sign_in_with_slack(slack_id: "U123456", email: "john@example.com", avatar_url: url)
+
+    assert_equal url, User.find_by!(slack_user_id: "U123456").avatar_url
+    assert_equal url, standup_participants(:one).reload.avatar_url
+  end
+
   private
 
-  def sign_in_with_slack(slack_id:, email:, email_verified: true)
+  def sign_in_with_slack(slack_id:, email:, email_verified: true, avatar_url: nil)
     get slack_sign_in_path
     state = Rack::Utils.parse_query(URI.parse(response.location).query)["state"]
-    identity = SlackSignIn::Identity.new(slack_id: slack_id, team_id: "T123", email: email, email_verified: email_verified, name: "Slack Person")
+    identity = SlackSignIn::Identity.new(slack_id: slack_id, team_id: "T123", email: email, email_verified: email_verified, name: "Slack Person", avatar_url: avatar_url)
     SlackSignIn.any_instance.stubs(:identity_for).returns(identity)
 
     get slack_sign_in_callback_path, params: { code: "oauth-code", state: state }

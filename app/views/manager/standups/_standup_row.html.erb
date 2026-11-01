@@ -21,7 +21,7 @@
   </td>
   <td class="hide-sm">
     <% if dashboard_item.participant_count.positive? %>
-      <%= avatar_stack(dashboard_item.participant_names, limit: 4) %>
+      <%= avatar_stack(dashboard_item.participant_avatars, limit: 4) %>
       <div class="cell-sub"><%= pluralize(dashboard_item.participant_count, "active participant") %></div>
     <% else %>
       <span class="muted">None yet</span>

@@ -47,7 +47,7 @@
         <ul class="list">
           <% day.entries.each do |entry| %>
             <li id="standup-history-<%= day.date.iso8601 %>-<%= entry.slack_id.parameterize %>" class="items-start">
-              <%= avatar(entry.slack_name.presence || entry.slack_id) %>
+              <%= avatar(entry.slack_name.presence || entry.slack_id, url: @avatar_urls&.dig(entry.slack_id)) %>
               <div class="grow stack-sm">
                 <div class="flex wrap items-center gap-2">
                   <span class="cell-title"><%= entry.slack_name %></span>

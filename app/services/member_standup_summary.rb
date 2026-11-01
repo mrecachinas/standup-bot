@@ -40,7 +40,7 @@ class MemberStandupSummary
   end
 
   def teammates
-    @teammates ||= standup.standup_participants.active.where.not(slack_id: slack_id).order(:slack_name).pluck(:slack_name)
+    @teammates ||= standup.standup_participants.active.where.not(slack_id: slack_id).order(:slack_name).pluck(:slack_name, :avatar_url)
   end
 
   def away?

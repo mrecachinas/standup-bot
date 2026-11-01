@@ -59,17 +59,23 @@ module UiHelper
     (words.size == 1 ? words.first[0, 2] : words.first[0] + words.last[0]).upcase
   end
 
-  def avatar(name, size: nil)
+  # Slack photo when we have one, with initials underneath as the fallback.
+  def avatar(name, size: nil, url: nil)
     background, foreground = AVATAR_PALETTE[name.to_s.sum % AVATAR_PALETTE.size]
-    tag.span(initials_for(name), class: [ "avatar", size && "avatar-#{size}" ].compact_blank.join(" "),
-      style: "--avatar-bg:#{background};--avatar-fg:#{foreground}", title: name, "aria-hidden": "true")
+    photo = SlackAvatar.safe_url?(url) ? tag.img(src: url, alt: "", class: "avatar-img", loading: "lazy", referrerpolicy: "no-referrer") : "".html_safe
+    tag.span(class: [ "avatar", size && "avatar-#{size}" ].compact_blank.join(" "),
+      style: "--avatar-bg:#{background};--avatar-fg:#{foreground}", title: name, "aria-hidden": "true") do
+      safe_join([ initials_for(name), photo ])
+    end
   end
 
-  def avatar_stack(names, limit: 5)
-    names = Array(names)
+  # people: names, or [name, avatar_url] pairs.
+  def avatar_stack(people, limit: 5)
+    people = Array(people).map { |person| Array(person) }
+    names = people.map(&:first)
     tag.span(class: "avatar-stack", title: names.to_sentence) do
-      safe_join(names.first(limit).map { |name| avatar(name, size: "sm") }) +
-        (names.size > limit ? tag.span("+#{names.size - limit}", class: "avatar-more") : "".html_safe)
+      safe_join(people.first(limit).map { |name, url| avatar(name, size: "sm", url: url) }) +
+        (people.size > limit ? tag.span("+#{people.size - limit}", class: "avatar-more") : "".html_safe)
     end
   end
 

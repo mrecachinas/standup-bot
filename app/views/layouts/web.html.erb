@@ -82,7 +82,7 @@
               <% end %>
             </div>
             <div class="user">
-              <%= avatar(display_name) %>
+              <%= avatar(display_name, url: current_user&.avatar_url || current_member&.avatar_url) %>
               <div class="user-meta">
                 <div class="user-name truncate"><%= display_name %></div>
                 <div class="user-role"><%= current_user&.admin? ? "Admin" : "Member" %></div>

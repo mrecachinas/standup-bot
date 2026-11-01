@@ -16,7 +16,8 @@ class SlackSignInTest < ActiveSupport::TestCase
       "https://slack.com/team_id" => "T123",
       "email" => "john@example.com",
       "email_verified" => true,
-      "name" => "John Doe"
+      "name" => "John Doe",
+      "https://slack.com/user_image_72" => "https://avatars.slack-edge.com/john_72.png"
     )
 
     identity = SlackSignIn.new.identity_for(code: "abc", redirect_uri: "https://app.example.com/auth/slack/callback")
@@ -25,6 +26,7 @@ class SlackSignInTest < ActiveSupport::TestCase
     assert_equal "john@example.com", identity.email
     assert identity.email_verified
     assert_equal "John Doe", identity.name
+    assert_equal "https://avatars.slack-edge.com/john_72.png", identity.avatar_url
   end
 
   test "rejects identities from another workspace" do

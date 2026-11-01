@@ -88,7 +88,7 @@
         <ul class="list">
           <% @managers.each do |user| %>
             <li>
-              <%= avatar(user.name) %>
+              <%= avatar(user.name, url: user.avatar_url) %>
               <div class="grow">
                 <div class="cell-title"><%= user.name %><% if user == current_user %> <span class="muted small">(you)</span><% end %></div>
                 <div class="cell-sub"><%= user.admin? ? "Admin" : "Manager" %></div>
@@ -135,7 +135,7 @@
                 <tr id="<%= dom_id(participant) %>">
                   <td>
                     <div class="person">
-                      <%= avatar(participant.slack_name.presence || participant.slack_id) %>
+                      <%= avatar(participant.slack_name.presence || participant.slack_id, url: participant.avatar_url) %>
                       <div>
                         <div class="cell-title"><%= participant.slack_name %></div>
                         <div class="cell-sub"><span class="mono"><%= participant.slack_id %></span><% if (others = @other_standups_by_slack_id[participant.slack_id]).present? %> · Also in <%= others.to_sentence %><% end %></div>

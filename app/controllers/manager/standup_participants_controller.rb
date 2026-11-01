@@ -172,6 +172,7 @@ module Manager
       permitted[:slack_id] = resolved_user.slack_id
       permitted[:slack_name] = permitted[:slack_name].presence || resolved_user.slack_name
       permitted[:cached_timezone] = permitted[:cached_timezone].presence || resolved_user.cached_timezone
+      permitted[:avatar_url] = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
       permitted
     end
 

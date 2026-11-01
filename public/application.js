@@ -84,6 +84,11 @@
     if (form && event.target.closest("[data-schedule-input]")) schedulePreview(form);
   });
 
+  // Fall back to initials if a Slack photo can't load.
+  document.addEventListener("error", (event) => {
+    if (event.target instanceof HTMLImageElement && event.target.classList.contains("avatar-img")) event.target.remove();
+  }, true);
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       document.querySelectorAll("details.menu[open]").forEach((menu) => menu.removeAttribute("open"));

@@ -135,7 +135,7 @@
             <tr>
               <td>
                 <div class="person">
-                  <%= avatar(user.name) %>
+                  <%= avatar(user.name, url: user.avatar_url) %>
                   <div>
                     <div class="cell-title"><%= user.name %></div>
                     <div class="cell-sub"><%= user.email.end_with?("@#{User::SLACK_PLACEHOLDER_EMAIL_DOMAIN}") ? "Slack #{user.slack_user_id}" : user.email %></div>
@@ -161,7 +161,7 @@
           <% @audit_logs.each do |log| %>
             <% actor = log.actor&.name || log.actor_label || log.actor_email || "System" %>
             <li>
-              <%= avatar(actor, size: "sm") %>
+              <%= avatar(actor, size: "sm", url: log.actor&.avatar_url) %>
               <div class="grow">
                 <div class="small"><span class="strong"><%= actor %></span> <span class="muted"><%= log.action.tr("._", "  ") %></span></div>
                 <div class="cell-sub"><%= log.auditable_type.to_s.titleize %> #<%= log.auditable_id %></div>

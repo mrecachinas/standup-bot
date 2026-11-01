@@ -4,7 +4,7 @@ class SlackSignIn
   SCOPES = %w[openid email profile].freeze
 
   Error = Class.new(StandardError)
-  Identity = Struct.new(:slack_id, :team_id, :email, :email_verified, :name, keyword_init: true)
+  Identity = Struct.new(:slack_id, :team_id, :email, :email_verified, :name, :avatar_url, keyword_init: true)
 
   def self.configured?
     config_value(:client_id).present? && config_value(:client_secret).present?
@@ -59,7 +59,8 @@ class SlackSignIn
       team_id: info["https://slack.com/team_id"],
       email: info["email"],
       email_verified: ActiveModel::Type::Boolean.new.cast(info["email_verified"]),
-      name: info["name"].presence || info["given_name"].presence || slack_id
+      name: info["name"].presence || info["given_name"].presence || slack_id,
+      avatar_url: [ info["https://slack.com/user_image_72"], info["picture"] ].find { |url| SlackAvatar.safe_url?(url) }
     )
   end
 

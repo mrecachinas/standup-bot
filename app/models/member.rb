@@ -18,6 +18,10 @@ class Member
     @name.presence || participants.first&.slack_name.presence || slack_id
   end
 
+  def avatar_url
+    participants.find(&:avatar_url)&.avatar_url
+  end
+
   def participants
     @participants ||= StandupParticipant.includes(standup: :standup_schedule_exceptions).where(slack_id: slack_id).joins(:standup).order("standups.name").to_a
   end

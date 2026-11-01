@@ -181,7 +181,7 @@
               <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone] %>
               <div class="person">
                 <% if participant[:slack_name].present? %>
-                  <%= avatar(participant[:slack_name]) %>
+                  <%= avatar(participant[:slack_name], url: participant[:avatar_url]) %>
                 <% end %>
                 <div class="grow">
                   <%= label_tag "standup_participants_#{index}_slack_id", "Slack user", class: "sr-only" %>
