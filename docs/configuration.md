@@ -10,8 +10,9 @@ Standup Bot is configured with environment variables. You can set up standups th
 | --- | --- | --- |
 | `SLACK_BOT_TOKEN` | Yes, to use Slack | Bot User OAuth Token (`xoxb-…`) |
 | `SLACK_SIGNING_SECRET` | Yes, to use Slack | Used to verify that requests really come from Slack |
-| `SLACK_CLIENT_ID` | No | Slack app client ID |
-| `SLACK_CLIENT_SECRET` | No | Slack app client secret |
+| `SLACK_CLIENT_ID` | No | Slack app client ID. Needed for "Sign in with Slack" |
+| `SLACK_CLIENT_SECRET` | No | Slack app client secret. Needed for "Sign in with Slack" |
+| `SLACK_TEAM_ID` | No | Workspace (`T…`) allowed to use "Sign in with Slack". Defaults to the bot token's workspace |
 
 See [Slack setup](slack-setup.md) for where to find these.
 
@@ -105,4 +106,4 @@ User.create!(email: "lead@example.com", name: "Team Lead", role: "manager", acce
 puts token # share this once with the manager
 ```
 
-Admins can manage every standup and can open the **Admin** page to check installation health and see every user. Managers can only manage standups they own, and any standup a manager creates is theirs automatically. See [Architecture](architecture.md#manager-console-and-permissions) for more.
+Admins can manage every standup and can open the **Admin** page to check installation health and see every user. Managers can only manage standups they own, and any standup a manager creates is theirs automatically. See [Architecture](architecture.md#web-console-personas-and-permissions) for more.

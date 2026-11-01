@@ -111,7 +111,20 @@ module Manager
       @sync_channel ||= @standup.slack_channel
       @deactivate_missing = false if @deactivate_missing.nil?
       @participants = @standup.standup_participants.order(:slack_name, :slack_id).to_a
+      @other_standups_by_slack_id = other_standups_by_slack_id(@participants.map(&:slack_id))
       replace_invalid_participant
+    end
+
+    # People can be in several standups; show the other ones this user can manage.
+    def other_standups_by_slack_id(slack_ids)
+      StandupParticipant
+        .where(slack_id: slack_ids, standup_id: manageable_standups.select(:id))
+        .where.not(standup_id: @standup.id)
+        .joins(:standup)
+        .order("standups.name")
+        .pluck(:slack_id, "standups.name")
+        .group_by(&:first)
+        .transform_values { |rows| rows.map(&:last) }
     end
 
     def replace_invalid_participant

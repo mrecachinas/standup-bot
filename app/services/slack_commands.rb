@@ -198,11 +198,12 @@ class SlackCommands
   def set_user_active(slack_id, channel)
     Rails.logger.info "Reactivating user #{slack_id}"
 
-    # Find all inactive standup participants for this user
+    # Inactive rows (from `away`) plus rows paused with a current away date (set on the web)
     participants = StandupParticipant
       .joins(:standup)
       .merge(Standup.active)
-      .where(slack_id: slack_id, active: false)
+      .where(slack_id: slack_id)
+      .where("standup_participants.active = ? OR standup_participants.vacation_until >= ?", false, Date.current)
       .distinct
 
     if participants.any?

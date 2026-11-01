@@ -63,6 +63,22 @@ SLACK_SIGNING_SECRET=...
 
 The **Slack** page in the web console shows whether these are configured. Each standup also has a **Slack** tab where you can pick its channel, add people by `@username`, and send a test message to the channel.
 
+### Sign in with Slack (optional)
+
+Team members, managers, and admins can sign in to the web console with their Slack account. To turn this on:
+
+1. Under **OAuth & Permissions**, add `https://your-domain/auth/slack/callback` as a **Redirect URL**, and add the `openid`, `email`, and `profile` **User Token Scopes**. Manifests generated with `bin/rails slack:manifest` already include these.
+2. Under **Basic Information**, copy the **Client ID** and **Client Secret** and set them as `SLACK_CLIENT_ID` and `SLACK_CLIENT_SECRET`.
+3. Optionally set `SLACK_TEAM_ID` (it starts with `T`). Sign-in is always limited to one workspace: this one, or the bot token's workspace if `SLACK_TEAM_ID` isn't set.
+
+When someone signs in with Slack:
+
+- If Slack has verified their email and it matches an active manager or admin account, they get the manager console.
+- If they're in at least one standup, they get **My standups**, where they can see their check-ins, their past answers, and set time away.
+- Anyone else is turned away.
+
+Managers and admins can still sign in with their email and access token.
+
 ## 4. Try it out
 
 Send the bot a DM with `help`. If nothing comes back, check the Rails logs to see whether the event arrived (see [Troubleshooting](development.md#troubleshooting)).

@@ -1,6 +1,6 @@
 # Standup Bot
 
-Async standups for Slack. Standup Bot DMs each teammate a few questions at a scheduled time (in their own timezone), collects their answers, and posts each person's update to your team's channel. Managers get a small web console to set up standups, manage participants, and see who has responded.
+Async standups for Slack. Standup Bot DMs each teammate a few questions at a scheduled time (in their own timezone), collects their answers, and posts each person's update to your team's channel. Managers get a small web console to set up standups, manage participants, and see who has responded. Team members can sign in with Slack to see their own check-ins and set time away.
 
 ![Manager overview showing completion rate, responses by day, standups needing attention, and a table of standups with trends](docs/images/dashboard.png)
 

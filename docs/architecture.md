@@ -101,12 +101,15 @@ Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custo
 
 Recurring schedules are defined in [`config/recurring.yml`](../config/recurring.yml). If you set `ADMIN_CHANNEL`, failed jobs post a message there.
 
-## Manager console and permissions
+## Web console, personas, and permissions
 
-The web console (`/manager/*`) uses cookie-backed sessions. Users sign in with an email and access token, and only a SHA-256 digest of the token is stored.
+The web console uses cookie-backed sessions and serves three kinds of people:
 
-- **Admins** can manage every standup.
-- **Managers** can only manage standups linked to them through `StandupOwnership`. Any standup a manager creates is theirs automatically.
+- **Admins** (`User` with role `admin`) can manage every standup.
+- **Managers** (`User` with role `manager`) can only manage standups linked to them through `StandupOwnership`. Any standup a manager creates is theirs automatically.
+- **Members** are the people in standups. They have no `User` record. A member is identified by Slack user ID, and the same person can be a `StandupParticipant` in several standups. `Member` (in `app/models/member.rb`) gathers those rows together.
+
+Managers and admins can sign in with an email and access token (only a SHA-256 digest of the token is stored). Anyone can use "Sign in with Slack" (`SlackSessionsController` and `SlackSignIn`), which uses Slack's OpenID Connect endpoints. A Slack-verified email that matches an active `User` signs that user into the manager console. A Slack user who is in any standup also gets the member area under `/me` (`Me::*` controllers), whether or not they have a `User`. Members who aren't managers are redirected away from `/manager`.
 
 - **Admins** also get an **Admin** page (`/admin`) that shows database, job queue, and Slack health, usage, users, failed reports, and recent audit log entries.
 

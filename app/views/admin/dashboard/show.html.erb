@@ -64,9 +64,9 @@
       <span class="stat-sub"><%= standups[:active] %> active · <%= standups[:inactive] %> paused</span>
     </div>
     <div class="stat">
-      <dt>Participants</dt>
-      <dd><%= standups[:active_participants] %></dd>
-      <span class="stat-sub"><%= standups[:participants] %> total</span>
+      <dt>People</dt>
+      <dd><%= standups[:active_people] %></dd>
+      <span class="stat-sub"><%= pluralize(standups[:active_participants], "active membership") %> across standups</span>
     </div>
     <div class="stat">
       <dt>Responses (24h)</dt>

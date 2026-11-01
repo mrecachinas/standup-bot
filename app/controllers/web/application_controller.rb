@@ -2,12 +2,18 @@ module Web
   class ApplicationController < ActionController::Base
     layout "web"
 
-    helper_method :current_user, :sidebar_standups
+    helper_method :current_user, :current_member, :sidebar_standups
 
     private
 
     def current_user
       @current_user ||= User.active.find_by(id: session[:user_id]) if session[:user_id].present?
+    end
+
+    def current_member
+      return @current_member if defined?(@current_member)
+
+      @current_member = Member.for(session[:slack_id], name: session[:slack_name])
     end
 
     def sidebar_standups
@@ -20,7 +26,7 @@ module Web
       return if current_user
 
       respond_to do |format|
-        format.html { redirect_to new_session_path, status: :see_other }
+        format.html { redirect_to(current_member ? me_root_path : new_session_path, status: :see_other) }
         format.json { render json: { error: "Unauthorized" }, status: :unauthorized }
         format.any { head :unauthorized }
       end

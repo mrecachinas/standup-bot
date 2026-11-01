@@ -1,0 +1,71 @@
+<% content_for :title, "Availability" %>
+<% away = current_member.participants.select { |participant| participant.vacation_until.present? && participant.vacation_until >= Date.current } %>
+
+<div class="page page-narrow">
+  <div class="page-header">
+    <div class="page-header-text">
+      <h1>Availability</h1>
+      <p class="page-subtitle">Going on vacation or out sick? Pause your check-ins so they don't count as missed.</p>
+    </div>
+  </div>
+
+  <% if @error %>
+    <div class="alert alert-danger" role="alert"><%= icon(:alert) %><span><%= @error %></span></div>
+  <% end %>
+
+  <% if away.any? %>
+    <section class="card card-flush">
+      <div class="card-header">
+        <h2>Currently away</h2>
+        <%= button_to "I'm back", clear_me_availability_path, method: :delete, class: "btn btn-sm" %>
+      </div>
+      <ul class="list">
+        <% away.each do |participant| %>
+          <li>
+            <span class="dot dot-warning"></span>
+            <span class="grow"><%= participant.standup.name %></span>
+            <span class="small muted">through <%= participant.vacation_until.strftime("%A, %B %-d") %></span>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h2>Set time away</h2>
+        <p class="hint">You won't get check-ins or reminders through this date.</p>
+      </div>
+    </div>
+    <% if @participants.any? %>
+      <%= form_with url: me_availability_path, method: :patch do |form| %>
+        <div class="card-body">
+          <div class="field max-w-xs">
+            <%= form.label :away_until, "Last day away" %>
+            <%= form.date_field :away_until, value: params[:away_until], min: Date.current.iso8601, max: (Date.current + Me::AvailabilityController::MAX_AWAY_DAYS).iso8601, required: true %>
+          </div>
+          <fieldset class="field fieldset-reset">
+            <legend class="label">Standups</legend>
+            <div class="chips mt-2">
+              <% selected_ids = params[:standup_ids].present? ? Array(params[:standup_ids]).map(&:to_i) : @participants.map(&:standup_id) %>
+              <% @participants.each do |participant| %>
+                <label class="chip-toggle">
+                  <%= check_box_tag "standup_ids[]", participant.standup_id, selected_ids.include?(participant.standup_id), id: "standup_ids_#{participant.standup_id}" %>
+                  <span><%= participant.standup.name %></span>
+                </label>
+              <% end %>
+            </div>
+          </fieldset>
+        </div>
+        <div class="card-footer">
+          <%= form.submit "Save", class: "btn btn-primary" %>
+        </div>
+      <% end %>
+    <% else %>
+      <p class="empty-inline">You aren't active in any standups right now.</p>
+    <% end %>
+  </section>
+
+  <p class="small muted">You can also DM the bot <code>away 3</code> to skip the next three days, or <code>back</code> to return early.</p>
+</div>

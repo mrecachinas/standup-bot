@@ -1863,3 +1863,12 @@ a.cell-title:hover {
 @media (max-width: 860px) {
   .border-right { border-right: 0; border-bottom: 1px solid var(--border); }
 }
+
+.token-sign-in > summary {
+  cursor: pointer;
+  text-align: center;
+}
+
+.token-sign-in[open] > .token-form {
+  margin-top: 0.75rem;
+}

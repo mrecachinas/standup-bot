@@ -138,4 +138,14 @@ class SlackCommandsTest < ActiveSupport::TestCase
     command_info = { command: :cancel, match: "cancel".match(/^cancel$/i) }
     @commands.process(command_info, @slack_id, @channel)
   end
+  test "back ends time away that was set on the web" do
+    participant = standup_participants(:one)
+    participant.update!(active: true, vacation_until: Date.current + 3)
+    @slack_client.expects(:send_message).with(@channel, regexp_matches(/Welcome back/))
+
+    @commands.process(@commands.parse("back"), participant.slack_id, @channel)
+
+    assert_nil participant.reload.vacation_until
+    assert participant.active?
+  end
 end

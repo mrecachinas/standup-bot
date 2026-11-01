@@ -2,6 +2,8 @@ class SessionsController < Web::ApplicationController
   def new
     if current_user
       redirect_to manager_standups_path, status: :see_other
+    elsif current_member
+      redirect_to me_root_path, status: :see_other
     else
       prepare_local_development_prefill
     end
