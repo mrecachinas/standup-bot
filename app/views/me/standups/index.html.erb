@@ -9,7 +9,7 @@
   <div class="page-header">
     <div class="page-header-text">
       <h1>My standups</h1>
-      <p class="page-subtitle">Your check-ins across <%= pluralize(@summaries.size, "standup") %>. Answer them in your Slack DMs.</p>
+      <p class="page-subtitle">Your check-ins across <%= pluralize(@summaries.size, "standup") %>. Answer them in your <%= member_platform_label %> DMs.</p>
     </div>
     <%= link_to me_availability_path, class: "btn" do %>
       <%= icon(:calendar) %> Set time away
@@ -102,5 +102,5 @@
     <% end %>
   </div>
 
-  <p class="small muted">Tip: in Slack, DM the bot <code>away 3</code> to skip the next three days, or <code>back</code> to return early.</p>
+  <p class="small muted">Tip: in <%= member_platform_label %>, DM the bot <code>away 3</code> to skip the next three days, or <code>back</code> to return early.</p>
 </div>

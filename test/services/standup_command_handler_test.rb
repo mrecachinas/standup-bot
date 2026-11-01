@@ -16,7 +16,7 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
 
     def key = :slack
     def formatter = Formatter
-    def channel_reference(channel) = Formatter.channel_reference(channel)
+    def channel_reference(channel, name: nil) = Formatter.channel_reference(name.presence || channel)
   end
 
   setup do

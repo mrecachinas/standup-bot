@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_000100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_010000) do
   create_table "audit_logs", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "action", null: false
     t.string "actor_email"
@@ -29,6 +29,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_000100) do
     t.index ["actor_id"], name: "index_audit_logs_on_actor_id"
     t.index ["auditable_type", "auditable_id"], name: "index_audit_logs_on_auditable_type_and_auditable_id"
     t.index ["created_at"], name: "index_audit_logs_on_created_at"
+  end
+
+  create_table "chat_conversations", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.string "platform", null: false
+    t.string "platform_user_id", null: false
+    t.string "conversation_id", null: false
+    t.string "service_url"
+    t.string "tenant_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["platform", "platform_user_id"], name: "index_chat_conversations_on_platform_and_platform_user_id", unique: true
   end
 
   create_table "report_configurations", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -145,6 +156,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_000100) do
     t.string "platform_channel", null: false
     t.datetime "updated_at", null: false
     t.string "platform", default: "slack", null: false
+    t.string "platform_channel_name"
     t.index ["platform"], name: "index_standups_on_platform"
   end
 

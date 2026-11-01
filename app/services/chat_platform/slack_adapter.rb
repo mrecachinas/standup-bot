@@ -100,6 +100,13 @@ module ChatPlatform
       value.to_s.strip.upcase.presence
     end
 
+    # Also accepts lowercase or partly typed IDs like "u123".
+    def looks_like_user_id?(value)
+      value = value.to_s.strip
+      upcased = value.upcase
+      (value == upcased && valid_user_id?(upcased)) || upcased.match?(/\A[UW][A-Z0-9]*\d[A-Z0-9]*\z/)
+    end
+
     def user_id_hint
       "a Slack user ID like U123ABC"
     end

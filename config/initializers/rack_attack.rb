@@ -18,6 +18,10 @@ class Rack::Attack
     request.ip if slack_request?(request)
   end
 
+  throttle("teams/ip", limit: 120, period: 1.minute) do |request|
+    request.ip if request.post? && request.path == "/teams/messages"
+  end
+
   throttle("slack/user", limit: 30, period: 1.minute) do |request|
     slack_user_id(request) if slack_request?(request)
   end

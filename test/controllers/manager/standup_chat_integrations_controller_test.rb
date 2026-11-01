@@ -1,6 +1,6 @@
 require "test_helper"
 
-class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::IntegrationTest
+class Manager::StandupChatIntegrationsControllerTest < ActionDispatch::IntegrationTest
   setup do
     @manager = users(:manager)
     @admin = users(:admin)
@@ -11,7 +11,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
   end
 
   test "requires authentication" do
-    get manager_standup_slack_setup_path(@owned_standup)
+    get manager_standup_chat_setup_path(@owned_standup)
 
     assert_redirected_to new_session_path
   end
@@ -19,7 +19,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
   test "manager cannot view unowned standup Slack setup" do
     sign_in(@manager, "manager-access-token")
 
-    get manager_standup_slack_setup_path(@unowned_standup)
+    get manager_standup_chat_setup_path(@unowned_standup)
 
     assert_response :forbidden
   end
@@ -27,7 +27,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
   test "admin can view unowned standup Slack setup" do
     sign_in(@admin, "admin-access-token")
 
-    get manager_standup_slack_setup_path(@unowned_standup)
+    get manager_standup_chat_setup_path(@unowned_standup)
 
     assert_response :success
     assert_includes response.body, @unowned_standup.name
@@ -39,7 +39,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
       .returns(SlackIntegrationService::Result.new(status: "ok", records: [ { "id" => "CDAILY", "name" => "daily", "label" => "#daily" } ]))
     sign_in(@manager, "manager-access-token")
 
-    get manager_standup_slack_setup_path(@owned_standup), params: { discover: "channels", channel_query: "daily" }
+    get manager_standup_chat_setup_path(@owned_standup), params: { discover: "channels", channel_query: "daily" }
 
     assert_response :success
     assert_includes response.body, "#daily"
@@ -50,11 +50,11 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     sign_in(@manager, "manager-access-token")
 
     assert_difference "AuditLog.where(action: 'slack.channel.update').count", 1 do
-      patch manager_standup_slack_setup_channel_path(@owned_standup),
+      patch manager_standup_chat_setup_channel_path(@owned_standup),
         params: { channel_id: "CNEWCHAN", channel_name: "new-channel" }
     end
 
-    assert_redirected_to manager_standup_slack_setup_path(@owned_standup, channel_updated: "1")
+    assert_redirected_to manager_standup_chat_setup_path(@owned_standup, channel_updated: "1")
     assert_equal "CNEWCHAN", @owned_standup.reload.platform_channel
     audit_log = AuditLog.where(action: "slack.channel.update").order(:created_at).last
     assert_equal @manager, audit_log.actor
@@ -67,28 +67,28 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
 
     assert_difference "StandupParticipant.count", 1 do
       assert_difference "AuditLog.where(action: 'slack.participant.add').count", 1 do
-        post manager_standup_slack_setup_participants_path(@owned_standup),
+        post manager_standup_chat_setup_participants_path(@owned_standup),
           params: { platform_user_id: "UDISC1", display_name: "Discovered User" }
       end
     end
 
-    assert_redirected_to manager_standup_slack_setup_path(@owned_standup, participant_added: "1")
+    assert_redirected_to manager_standup_chat_setup_path(@owned_standup, participant_added: "1")
     participant = @owned_standup.standup_participants.find_by!(platform_user_id: "UDISC1")
     assert_equal "Discovered User", participant.display_name
   end
 
   test "manager adds Slack user by username" do
-    SlackUserResolver.any_instance.expects(:resolve)
+    ChatUserResolver.any_instance.expects(:resolve)
       .with("@discovered", fallback_name: nil)
-      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UDISC2", display_name: "Discovered By Username", cached_timezone: "UTC"))
+      .returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UDISC2", display_name: "Discovered By Username", cached_timezone: "UTC"))
     sign_in(@manager, "manager-access-token")
 
     assert_difference "StandupParticipant.count", 1 do
-      post manager_standup_slack_setup_participants_path(@owned_standup),
+      post manager_standup_chat_setup_participants_path(@owned_standup),
         params: { slack_user: "@discovered" }
     end
 
-    assert_redirected_to manager_standup_slack_setup_path(@owned_standup, participant_added: "1")
+    assert_redirected_to manager_standup_chat_setup_path(@owned_standup, participant_added: "1")
     assert_equal "Discovered By Username", @owned_standup.standup_participants.find_by!(platform_user_id: "UDISC2").display_name
   end
 
@@ -97,11 +97,11 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
 
     assert_difference "StandupParticipant.count", -1 do
       assert_difference "AuditLog.where(action: 'slack.participant.remove').count", 1 do
-        delete manager_standup_slack_setup_participant_path(@owned_standup, @participant)
+        delete manager_standup_chat_setup_participant_path(@owned_standup, @participant)
       end
     end
 
-    assert_redirected_to manager_standup_slack_setup_path(@owned_standup, participant_removed: "1")
+    assert_redirected_to manager_standup_chat_setup_path(@owned_standup, participant_removed: "1")
     audit_log = AuditLog.where(action: "slack.participant.remove").order(:created_at).last
     assert_equal @participant.platform_user_id, audit_log.metadata["platform_user_id"]
   end
@@ -113,10 +113,10 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     sign_in(@manager, "manager-access-token")
 
     assert_difference "AuditLog.where(action: 'slack.test_message.send').count", 1 do
-      post manager_standup_slack_setup_test_message_path(@owned_standup)
+      post manager_standup_chat_setup_test_message_path(@owned_standup)
     end
 
-    assert_redirected_to manager_standup_slack_setup_path(@owned_standup, test_message_sent: "1")
+    assert_redirected_to manager_standup_chat_setup_path(@owned_standup, test_message_sent: "1")
     audit_log = AuditLog.where(action: "slack.test_message.send").order(:created_at).last
     assert_equal @manager, audit_log.actor
     assert_equal @owned_standup.platform_channel, audit_log.metadata["platform_channel"]
@@ -135,7 +135,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     sign_in(@manager, "manager-access-token")
 
     assert_difference "AuditLog.where(action: 'slack.test_message.failure').count", 1 do
-      post manager_standup_slack_setup_test_message_path(@owned_standup)
+      post manager_standup_chat_setup_test_message_path(@owned_standup)
     end
 
     assert_response :unprocessable_entity
@@ -148,7 +148,7 @@ class Manager::StandupSlackIntegrationsControllerTest < ActionDispatch::Integrat
     sign_in(@manager, "manager-access-token")
 
     assert_no_difference "AuditLog.count" do
-      post manager_standup_slack_setup_test_message_path(@unowned_standup)
+      post manager_standup_chat_setup_test_message_path(@unowned_standup)
     end
 
     assert_response :forbidden

@@ -284,8 +284,16 @@
     syncEditor(form);
   });
 
+  // Teams channel IDs aren't readable, so keep the picked channel's name alongside it.
+  const syncChannelName = (select) => {
+    const target = select.closest("form")?.querySelector("[data-channel-name-target]");
+    const option = select.selectedOptions[0];
+    if (target) target.value = option && option.value ? option.textContent.trim() : "";
+  };
+
   document.addEventListener("change", (event) => {
     if (event.target.matches("[data-person-destroy]")) syncPersonChip(event.target);
+    if (event.target.matches("[data-channel-name-source]")) syncChannelName(event.target);
     const form = event.target.closest("form");
     if (!form) return;
     syncEditor(form);
@@ -381,6 +389,7 @@
 
   const init = (root) => {
     root.querySelectorAll("form.editor").forEach((form) => syncEditor(form));
+    root.querySelectorAll("[data-channel-name-source]").forEach((select) => syncChannelName(select));
     detectPreviewTimezone(root);
     dismissFlashes();
     applyTheme(currentTheme());

@@ -20,13 +20,13 @@
             </div>
           </div>
           <% if action == :use_channel && standup %>
-            <%= button_to "Use channel", manager_standup_slack_setup_channel_path(standup), method: :patch,
+            <%= button_to "Use channel", manager_standup_chat_setup_channel_path(standup), method: :patch,
               params: { channel_id: record["id"], channel_name: record["name"] },
-              form: { data: { turbo_frame: dom_id(standup, :slack_setup) } }, class: "btn btn-sm" %>
+              form: { data: { turbo_frame: dom_id(standup, :chat_setup) } }, class: "btn btn-sm" %>
           <% elsif action == :add_user && standup %>
-            <%= button_to "Add user", manager_standup_slack_setup_participants_path(standup), method: :post,
+            <%= button_to "Add user", manager_standup_chat_setup_participants_path(standup), method: :post,
               params: { platform_user_id: record["id"], display_name: record["label"] },
-              form: { data: { turbo_frame: dom_id(standup, :slack_setup) } }, class: "btn btn-sm" %>
+              form: { data: { turbo_frame: dom_id(standup, :chat_setup) } }, class: "btn btn-sm" %>
           <% end %>
         </li>
       <% end %>

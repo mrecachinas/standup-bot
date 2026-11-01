@@ -4,7 +4,7 @@
 <span class="person-chip <%= "is-pending" if pending %> <%= "is-inactive" unless participant[:active] %> <%= "is-removed" if participant[:destroy] %>" data-person-chip>
   <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id], id: nil %>
   <%= hidden_field_tag "standup[participants][#{index}][platform_user_id]", participant[:platform_user_id], id: nil %>
-  <%= hidden_field_tag "standup[participants][#{index}][original_slack_id]", participant[:platform_user_id], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][original_platform_user_id]", participant[:platform_user_id], id: nil %>
   <%= hidden_field_tag "standup[participants][#{index}][display_name]", participant[:display_name], id: nil %>
   <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone], id: nil %>
   <%= hidden_field_tag "standup[participants][#{index}][active]", participant[:active] ? "1" : "0", id: nil %>

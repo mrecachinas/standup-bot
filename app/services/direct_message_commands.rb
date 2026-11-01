@@ -94,7 +94,7 @@ class DirectMessageCommands
         participant.standup_date_for(Time.current).iso8601,
         participant.standup_time_zone.tzinfo.name
       )
-      @chat.send_message(channel, "Generating report for #{standup.name}. It will be posted to #{@chat.channel_reference(standup.platform_channel)} shortly.")
+      @chat.send_message(channel, "Generating report for #{standup.name}. It will be posted to #{@chat.channel_reference(standup.platform_channel, name: standup.platform_channel_name)} shortly.")
     else
       options = participants.map { |p| { text: p.standup.name, value: p.standup.id } }
       @chat.send_selection(channel, "Which standup report would you like to generate?", options, action_id: "standup_selection")

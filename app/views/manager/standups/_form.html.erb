@@ -1,4 +1,5 @@
 <% picker = schedule_picker_state(standup) %>
+<% chat = standup.chat_platform %>
 <% advanced_open = picker[:frequency] != "weekly" || !standup.respect_timezone? || standup.errors.any? %>
 <% question_suggestions = [
   "What did you get done yesterday?",
@@ -25,6 +26,22 @@
     <div class="editor-layout">
       <div class="stack-lg">
         <section class="card" id="basics">
+          <% if standup.new_record? && @platform_options.size > 1 %>
+            <div class="card-header" id="platform-picker">
+              <div>
+                <h2>Chat platform</h2>
+                <p class="hint">Where people get their questions. This can't be changed later.</p>
+              </div>
+              <div class="flex gap-2" role="group" aria-label="Chat platform">
+                <% @platform_options.each do |key| %>
+                  <%= link_to new_manager_standup_path(platform: key, template: @template_key), class: [ "btn btn-sm", ("btn-primary" if key == standup.platform) ].compact.join(" "), aria: { pressed: key == standup.platform }, data: { turbo_frame: "_top" } do %>
+                    <%= icon(platform_icon(key)) %> <%= platform_label(key) %>
+                  <% end %>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+          <%= form.hidden_field :platform if standup.new_record? %>
           <div class="card-body"><div class="grid grid-2">
             <div class="field">
               <%= form.label :name %>
@@ -32,10 +49,27 @@
             </div>
             <div class="field">
               <%= form.label :platform_channel, "Post summaries to" %>
-              <div class="input-prefix">
-                <span>#</span>
-                <%= form.text_field :platform_channel, value: standup.platform_channel.to_s.delete_prefix("#"), required: true, placeholder: "eng-standup" %>
-              </div>
+              <% if chat.key == :teams %>
+                <% channel_records = @channel_options&.success? ? @channel_options.records : [] %>
+                <% channel_choices = channel_records.map { |record| [ record["label"], record["id"] ] } %>
+                <% if standup.platform_channel.present? && channel_choices.none? { |_label, id| id == standup.platform_channel } %>
+                  <% channel_choices.unshift([ standup.platform_channel_name.presence || standup.platform_channel, standup.platform_channel ]) %>
+                <% end %>
+                <% if channel_records.any? %>
+                  <%= form.select :platform_channel, channel_choices,
+                    { include_blank: "Pick a Teams channel", selected: standup.platform_channel },
+                    required: true, data: { channel_name_source: true } %>
+                  <%= form.hidden_field :platform_channel_name, data: { channel_name_target: true } %>
+                <% else %>
+                  <%= form.text_field :platform_channel, required: true, placeholder: platform_copy(:teams, :channel_id_placeholder) %>
+                  <span class="hint"><%= @channel_options&.message || "Set up Teams on the Integrations page to pick a channel from a list." %></span>
+                <% end %>
+              <% else %>
+                <div class="input-prefix">
+                  <span>#</span>
+                  <%= form.text_field :platform_channel, value: standup.platform_channel.to_s.delete_prefix("#"), required: true, placeholder: "eng-standup" %>
+                </div>
+              <% end %>
             </div>
           </div></div>
         </section>
@@ -82,7 +116,7 @@
           <div class="card-header">
             <div>
               <h2>Questions</h2>
-              <p class="hint">Asked one at a time in a Slack DM. Press Enter to add another.</p>
+              <p class="hint">Asked one at a time in a <%= chat.label %> DM. Press Enter to add another.</p>
             </div>
           </div>
           <div class="card-body">
@@ -126,7 +160,7 @@
           <div class="card-header">
             <div>
               <h2>People</h2>
-              <p class="hint">Names and timezones come from Slack.<% if standup.persisted? %> Set time away and more on the <%= link_to "Participants", manager_standup_participants_path(standup), data: { turbo_frame: "_top" } %> tab.<% end %></p>
+              <p class="hint">Names and timezones come from <%= chat.label %>.<% if standup.persisted? %> Set time away and more on the <%= link_to "Participants", manager_standup_participants_path(standup), data: { turbo_frame: "_top" } %> tab.<% end %></p>
             </div>
           </div>
           <div class="card-body">
@@ -216,7 +250,7 @@
         <section class="card">
           <div class="card-header"><h2>What people see</h2></div>
           <div class="card-body">
-            <div class="slack-preview" aria-label="Preview of the Slack DM">
+            <div class="slack-preview" aria-label="Preview of the <%= chat.label %> DM">
               <span class="slack-preview-icon"><%= icon(:logo) %></span>
               <div class="grow">
                 <div class="slack-preview-meta"><strong>Standup Bot</strong> <span class="slack-app-tag">APP</span> <span class="muted" data-preview-time><%= format_clock(standup.default_hour || 9, standup.default_minute || 0) %></span></div>

@@ -41,7 +41,7 @@
                   <% end %>
                 </div>
               <% elsif response.status == "pending" %>
-                <p class="small muted">Waiting for your answers in Slack.</p>
+                <p class="small muted">Waiting for your answers in <%= member_platform_label %>.</p>
               <% else %>
                 <p class="small muted">No answers recorded.</p>
               <% end %>

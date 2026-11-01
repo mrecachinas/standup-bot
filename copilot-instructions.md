@@ -1,14 +1,14 @@
 # Copilot Instructions for Standup Bot
 
 ## Project Overview
-Ruby on Rails 8.1 Slack standup bot that schedules meetings, asks participants questions, and collects responses in Slack channels.
+Ruby on Rails 8.1 standup bot for Slack and Microsoft Teams that schedules meetings, asks participants questions, and collects responses in team channels. Each standup has a `platform`.
 
 ## Tech Stack
 - **Ruby**: 4.0.2, **Rails**: 8.1.4
 - **Database**: MySQL 8.0 in development/test (via docker compose), PostgreSQL in production
 - **Background Jobs**: Solid Queue, **Cache**: Solid Cache, **WebSockets**: Solid Cable  
 - **Testing**: Minitest with Mocha, **Linting**: RuboCop Rails Omakase, **Security**: Brakeman
-- **Deployment**: Kamal, **Slack**: slack-ruby-client gem
+- **Deployment**: Kamal, **Slack**: slack-ruby-client gem, **Teams**: Bot Connector + Microsoft Graph over Faraday, `jwt` for token validation
 
 ## Architecture
 
@@ -20,6 +20,8 @@ Ruby on Rails 8.1 Slack standup bot that schedules meetings, asks participants q
 ### Services  
 - `ChatPlatform`: Adapter registry. Shared code calls `ChatPlatform.for_standup(standup)` (or `ChatPlatform.for(:slack)`) and the `ChatPlatform::Adapter` contract, never a platform SDK
 - `ChatPlatform::SlackAdapter`: Slack implementation (Block Kit and mrkdwn live here); `SlackClient` is the low-level Slack API wrapper underneath it
+- `ChatPlatform::TeamsAdapter`: Teams implementation on `Microsoft::BotConnectorClient` and `Microsoft::GraphClient`; people are Entra object IDs, channels are `TEAM_ID|CHANNEL_ID`
+- `ChatIntegrationService.for(platform)`: Console credential checks and discovery (`SlackIntegrationService`, `TeamsIntegrationService`)
 - `StandupConversationHandler` / `DirectMessageCommands`: Platform-neutral DM handling (answers, edits, `skip`/`away`/...)
 - `StandupCommandHandler`: Platform-neutral `/standup` commands, returning `ChatPlatform::Reply` objects
 - `SlackSignatureVerifier`: Webhook signature verification
@@ -27,6 +29,7 @@ Ruby on Rails 8.1 Slack standup bot that schedules meetings, asks participants q
 
 ### Controllers & Formatters
 - `SlackEventsController`: Handles Slack webhooks/events
+- `TeamsActivitiesController`: Verifies Bot Framework JWTs and queues `TeamsActivityProcessorJob`
 - `StandupFormatter`: Formats questions using the adapter's formatter
 
 ## Development
@@ -54,7 +57,7 @@ bin/rails standups:validate # Validate config/standups/*.yml
 - **Framework**: Minitest with fixtures in `test/fixtures/`
 - **Mocking**: Use Mocha for external dependencies (especially Slack API)
 - **Time Testing**: Use `Timecop` for schedule/time-dependent tests
-- **Pattern**: Always mock `SlackClient.instance` (beneath the Slack adapter) or the adapter itself to avoid real API calls. New adapters include `test/support/chat_platform_adapter_contract.rb`
+- **Pattern**: Always mock `SlackClient.instance` (beneath the Slack adapter) or the adapter itself to avoid real API calls. New adapters include `test/support/chat_platform_adapter_contract.rb`; Teams tests use `test/support/teams_test_helper.rb` (`enable_teams!`)
 - **Rake tasks**: Use `capture_io` to suppress puts output in tests
 
 ### Code Style

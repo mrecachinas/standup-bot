@@ -44,10 +44,10 @@ class StandupParticipantImporterTest < ActiveSupport::TestCase
   end
 
   test "imports participants by Slack username through resolver" do
-    resolver = mock("SlackUserResolver")
+    resolver = mock("ChatUserResolver")
     resolver.expects(:resolve)
       .with("@alice", fallback_name: "Alice Import")
-      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UALICE", display_name: "Alice Import", cached_timezone: "America/New_York"))
+      .returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UALICE", display_name: "Alice Import", cached_timezone: "America/New_York"))
     importer = StandupParticipantImporter.new(@standup, user_resolver: resolver)
 
     result = importer.import_text("@alice,Alice Import,,true")

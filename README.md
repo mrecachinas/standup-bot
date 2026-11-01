@@ -1,6 +1,6 @@
 # Standup Bot
 
-Async standups for Slack. Standup Bot DMs each teammate a few questions at a scheduled time (in their own timezone), collects their answers, and posts each person's update to your team's channel. Anyone can sign in with Slack to set up a standup for their team (formal or virtual), manage participants, and see who has responded. Team members can also see their own check-ins and set time away.
+Async standups for Slack and Microsoft Teams. Standup Bot DMs each teammate a few questions at a scheduled time (in their own timezone), collects their answers, and posts each person's update to your team's channel. Anyone can sign in with Slack or Microsoft to set up a standup for their team (formal or virtual), manage participants, and see who has responded. Team members can also see their own check-ins and set time away.
 
 ![Manager overview showing completion rate, responses by day, standups needing attention, and a table of standups with trends](docs/images/dashboard.png)
 
@@ -33,7 +33,7 @@ Then open <http://localhost:3000> and sign in with:
 - **Email:** `admin@example.com`
 - **Access token:** `local-manager-token`
 
-This runs the whole app (web console, background worker, and Postgres) without connecting to Slack. To have the bot actually send messages, [create a Slack app](docs/slack-setup.md) and [give the app its Slack credentials](docs/getting-started.md#connecting-slack).
+This runs the whole app (web console, background worker, and Postgres) without connecting to a chat platform. To have the bot actually send messages, [create a Slack app](docs/slack-setup.md) or [register a Teams bot](docs/teams-setup.md), and [give the app its credentials](docs/getting-started.md#connecting-slack-or-teams). Each standup picks its platform, so you can use both.
 
 ## Documentation
 
@@ -41,6 +41,7 @@ This runs the whole app (web console, background worker, and Postgres) without c
 | --- | --- |
 | [Getting started](docs/getting-started.md) | Running locally with Docker Compose or natively with MySQL |
 | [Slack setup](docs/slack-setup.md) | Creating the Slack app, scopes, slash commands, and DM commands |
+| [Microsoft Teams setup](docs/teams-setup.md) | Registering the bot, Graph permissions, the Teams app manifest, and Teams commands |
 | [Configuration](docs/configuration.md) | Environment variables and YAML standup files |
 | [Architecture](docs/architecture.md) | How the pieces fit together: models, jobs, and manager permissions |
 | [API](docs/api.md) | Admin API and health check endpoints |

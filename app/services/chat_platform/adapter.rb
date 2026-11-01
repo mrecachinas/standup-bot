@@ -85,6 +85,11 @@ module ChatPlatform
       raise NotImplementedError
     end
 
+    # Whether typed input is meant as a user ID rather than a name to look up.
+    def looks_like_user_id?(value)
+      valid_user_id?(value)
+    end
+
     # Completes "must be ..." in validation errors.
     def user_id_hint
       raise NotImplementedError
@@ -108,8 +113,8 @@ module ChatPlatform
       user_profile(user_id)&.preferred_name || UNKNOWN_USER
     end
 
-    def channel_reference(channel)
-      formatter.channel_reference(channel)
+    def channel_reference(channel, name: nil)
+      formatter.channel_reference(name.presence || channel)
     end
 
     def standup_update_heading(display_name)

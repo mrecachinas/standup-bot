@@ -29,12 +29,18 @@ class ApplicationJob < ActiveJob::Base
     raise
   end
 
-  def notify_admin_channel(exception)
-    channel = ENV["ADMIN_CHANNEL"].presence
-    return unless channel
+  ADMIN_CHANNEL_ENV = { slack: "ADMIN_CHANNEL", teams: "TEAMS_ADMIN_CHANNEL" }.freeze
 
-    ChatPlatform.for(:slack).send_message(channel, "⚠️ Job #{self.class.name} failed: #{exception.class} - #{exception.message}")
-  rescue StandardError => notification_error
-    Rails.logger.error "Failed to notify admin channel: #{notification_error.class} - #{notification_error.message}"
+  def notify_admin_channel(exception)
+    ADMIN_CHANNEL_ENV.each do |platform, env_name|
+      channel = ENV[env_name].presence
+      next unless channel
+
+      begin
+        ChatPlatform.for(platform).send_message(channel, "⚠️ Job #{self.class.name} failed: #{exception.class} - #{exception.message}")
+      rescue StandardError => notification_error
+        Rails.logger.error "Failed to notify #{platform} admin channel: #{notification_error.class} - #{notification_error.message}"
+      end
+    end
   end
 end

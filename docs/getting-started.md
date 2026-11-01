@@ -18,7 +18,7 @@ Sign in with the seeded admin:
 - **Email:** `admin@example.com`
 - **Access token:** `local-manager-token`
 
-You don't need Slack credentials for this. Slack features in the console will tell you they're not configured until you [connect Slack](#connecting-slack).
+You don't need Slack or Teams credentials for this. Chat features in the console will tell you they're not configured until you [connect Slack or Teams](#connecting-slack-or-teams).
 
 To use your own admin credentials and API token:
 
@@ -31,13 +31,16 @@ docker compose up --build
 
 To stop, run `docker compose down`. To also wipe the database, run `docker compose down -v`.
 
-### Connecting Slack
+### Connecting Slack or Teams
 
-`docker-compose.yml` doesn't pass Slack credentials into the containers. Once you've [created a Slack app](slack-setup.md), add them to the `environment` block under `x-app` so the web and worker containers both get them:
+`docker-compose.yml` doesn't pass chat credentials into the containers. Once you've [created a Slack app](slack-setup.md) or [registered a Teams bot](teams-setup.md), add the credentials to the `environment` block under `x-app` so the web and worker containers both get them:
 
 ```yaml
     SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
     SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+    TEAMS_APP_ID: ${TEAMS_APP_ID:-}
+    TEAMS_APP_PASSWORD: ${TEAMS_APP_PASSWORD:-}
+    TEAMS_TENANT_ID: ${TEAMS_TENANT_ID:-}
 ```
 
 Then export the values in your shell and run `docker compose up` again. With native Rails (below), just set the environment variables before running `script/server` and `bin/jobs`.

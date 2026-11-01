@@ -50,7 +50,7 @@ class StandupParticipantImporter
     end
 
     if rows.empty? && result.errors.empty?
-      result.errors << "No Slack members were returned for that channel."
+      result.errors << "No #{standup.chat_platform.label} members were returned for that channel."
       return result
     end
 
@@ -114,23 +114,23 @@ class StandupParticipantImporter
     [ match[:id], match[:name] ]
   end
 
-  def normalize_slack_id(value)
-    value.to_s.strip.delete_prefix("@").upcase
+  def normalize_user_id(value)
+    standup.chat_platform.normalize_user_id(value.to_s.strip.delete_prefix("@"))
   end
 
   def resolve_user_identifier(identifier, fallback_name:, result:, label:)
     if user_resolver
       user_resolver.resolve(identifier, fallback_name: fallback_name)
     else
-      platform_user_id = normalize_slack_id(identifier)
+      platform_user_id = normalize_user_id(identifier)
       if platform_user_id.blank?
-        result.errors << "#{label}: Slack user is required."
+        result.errors << "#{label}: #{standup.chat_platform.label} user is required."
         return
       end
 
-      SlackUserResolver::ResolvedUser.new(platform_user_id: platform_user_id, display_name: fallback_name.presence || platform_user_id)
+      ChatUserResolver::ResolvedUser.new(platform_user_id: platform_user_id, display_name: fallback_name.presence || platform_user_id)
     end
-  rescue SlackUserResolver::ResolutionError => error
+  rescue ChatUserResolver::ResolutionError => error
     result.errors << "#{label}: #{error.message}"
     nil
   end
@@ -142,10 +142,10 @@ class StandupParticipantImporter
   end
 
   def profile_row(profile, index, result)
-    platform_user_id = normalize_slack_id(profile_value(profile, :platform_user_id) || profile_value(profile, "platform_user_id") || profile_value(profile, :id) || profile_value(profile, "id"))
+    platform_user_id = normalize_user_id(profile_value(profile, :platform_user_id) || profile_value(profile, "platform_user_id") || profile_value(profile, :id) || profile_value(profile, "id"))
 
     if platform_user_id.blank?
-      result.errors << "Slack profile #{index}: Slack user ID is required."
+      result.errors << "#{standup.chat_platform.label} profile #{index}: user ID is required."
       return
     end
 
@@ -162,7 +162,7 @@ class StandupParticipantImporter
         profile_value(profile, "tz").presence,
       avatar_url: SlackAvatar.safe_url?(profile_value(profile, "avatar_url")) ? profile_value(profile, "avatar_url") : nil,
       active: true,
-      source: "slack_sync",
+      source: "#{standup.platform}_sync",
       line: index
     }
   end
@@ -240,7 +240,7 @@ class StandupParticipantImporter
         action: "standup_participant.update",
         metadata: {
           standup_id: standup.id,
-          source: "slack_sync",
+          source: "#{standup.platform}_sync",
           sync_action: "deactivate_missing",
           before: before,
           changes: audited_saved_changes(participant)

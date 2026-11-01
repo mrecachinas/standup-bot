@@ -78,6 +78,11 @@ class Standup < ApplicationRecord
     ChatPlatform.for(platform)
   end
 
+  # How messages refer to the standup's channel, e.g. "#team-standup".
+  def channel_reference
+    chat_platform.channel_reference(platform_channel, name: platform_channel_name)
+  end
+
   def upcoming_occurrences_in_timezone(timezone, count: 5, from: nil)
     upcoming_occurrence_details_in_timezone(timezone, count: count, from: from).map(&:scheduled_at)
   end

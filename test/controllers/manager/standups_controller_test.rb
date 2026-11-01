@@ -315,8 +315,8 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "people can be added as a comma-separated list" do
-    SlackUserResolver.any_instance.stubs(:resolve).with("@ada", fallback_name: "").returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UADA1", display_name: "Ada", cached_timezone: "UTC"))
-    SlackUserResolver.any_instance.stubs(:resolve).with("@grace", fallback_name: "").returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UGRACE1", display_name: "Grace", cached_timezone: "UTC"))
+    ChatUserResolver.any_instance.stubs(:resolve).with("@ada", fallback_name: "").returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UADA1", display_name: "Ada", cached_timezone: "UTC"))
+    ChatUserResolver.any_instance.stubs(:resolve).with("@grace", fallback_name: "").returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UGRACE1", display_name: "Grace", cached_timezone: "UTC"))
     sign_in(@manager, "manager-access-token")
 
     post manager_standups_path, params: { preview_timezone: "UTC", standup: wizard_standup_params(name: "Handles", participant_handles: "@ada, @grace") }
@@ -386,9 +386,9 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "replacing the pre-filled creator row looks up the new person instead of keeping the creator's details" do
-    SlackUserResolver.any_instance.expects(:resolve)
+    ChatUserResolver.any_instance.expects(:resolve)
       .with("UNEWGUY", fallback_name: "")
-      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UNEWGUY", display_name: "New Guy", cached_timezone: "Europe/Berlin"))
+      .returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UNEWGUY", display_name: "New Guy", cached_timezone: "Europe/Berlin"))
     sign_in(@manager, "manager-access-token")
 
     post manager_standups_path,
@@ -397,7 +397,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
         standup: wizard_standup_params(
           name: "Replaced Creator Standup",
           participants: {
-            "0" => { platform_user_id: "UNEWGUY", original_slack_id: "UCREATOR", display_name: "Creator Name", cached_timezone: "America/New_York", active: "1" }
+            "0" => { platform_user_id: "UNEWGUY", original_platform_user_id: "UCREATOR", display_name: "Creator Name", cached_timezone: "America/New_York", active: "1" }
           }
         )
       }
@@ -408,9 +408,9 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "wizard resolves Slack usernames before creating participants" do
-    SlackUserResolver.any_instance.expects(:resolve)
+    ChatUserResolver.any_instance.expects(:resolve)
       .with("@wizard", fallback_name: "")
-      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UWIZ003", display_name: "Wizard Resolved", cached_timezone: "America/Chicago"))
+      .returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UWIZ003", display_name: "Wizard Resolved", cached_timezone: "America/Chicago"))
     sign_in(@manager, "manager-access-token")
 
     assert_difference [ "Standup.count", "StandupParticipant.count" ], 1 do

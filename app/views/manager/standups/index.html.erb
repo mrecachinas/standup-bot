@@ -27,10 +27,10 @@
           <div class="empty">
             <span class="empty-icon"><%= icon(:message) %></span>
             <h2>Create your first standup</h2>
-            <p>Pick a schedule and a few questions. Standup Bot will DM your team in Slack and collect the answers.</p>
+            <p>Pick a schedule and a few questions. Standup Bot will DM your team in Slack or Microsoft Teams and collect the answers.</p>
             <div class="btn-row">
               <%= link_to "New standup", new_manager_standup_path, class: "btn btn-primary", data: { turbo_frame: "_top" } %>
-              <%= link_to "Connect Slack", manager_slack_integration_path, class: "btn", data: { turbo_frame: "_top" } %>
+              <%= link_to "Connect a chat app", manager_integrations_path, class: "btn", data: { turbo_frame: "_top" } %>
             </div>
           </div>
         </div>

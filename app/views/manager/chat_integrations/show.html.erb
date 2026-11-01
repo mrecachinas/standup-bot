@@ -1,0 +1,88 @@
+<% content_for :title, "Integrations" %>
+<% label = platform_label(@platform) %>
+<turbo-frame id="chat_integrations">
+  <div class="page">
+    <div class="page-header">
+      <div class="page-header-text">
+        <h1>Integrations</h1>
+        <p class="page-subtitle">Connection health and workspace lookup for each chat platform. Secrets are never shown.</p>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="Chat platforms">
+      <% @statuses.each do |platform, status| %>
+        <%= link_to manager_integrations_path(platform: platform), class: [ "tab", ("is-active" if platform == @platform) ].compact.join(" "), aria: { current: ("page" if platform == @platform) }, data: { turbo_frame: "chat_integrations" } do %>
+          <%= icon(platform_icon(platform)) %> <%= platform_label(platform) %>
+          <%= status[:configured] ? status_badge("Connected", "success") : status_badge("Not set up", "warning") %>
+        <% end %>
+      <% end %>
+    </nav>
+
+    <div class="grid grid-main-aside grid-gap-lg">
+      <div class="stack-lg">
+        <%= render "status", status: @integration_status, connection_result: @connection_result, platform: @platform %>
+
+        <section class="card card-flush">
+          <div class="card-header">
+            <div>
+              <h2>Look up <%= label %> channels and people</h2>
+              <p class="hint">Find the IDs to use in standups and reports.</p>
+            </div>
+          </div>
+          <div class="grid grid-2 grid-flush">
+            <div id="<%= @platform %>-channel-discovery" class="border-right">
+              <%= form_with url: manager_integrations_path, method: :get, data: { turbo_frame: "chat_integrations" }, class: "card-body input-group" do |form| %>
+                <%= hidden_field_tag :platform, @platform, id: nil %>
+                <%= hidden_field_tag :discover, "channels", id: nil %>
+                <%= form.label :channel_query, "Search channels", class: "sr-only" %>
+                <%= form.search_field :channel_query, value: @channel_query, placeholder: platform_copy(@platform, :channel_search_placeholder) %>
+                <%= form.submit "Find channels", class: "btn" %>
+              <% end %>
+              <% if @channel_result.present? %>
+                <div class="border-top">
+                  <%= render "manager/standup_chat_integrations/discovery_results", result: @channel_result, empty_message: "No channels matched." %>
+                </div>
+              <% end %>
+            </div>
+            <div id="<%= @platform %>-user-discovery">
+              <%= form_with url: manager_integrations_path, method: :get, data: { turbo_frame: "chat_integrations" }, class: "card-body input-group" do |form| %>
+                <%= hidden_field_tag :platform, @platform, id: nil %>
+                <%= hidden_field_tag :discover, "users", id: nil %>
+                <%= form.label :user_query, "Search people", class: "sr-only" %>
+                <%= form.search_field :user_query, value: @user_query, placeholder: platform_copy(@platform, :user_search_placeholder) %>
+                <%= form.submit "Find users", class: "btn" %>
+              <% end %>
+              <% if @user_result.present? %>
+                <div class="border-top">
+                  <%= render "manager/standup_chat_integrations/discovery_results", result: @user_result, empty_message: "No users matched.", action: :add_user %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <section class="card card-flush">
+          <div class="card-header"><h2>Standups</h2></div>
+          <% if @standups.any? %>
+            <ul class="list">
+              <% @standups.each do |standup| %>
+                <li>
+                  <span class="dot <%= standup.active? ? "dot-success" : "dot-warning" %>"></span>
+                  <div class="grow">
+                    <div class="small strong truncate"><%= standup.name %></div>
+                    <div class="cell-sub"><%= standup.chat_platform.label %> · <span class="mono"><%= standup.channel_reference %></span></div>
+                  </div>
+                  <%= link_to "Configure", manager_standup_chat_setup_path(standup), data: { turbo_frame: "_top" }, class: "btn btn-sm" %>
+                </li>
+              <% end %>
+            </ul>
+          <% else %>
+            <p class="empty-inline">No standups are assigned to you yet.</p>
+          <% end %>
+        </section>
+      </aside>
+    </div>
+  </div>
+</turbo-frame>

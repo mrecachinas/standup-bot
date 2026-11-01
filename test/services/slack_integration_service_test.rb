@@ -3,14 +3,14 @@ require "test_helper"
 class SlackIntegrationServiceTest < ActiveSupport::TestCase
   setup do
     @standup = standups(:daily)
-    @client = mock("ChatPlatform::SlackAdapter")
+    @client = ChatPlatform::SlackAdapter.new
     @config = {
       bot_token: "xoxb-secret-token",
       signing_secret: "super-secret-signing-value",
       client_id: "client-id",
       client_secret: "client-secret-value"
     }
-    HealthCheckService.stubs(:slack_status).returns({ status: "ok", configured: true })
+    HealthCheckService.stubs(:platform_status).returns({ status: "ok", configured: true })
   end
 
   test "configuration status reports presence without exposing secret values" do
@@ -116,7 +116,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
 
   test "private channels only show up in discovery for admins" do
     records = [ { "id" => "C1", "label" => "#general", "is_private" => false }, { "id" => "G1", "label" => "#secret-project", "is_private" => true } ]
-    client = stub(list_channels: records)
+    client = ChatPlatform::SlackAdapter.new.tap { |adapter| adapter.stubs(:list_channels).returns(records) }
     service = SlackIntegrationService.new(client: client, config: { bot_token: "xoxb-test" })
 
     assert_equal [ "C1" ], service.discover_channels(query: nil, include_private: false).records.map { |record| record["id"] }
