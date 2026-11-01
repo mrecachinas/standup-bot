@@ -17,7 +17,7 @@ export function AppShell() {
   }
 
   return (
-    <PageLayout padding="none" rowGap="none" columnGap="none">
+    <PageLayout containerWidth="full" padding="none" rowGap="none" columnGap="none">
       <PageLayout.Pane position="start" width="small" divider="line" sticky aria-label="Primary" padding="none">
         <Sidebar />
       </PageLayout.Pane>

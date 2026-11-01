@@ -26,7 +26,7 @@ describe("StandupResponsesPage", () => {
     renderApp(PAGE);
 
     const day = await screen.findByRole("region", { name: "October 30, 2026" });
-    expect(document.title).toBe("Responses · Daily standup · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Responses · Daily standup · Standup Bot"));
     expect(screen.getByRole("link", { name: "Responses" })).toHaveAttribute("aria-current", "page");
 
     const summary = screen.getByRole("region", { name: "Summary" });

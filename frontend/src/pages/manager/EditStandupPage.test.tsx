@@ -30,7 +30,7 @@ describe("EditStandupPage", () => {
     renderApp("/manager/standups/7/edit");
 
     expect(await screen.findByLabelText(/^Name/)).toHaveValue("Daily standup");
-    expect(document.title).toBe("Settings · Daily standup · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Settings · Daily standup · Standup Bot"));
     const tabs = screen.getByRole("navigation", { name: "Daily standup sections" });
     expect(within(tabs).getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
     expect(screen.queryByRole("link", { name: "Edit standup" })).toBeNull();

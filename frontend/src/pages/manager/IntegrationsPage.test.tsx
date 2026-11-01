@@ -13,7 +13,7 @@ describe("IntegrationsPage", () => {
     expect(await screen.findByRole("heading", { name: "Slack app status" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Integrations", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("Connection health and workspace lookup for each chat platform. Secrets are never shown.")).toBeInTheDocument();
-    expect(document.title).toBe("Integrations · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Integrations · Standup Bot"));
 
     const tabs = screen.getByRole("navigation", { name: "Chat platforms" });
     const slack = within(tabs).getByRole("link", { name: /Slack/ });

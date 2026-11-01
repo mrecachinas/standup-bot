@@ -33,7 +33,7 @@ describe("StandupParticipantsPage", () => {
     renderApp(PAGE);
 
     expect(await screen.findByRole("heading", { name: "Add people" })).toBeInTheDocument();
-    expect(document.title).toBe("Participants · Daily standup · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Participants · Daily standup · Standup Bot"));
     expect(screen.getByRole("link", { name: /Participants/ })).toHaveAttribute("aria-current", "page");
 
     const input = screen.getByLabelText("Slack user");

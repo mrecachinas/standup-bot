@@ -69,6 +69,28 @@ test.describe("as a standup manager", () => {
     checkErrors();
   });
 
+  test("only asks before leaving the standup form when something changed", async ({ page }) => {
+    const dialogs: string[] = [];
+    page.on("dialog", async (dialog) => {
+      dialogs.push(dialog.type());
+      await dialog.accept();
+    });
+
+    await page.goto("/manager/standups/new");
+    await expect(page.getByRole("heading", { level: 1, name: "Create a standup" })).toBeVisible();
+    await page.getByRole("link", { name: "Overview" }).click();
+    await expect(page).toHaveURL(/\/manager\/standups$/);
+    await page.goto("/manager/standups/new");
+    await expect(page.getByRole("heading", { level: 1, name: "Create a standup" })).toBeVisible();
+    await page.goto("/manager/standups");
+    expect(dialogs).toEqual([]);
+
+    await page.goto("/manager/standups/new");
+    await page.getByRole("textbox", { name: "Name" }).fill("Half-finished");
+    await page.getByRole("link", { name: "Overview" }).click();
+    await expect(page.getByRole("alertdialog").or(page.getByRole("dialog"))).toBeVisible();
+  });
+
   test("shows validation errors on the standup form", async ({ page }) => {
     await page.goto("/manager/standups/new");
     await page.getByRole("textbox", { name: "Post summaries to" }).fill("e2e-standup");

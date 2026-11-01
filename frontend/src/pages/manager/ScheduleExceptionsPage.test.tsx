@@ -31,7 +31,7 @@ describe("ScheduleExceptionsPage", () => {
     renderApp(PAGE);
 
     const upcoming = await screen.findByRole("list", { name: "Upcoming runs" });
-    expect(document.title).toBe("Schedule · Daily standup · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Schedule · Daily standup · Standup Bot"));
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("Includes skipped and moved dates")).toBeInTheDocument();
     expect(screen.getByLabelText("Show times in")).toHaveValue("UTC");

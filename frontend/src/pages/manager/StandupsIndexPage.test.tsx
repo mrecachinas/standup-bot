@@ -15,7 +15,7 @@ describe("StandupsIndexPage", () => {
     renderApp("/manager/standups");
 
     expect(await screen.findByRole("heading", { name: "Overview", level: 1 })).toBeInTheDocument();
-    expect(document.title).toBe("Overview · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Overview · Standup Bot"));
     expect(requests(fetchMock)).toContain("/api/overview?visibility=all&period_days=14");
     expect(screen.getByText("How your standups are doing over the last 14 days.")).toBeInTheDocument();
 

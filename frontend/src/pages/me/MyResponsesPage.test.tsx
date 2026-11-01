@@ -11,7 +11,7 @@ describe("MyResponsesPage", () => {
     renderApp("/me/responses");
 
     expect(await screen.findByRole("heading", { level: 1, name: "My responses" })).toBeInTheDocument();
-    expect(document.title).toBe("My responses · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("My responses · Standup Bot"));
     expect(screen.getByText("Your most recent check-ins.")).toBeInTheDocument();
 
     const items = within(screen.getByRole("region", { name: "Check-ins" })).getAllByRole("listitem");

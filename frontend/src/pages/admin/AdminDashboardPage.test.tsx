@@ -150,7 +150,7 @@ describe("AdminDashboardPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Job queue" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Admin", level: 1 })).toBeInTheDocument();
-    expect(document.title).toBe("Admin · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Admin · Standup Bot"));
     expect(screen.getByText(/Installation health, usage, and recent changes\. Checked/)).toHaveTextContent("Checked 5 minutes ago.");
 
     const queue = screen.getByRole("region", { name: "Job queue" });

@@ -45,7 +45,7 @@ describe("AppShell navigation", () => {
     const main = await screen.findByRole("navigation", { name: "Main" });
     expect(within(main).getByRole("link", { name: "Admin" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("Admin", { selector: "div" })).toBeInTheDocument();
-    expect(document.title).toBe("Admin · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Admin · Standup Bot"));
   });
 
   it("shows both sections to a user who is also a member", async () => {

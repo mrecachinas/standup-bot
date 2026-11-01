@@ -33,7 +33,7 @@ describe("NewStandupPage", () => {
     renderApp("/manager/standups/new");
 
     expect(await screen.findByLabelText(/^Name/)).toHaveValue("");
-    expect(document.title).toBe("New standup · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("New standup · Standup Bot"));
     expect(urls(fetchMock)).toContain("/api/standups/new");
     expect(screen.getByRole("heading", { name: "Create a standup", level: 1 })).toBeInTheDocument();
 

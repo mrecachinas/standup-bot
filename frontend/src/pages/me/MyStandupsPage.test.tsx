@@ -11,7 +11,7 @@ describe("MyStandupsPage", () => {
     renderApp("/me");
 
     expect(await screen.findByRole("heading", { level: 1, name: "My standups" })).toBeInTheDocument();
-    expect(document.title).toBe("My standups · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("My standups · Standup Bot"));
     expect(screen.getByText("Your check-ins across 2 standups. Answer them in your Slack DMs.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Set time away" })).toHaveAttribute("href", "/me/availability");
 

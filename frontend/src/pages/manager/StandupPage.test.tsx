@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { jsonResponse, userBootstrap } from "../../test/fixtures";
@@ -11,7 +11,7 @@ describe("StandupPage", () => {
     renderApp("/manager/standups/7");
 
     expect(await screen.findByRole("heading", { name: "Daily standup", level: 1 })).toBeInTheDocument();
-    expect(document.title).toBe("Daily standup · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Daily standup · Standup Bot"));
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain("/api/standups/7?include=overview");
     const tabs = screen.getByRole("navigation", { name: "Daily standup sections" });
     expect(within(tabs).getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");

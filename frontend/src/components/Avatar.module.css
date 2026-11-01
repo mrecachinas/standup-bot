@@ -31,8 +31,9 @@
   align-items: center;
 }
 
+/* A small overlap, so initials on the avatar underneath stay readable. */
 .stack > * + * {
-  margin-left: calc(var(--base-size-8) * -1);
+  margin-left: calc(var(--base-size-4) * -1);
 }
 
 .stack > * {

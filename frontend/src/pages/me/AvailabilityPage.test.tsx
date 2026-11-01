@@ -20,7 +20,7 @@ describe("AvailabilityPage", () => {
     renderApp("/me/availability");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Availability" })).toBeInTheDocument();
-    expect(document.title).toBe("Availability · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Availability · Standup Bot"));
     expect(screen.getByText("Going on vacation or out sick? Pause your check-ins so they don't count as missed.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Currently away" })).toBeNull();
 

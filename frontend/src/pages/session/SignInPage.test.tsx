@@ -17,7 +17,7 @@ describe("SignInPage", () => {
     expect(microsoft).toHaveAttribute("data-variant", "default");
     expect(screen.getByText("Sign in with an access token instead")).toBeInTheDocument();
     expect(screen.getByText("Async standups for Slack and Microsoft Teams.")).toBeInTheDocument();
-    expect(document.title).toBe("Sign in · Standup Bot");
+    await waitFor(() => expect(document.title).toBe("Sign in · Standup Bot"));
   });
 
   it("hides platforms without sign-in and shows the token form directly", async () => {
