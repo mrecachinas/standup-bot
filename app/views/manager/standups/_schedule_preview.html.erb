@@ -7,7 +7,10 @@
         <% local_occurrence = occurrence.in_time_zone(preview_timezone) %>
         <li class="occurrence">
           <%= date_tile(local_occurrence.to_date) %>
-          <time datetime="<%= occurrence.iso8601 %>"><%= local_occurrence.strftime("%A, %B %-d, %Y at %-l:%M %p %Z") %></time>
+          <time datetime="<%= occurrence.iso8601 %>" title="<%= local_occurrence.strftime("%A, %B %-d, %Y at %-l:%M %p %Z") %>">
+            <span class="strong"><%= local_occurrence.strftime("%A") %></span>
+            <span class="cell-sub"><%= local_occurrence.strftime("%-l:%M %p %Z") %></span>
+          </time>
         </li>
       <% end %>
     </ul>

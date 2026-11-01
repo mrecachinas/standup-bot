@@ -34,6 +34,8 @@ module UiHelper
     layers: '<path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
     activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
     logo: '<path d="M4 6h10"/><path d="M4 12h16"/><path d="M4 18h7"/>',
+    chevron_up: '<path d="m18 15-6-6-6 6"/>',
+    chevron_down: '<path d="m6 9 6 6 6-6"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
     moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
     monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>'
@@ -106,6 +108,24 @@ module UiHelper
     else standup.schedule_type.to_s.titleize
     end
     "#{base} at #{format_clock(standup.default_hour, standup.default_minute)}"
+  end
+
+  # How the editor's day picker should start for an existing schedule.
+  def schedule_picker_state(standup)
+    days = Array(standup.schedule_days).filter_map { |day| Integer(day, exception: false) }
+    case standup.schedule_type
+    when "daily" then { frequency: "weekly", days: (0..6).to_a }
+    when "weekdays" then { frequency: "weekly", days: [ 1, 2, 3, 4, 5 ] }
+    when "biweekly" then { frequency: "biweekly", days: days.first(1).presence || [ 1 ] }
+    when "monthly" then { frequency: "monthly", days: [ 1, 2, 3, 4, 5 ], monthly_day: days.first || 1 }
+    # The scheduler only uses the first day of a weekly schedule (Monday if none).
+    when "weekly" then { frequency: "weekly", days: days.first(1).presence || [ 1 ] }
+    else { frequency: "weekly", days: days }
+    end
+  end
+
+  def schedule_sentence(standup)
+    "#{schedule_summary(standup)}, #{standup.respect_timezone? ? "in each person's local time" : "UTC"}"
   end
 
   def format_clock(hour, minute)

@@ -81,8 +81,9 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "a.template.is-active", text: /Friday retro/
     assert_select "input[name='standup[question_rows][]'][value='What went well this week?']"
-    assert_select "select[name='standup[schedule_type]'] option[selected][value='weekly']"
-    assert_select "input[name='standup[schedule_days][]'][value='5'][checked]"
+    assert_select "input[name='standup[frequency]'][value='weekly'][checked]"
+    assert_select "input[name='standup[days][]'][value='5'][checked]"
+    assert_select "input[name='standup[days][]'][value='1'][checked]", count: 0
   end
 
   test "new standups start with the creator on the roster and their timezone in the preview" do
@@ -105,7 +106,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "select[name='preview_timezone'][data-detect-timezone]"
-    assert_select "select[name='standup[schedule_type]'] option[selected][value='weekdays']"
+    assert_equal %w[1 2 3 4 5], css_select("input[name='standup[days][]'][checked]").map { |input| input["value"] }
     assert_select "input[name='standup[send_time]'][value='09:30']"
   end
 
@@ -237,7 +238,7 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "New Manager Standup was created.", flash[:notice]
   end
 
-  test "new standup wizard renders schedule preview questions and participants" do
+  test "new standup editor keeps the essentials up front and advanced settings collapsed" do
     sign_in(@manager, "manager-access-token")
 
     get new_manager_standup_path
@@ -246,18 +247,81 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Create a standup"
     assert_includes response.body, "Preview schedule"
     assert_includes response.body, "standup[question_rows][]"
-    assert_includes response.body, "standup[participants][0][slack_id]"
-    assert_match(/data-weekday-schedule-section\s+hidden/, response.body)
-    assert_includes response.body, "data-schedule-type-select"
+    assert_select "input[name='standup[participant_handles]']"
+    assert_select "details#advanced:not([open])"
+    assert_select "[data-schedule-summary]", text: "Weekdays at 9:30 AM, in each person's local time"
+    assert_select "[data-preview-question]", text: "What did you get done yesterday?"
   end
 
-  test "weekly standup wizard initially shows weekday checkboxes" do
+  test "editing a weekly standup selects its day" do
     sign_in(@admin, "admin-access-token")
 
     get edit_manager_standup_path(@unowned_standup)
 
     assert_response :success
-    assert_match(/data-weekday-schedule-section(?!\s+hidden)/, response.body)
+    assert_select "input[name='standup[days][]'][checked]", minimum: 1
+    assert_select "[data-day-picker]:not([hidden])"
+  end
+
+  test "editing a weekly standup shows only the day it actually runs on" do
+    @owned_standup.update!(schedule_type: "weekly", schedule_days: [ 1, 3 ])
+    sign_in(@manager, "manager-access-token")
+
+    get edit_manager_standup_path(@owned_standup)
+
+    assert_equal %w[1], css_select("input[name='standup[days][]'][checked]").map { |input| input["value"] }
+  end
+
+  test "the editor works without JavaScript: blank question row and real remove checkboxes" do
+    sign_in(@manager, "manager-access-token")
+
+    get edit_manager_standup_path(@owned_standup)
+
+    assert_equal Array(@owned_standup.questions).size + 1, css_select("[data-rows] input[name='standup[question_rows][]']").size
+    assert_select "input[type=checkbox][name='standup[participants][0][_destroy]'][value='1']"
+  end
+
+  test "picking several days creates a standup that runs on all of them" do
+    sign_in(@manager, "manager-access-token")
+
+    post manager_standups_path, params: { preview_timezone: "UTC", standup: wizard_standup_params(name: "Three Day", schedule_type: nil, schedule_days: nil, frequency: "weekly", days: [ "", "1", "3", "5" ]).compact }
+
+    standup = Standup.find_by!(name: "Three Day")
+    assert_equal "custom", standup.schedule_type
+    assert_equal [ 1, 3, 5 ], standup.schedule_days.map(&:to_i)
+  end
+
+  test "the day picker maps common choices to simple schedules" do
+    sign_in(@manager, "manager-access-token")
+
+    { "Weekday Pick" => [ %w[1 2 3 4 5], "weekdays" ], "Every Day Pick" => [ %w[0 1 2 3 4 5 6], "daily" ], "One Day Pick" => [ %w[2], "weekly" ] }.each do |name, (days, type)|
+      post manager_standups_path, params: { preview_timezone: "UTC", standup: wizard_standup_params(name: name, schedule_type: nil, schedule_days: nil, frequency: "weekly", days: days).compact }
+      assert_equal type, Standup.find_by!(name: name).schedule_type
+    end
+  end
+
+  test "picking no days or several days every other week explains what's wrong" do
+    sign_in(@manager, "manager-access-token")
+
+    assert_no_difference "Standup.count" do
+      post manager_standups_path, params: { preview_timezone: "UTC", standup: wizard_standup_params(name: "No Days", schedule_type: nil, schedule_days: nil, frequency: "weekly", days: [ "" ]).compact }
+    end
+    assert_includes response.body, "Pick at least one day."
+
+    assert_no_difference "Standup.count" do
+      post manager_standups_path, params: { preview_timezone: "UTC", standup: wizard_standup_params(name: "Biweekly Many", schedule_type: nil, schedule_days: nil, frequency: "biweekly", days: %w[1 3]).compact }
+    end
+    assert_includes response.body, "Every other week runs on one day"
+  end
+
+  test "people can be added as a comma-separated list" do
+    SlackUserResolver.any_instance.stubs(:resolve).with("@ada", fallback_name: "").returns(SlackUserResolver::ResolvedUser.new(slack_id: "UADA1", slack_name: "Ada", cached_timezone: "UTC"))
+    SlackUserResolver.any_instance.stubs(:resolve).with("@grace", fallback_name: "").returns(SlackUserResolver::ResolvedUser.new(slack_id: "UGRACE1", slack_name: "Grace", cached_timezone: "UTC"))
+    sign_in(@manager, "manager-access-token")
+
+    post manager_standups_path, params: { preview_timezone: "UTC", standup: wizard_standup_params(name: "Handles", participant_handles: "@ada, @grace") }
+
+    assert_equal %w[UADA1 UGRACE1], Standup.find_by!(name: "Handles").standup_participants.order(:slack_id).pluck(:slack_id)
   end
 
   test "preview renders upcoming occurrences without saving" do
