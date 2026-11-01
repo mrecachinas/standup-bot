@@ -10,13 +10,23 @@ class ApiRateLimitTest < ActionDispatch::IntegrationTest
     ENV["ADMIN_API_TOKEN"] = @previous_admin_token
   end
 
-  test "throttles repeated sign-in attempts" do
-    10.times do
+  test "throttles repeated sign-in attempts from one IP" do
+    10.times do |attempt|
+      post api_session_path, params: { email: "nobody-#{attempt}@example.com", access_token: "nope" }, as: :json
+      assert_response :unauthorized
+    end
+
+    post "/api/session.json", params: { email: "someone@example.com", access_token: "nope" }, as: :json
+    assert_response :too_many_requests
+  end
+
+  test "throttles repeated sign-in attempts for one email" do
+    5.times do
       post api_session_path, params: { email: "nobody@example.com", access_token: "nope" }, as: :json
       assert_response :unauthorized
     end
 
-    post api_session_path, params: { email: "nobody@example.com", access_token: "nope" }, as: :json
+    post api_session_path, params: { email: " NOBODY@example.com", access_token: "nope" }, as: :json
     assert_response :too_many_requests
   end
 

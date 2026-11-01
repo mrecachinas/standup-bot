@@ -13,6 +13,9 @@ class Rack::Attack
     /slack/commands/standup-status
   ].freeze
 
+  # Matches format suffixes too, so /api/session.json can't dodge the sign-in limits.
+  API_SIGN_IN_PATH = %r{\A/api/session(\.[^/]*)?/?\z}
+
   Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new if Rails.env.test?
 
   throttle("slack/ip", limit: 120, period: 1.minute) do |request|
@@ -36,7 +39,11 @@ class Rack::Attack
   end
 
   throttle("api/sign_in/ip", limit: 10, period: 1.minute) do |request|
-    request.ip if request.post? && request.path == "/api/session"
+    request.ip if api_sign_in?(request)
+  end
+
+  throttle("api/sign_in/email", limit: 5, period: 1.minute) do |request|
+    sign_in_email(request) if api_sign_in?(request)
   end
 
   # Ban an IP for a while after repeated wrong admin tokens.
@@ -68,6 +75,15 @@ class Rack::Attack
 
   class << self
     private
+
+    def api_sign_in?(request)
+      request.post? && request.path.match?(API_SIGN_IN_PATH)
+    end
+
+    def sign_in_email(request)
+      email = request.media_type == "application/json" ? parsed_json_body(request)["email"] : form_body(request)["email"]
+      email.to_s.strip.downcase.presence
+    end
 
     def api_request?(request)
       request.path == "/api" || request.path.start_with?("/api/")

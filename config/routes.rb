@@ -71,7 +71,7 @@ Rails.application.routes.draw do
   get "health/metrics", to: "health#metrics"
 
   namespace :api do
-    resource :session, only: [ :show, :create, :destroy ]
+    resource :session, only: [ :show, :create, :destroy ], format: false
     get "overview", to: "overview#show"
     get "integrations", to: "chat_integrations#show"
     get "people", to: "people#index"
