@@ -3,6 +3,9 @@ module Microsoft
   # token uses a key we haven't seen (Microsoft rotates them).
   class OpenIdKeys
     CACHE_TTL = 12.hours
+    # A token with an unknown key ID forces a refresh before its signature is
+    # checked, so limit how often anyone can make us refetch.
+    MIN_REFRESH_INTERVAL = 5.minutes
 
     def initialize(metadata_url:, connection: nil)
       @metadata_url = metadata_url
@@ -19,8 +22,11 @@ module Microsoft
     end
 
     def document(force: false)
-      Rails.cache.delete(cache_key) if force
-      Rails.cache.fetch(cache_key, expires_in: CACHE_TTL) { fetch_keys }
+      Rails.cache.delete(cache_key) if force && refresh_allowed?
+      Rails.cache.fetch(cache_key, expires_in: CACHE_TTL) do
+        Rails.cache.write(refreshed_at_key, Time.current.to_i, expires_in: MIN_REFRESH_INTERVAL)
+        fetch_keys
+      end
     end
 
     private
@@ -29,6 +35,14 @@ module Microsoft
 
     def cache_key
       "microsoft/openid_keys/#{Digest::SHA256.hexdigest(metadata_url)}"
+    end
+
+    def refreshed_at_key
+      "#{cache_key}/refreshed_at"
+    end
+
+    def refresh_allowed?
+      !Rails.cache.exist?(refreshed_at_key)
     end
 
     def fetch_keys

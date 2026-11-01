@@ -11,6 +11,8 @@ class TeamsAppManifestTest < ActiveSupport::TestCase
     assert_equal %w[personal team groupChat], manifest.dig("bots", 0, "scopes")
     assert_equal [ "standup.example.com" ], manifest["validDomains"]
     assert_includes manifest.dig("bots", 0, "commandLists", 0, "commands").map { |command| command["title"] }, "standup status"
+    assert_operator manifest.dig("description", "short").length, :<=, 80
+    assert_not manifest.dig("description", "short").end_with?("...")
   end
 
   test "requires an https app URL and a GUID app ID" do

@@ -7,6 +7,7 @@ class TeamsAppManifest
   SCHEMA_VERSION = "1.17".freeze
   DEFAULT_APP_NAME = "Standup Bot".freeze
   DEFAULT_DESCRIPTION = "Automates daily standups by collecting answers in Teams chats and posting team summaries.".freeze
+  SHORT_DESCRIPTION = "Async standups: questions in chat, updates in your channel.".freeze
   GUID_PATTERN = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
 
   PERSONAL_COMMANDS = [
@@ -50,7 +51,7 @@ class TeamsAppManifest
         "termsOfUseUrl" => @app_url
       },
       "name" => { "short" => @app_name.truncate(30), "full" => @app_name },
-      "description" => { "short" => @description.truncate(80), "full" => @description },
+      "description" => { "short" => (@description.length <= 80 ? @description : SHORT_DESCRIPTION), "full" => @description },
       "icons" => { "color" => "color.png", "outline" => "outline.png" },
       "accentColor" => "#2C2D30",
       "bots" => [

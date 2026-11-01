@@ -9,7 +9,7 @@ class Microsoft::BotFrameworkAuthTest < ActiveSupport::TestCase
   end
 
   def valid_claims(overrides = {})
-    { iss: "https://api.botframework.com", aud: TEAMS_APP_ID, serviceUrl: TEAMS_SERVICE_URL }.merge(overrides)
+    { iss: "https://api.botframework.com", aud: TEAMS_APP_ID, serviceurl: TEAMS_SERVICE_URL }.merge(overrides)
   end
 
   def verify(token, service_url: TEAMS_SERVICE_URL, channel_id: "msteams")
@@ -20,6 +20,14 @@ class Microsoft::BotFrameworkAuthTest < ActiveSupport::TestCase
     payload = verify(signed_token(valid_claims))
 
     assert_equal TEAMS_APP_ID, payload["aud"]
+  end
+
+  test "reads the lowercase serviceurl claim real Bot Connector tokens use" do
+    claims = valid_claims
+    assert claims.key?(:serviceurl)
+    assert_not claims.key?(:serviceUrl)
+
+    assert verify(signed_token(claims))
   end
 
   test "accepts a service URL that differs only by a trailing slash" do
@@ -51,7 +59,7 @@ class Microsoft::BotFrameworkAuthTest < ActiveSupport::TestCase
       verify(signed_token(valid_claims), service_url: "https://smba.trafficmanager.net/evil/")
     end
 
-    assert_match "serviceUrl", error.message
+    assert_match "serviceurl", error.message
   end
 
   test "rejects keys that aren't endorsed for the channel" do
@@ -70,6 +78,29 @@ class Microsoft::BotFrameworkAuthTest < ActiveSupport::TestCase
 
     assert_raises(Microsoft::BotFrameworkAuth::Unauthorized) do
       auth.verify!("Bearer #{signed_token(valid_claims)}", service_url: TEAMS_SERVICE_URL, channel_id: "msteams")
+    end
+  end
+end
+
+class Microsoft::OpenIdKeysTest < ActiveSupport::TestCase
+  setup do
+    @original_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    @keys = Microsoft::OpenIdKeys.new(metadata_url: "https://login.example/openid")
+  end
+
+  teardown do
+    Rails.cache = @original_cache
+  end
+
+  test "unknown key IDs refresh the keys at most once per interval" do
+    @keys.expects(:fetch_keys).twice.returns({ "keys" => [ { "kid" => "a" } ] })
+
+    @keys.document
+    3.times { @keys.document(force: true) }
+
+    travel Microsoft::OpenIdKeys::MIN_REFRESH_INTERVAL + 1.second do
+      @keys.document(force: true)
     end
   end
 end

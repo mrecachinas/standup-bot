@@ -61,4 +61,14 @@ class TeamsIntegrationServiceTest < ActiveSupport::TestCase
     assert_not_includes result.message, "teams-test-secret"
     assert_includes result.message, "[FILTERED]"
   end
+
+  test "explains rejected app credentials" do
+    @client.expects(:connection_status).raises(Microsoft::CredentialsRejected.new("Microsoft login rejected the app credentials (invalid_client).", status: 401, code: "invalid_client"))
+
+    result = @service.connection_status
+
+    assert_equal "credentials_rejected", result.error_code
+    assert_equal "Microsoft rejected the Teams app credentials (invalid_client).", result.message
+    assert_match "TEAMS_APP_PASSWORD", result.action
+  end
 end

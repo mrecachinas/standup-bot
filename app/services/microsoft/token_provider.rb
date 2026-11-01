@@ -55,7 +55,7 @@ module Microsoft
       body = JSON.parse(response.body.presence || "{}")
 
       unless response.success? && body["access_token"].present?
-        raise ApiError.new("Microsoft login rejected the app credentials (#{body['error'] || response.status}).", status: response.status, code: body["error"])
+        raise CredentialsRejected.new("Microsoft login rejected the app credentials (#{body['error'] || response.status}).", status: response.status, code: body["error"])
       end
 
       { value: body["access_token"], expires_at: body["expires_in"].to_i.seconds.from_now }

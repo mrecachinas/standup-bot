@@ -4,7 +4,15 @@ module Microsoft
   class BotConnectorClient
     # Only send the bot token to Microsoft's own service URLs, even if a bad
     # value ends up in the database.
-    TRUSTED_SERVICE_HOST = /(\A|\.)(trafficmanager\.net|teams\.microsoft\.com|teams\.microsoft\.us|botframework\.com|botframework\.azure\.us)\z/
+    # Exact Bot Connector hosts: trafficmanager.net subdomains are self-service
+    # Azure profiles, so a suffix match would trust anyone's.
+    TRUSTED_SERVICE_HOSTS = %w[
+      smba.trafficmanager.net
+      smba.infra.gcc.teams.microsoft.com
+      smba.infra.gov.teams.microsoft.us
+      smba.infra.dod.teams.microsoft.us
+    ].freeze
+    TRUSTED_SERVICE_HOST_SUFFIX = /\.botframework\.(com|azure\.us)\z/
 
     UntrustedServiceUrl = Class.new(ApiError)
 
@@ -14,7 +22,8 @@ module Microsoft
 
     def self.trusted_service_url?(service_url)
       uri = URI.parse(service_url.to_s)
-      uri.is_a?(URI::HTTPS) && uri.host.to_s.match?(TRUSTED_SERVICE_HOST)
+      host = uri.host.to_s.downcase
+      uri.is_a?(URI::HTTPS) && (TRUSTED_SERVICE_HOSTS.include?(host) || host.match?(TRUSTED_SERVICE_HOST_SUFFIX))
     rescue URI::InvalidURIError
       false
     end

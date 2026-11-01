@@ -32,7 +32,9 @@ module Microsoft
         leeway: CLOCK_SKEW
       )
 
-      raise Unauthorized, "serviceUrl claim doesn't match the activity" unless same_url?(payload["serviceUrl"], service_url)
+      # The Bot Connector names this claim "serviceurl"; JWT claim names are case-sensitive.
+      claimed_service_url = payload["serviceurl"] || payload["serviceUrl"]
+      raise Unauthorized, "serviceurl claim doesn't match the activity" unless same_url?(claimed_service_url, service_url)
       raise Unauthorized, "Signing key isn't endorsed for #{channel_id}" unless endorsed?(header["kid"], channel_id)
 
       payload

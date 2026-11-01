@@ -51,8 +51,12 @@
               <%= form.label :platform_channel, "Post summaries to" %>
               <% if chat.key == :teams %>
                 <% channel_records = @channel_options&.success? ? @channel_options.records : [] %>
+                <% channel_choices = channel_records.map { |record| [ record["label"], record["id"] ] } %>
+                <% if standup.platform_channel.present? && channel_choices.none? { |_label, id| id == standup.platform_channel } %>
+                  <% channel_choices.unshift([ standup.platform_channel_name.presence || standup.platform_channel, standup.platform_channel ]) %>
+                <% end %>
                 <% if channel_records.any? %>
-                  <%= form.select :platform_channel, channel_records.map { |record| [ record["label"], record["id"] ] },
+                  <%= form.select :platform_channel, channel_choices,
                     { include_blank: "Pick a Teams channel", selected: standup.platform_channel },
                     required: true, data: { channel_name_source: true } %>
                   <%= form.hidden_field :platform_channel_name, data: { channel_name_target: true } %>

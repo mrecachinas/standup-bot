@@ -28,6 +28,7 @@ class TeamsIntegrationService < ChatIntegrationService
 
   def error_code_for(error)
     return "teams_app_not_installed" if error.is_a?(ChatPlatform::TeamsAdapter::NotInstalled)
+    return "credentials_rejected" if error.is_a?(Microsoft::CredentialsRejected)
     return "forbidden" if error.is_a?(Microsoft::ApiError) && error.forbidden?
     return "not_found" if error.is_a?(Microsoft::ApiError) && error.not_found?
 
@@ -38,6 +39,8 @@ class TeamsIntegrationService < ChatIntegrationService
     case error_code
     when "teams_app_not_installed"
       sanitized_error_message(error)
+    when "credentials_rejected"
+      "Microsoft rejected the Teams app credentials (#{error.code || error.status})."
     when "forbidden"
       "Microsoft denied access while trying to #{operation}."
     when "not_found"
@@ -51,6 +54,8 @@ class TeamsIntegrationService < ChatIntegrationService
     case error_code
     when "teams_app_not_installed"
       "Install the Standup Bot app for that person, or set TEAMS_APP_CATALOG_ID."
+    when "credentials_rejected"
+      "Check TEAMS_APP_ID, TEAMS_APP_PASSWORD, and TEAMS_TENANT_ID match the bot's app registration."
     when "forbidden"
       "Check the Graph application permissions have admin consent, and that the bot is installed in the team."
     when "not_found"

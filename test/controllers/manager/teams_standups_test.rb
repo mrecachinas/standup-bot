@@ -60,6 +60,17 @@ class Manager::TeamsStandupsTest < ActionDispatch::IntegrationTest
     assert_equal "Renamed", standup.name
   end
 
+  test "editing keeps the current channel selectable when discovery doesn't list it" do
+    standup = create_teams_standup!
+    standup.update!(platform_channel: "#{TEAMS_TEAM_ID}|19:private@thread.tacv2", platform_channel_name: "Engineering › Private")
+    standup.standup_ownerships.create!(user: @manager)
+
+    get edit_manager_standup_path(standup)
+
+    assert_response :success
+    assert_select "select[name='standup[platform_channel]'] option[selected][value='#{TEAMS_TEAM_ID}|19:private@thread.tacv2']", text: "Engineering › Private"
+  end
+
   test "the standup's chat tab is labeled for Teams and finds Teams channels" do
     standup = create_teams_standup!
     standup.standup_ownerships.create!(user: @manager)

@@ -15,6 +15,7 @@ class Microsoft::BotConnectorClientTest < ActiveSupport::TestCase
     assert Microsoft::BotConnectorClient.trusted_service_url?("https://smba.infra.gcc.teams.microsoft.com/teams")
     assert_not Microsoft::BotConnectorClient.trusted_service_url?("http://smba.trafficmanager.net/teams/")
     assert_not Microsoft::BotConnectorClient.trusted_service_url?("https://trafficmanager.net.evil.example/")
+    assert_not Microsoft::BotConnectorClient.trusted_service_url?("https://attacker.trafficmanager.net/teams/")
     assert_not Microsoft::BotConnectorClient.trusted_service_url?("not a url")
   end
 

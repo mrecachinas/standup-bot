@@ -10,6 +10,9 @@ module ChatPlatform
     GUID_PATTERN = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
     CHANNEL_PATTERN = /\A(?<team>\h{8}-\h{4}-\h{4}-\h{4}-\h{12})\|(?<channel>19:[^\s|]+)\z/i
     CARD_CONTENT_TYPE = "application/vnd.microsoft.card.adaptive".freeze
+    # Listing channels takes a Graph call per team, so share the result briefly.
+    CHANNEL_CACHE_TTL = 5.minutes
+    MAX_TEAMS = 200
 
     NotInstalled = Class.new(Microsoft::ApiError)
 
@@ -131,23 +134,9 @@ module ChatPlatform
     end
 
     def list_channels(query: nil, limit: 100)
-      records = []
-      graph.teams(limit: 200).each do |team|
-        graph.channels(team["id"]).each do |channel|
-          label = "#{team['displayName']} › #{channel['displayName']}"
-          next if query.present? && !label.downcase.include?(query.to_s.downcase)
-
-          records << {
-            "id" => "#{team['id']}|#{channel['id']}",
-            "name" => label,
-            "label" => label,
-            "team_id" => team["id"],
-            "is_private" => channel["membershipType"].present? && channel["membershipType"] != "standard"
-          }
-          return records if records.size >= limit
-        end
-      end
-      records
+      records = all_channels
+      records = records.select { |record| record["label"].downcase.include?(query.to_s.downcase) } if query.present?
+      records.first(limit)
     end
 
     def channel_member_ids(channel)
@@ -294,6 +283,23 @@ module ChatPlatform
           "Install it for them, or set TEAMS_APP_CATALOG_ID so the bot can install itself.",
         status: 403
       )
+    end
+
+    def all_channels
+      Rails.cache.fetch("teams/channels/#{Microsoft::Config.tenant_id}", expires_in: CHANNEL_CACHE_TTL) do
+        graph.teams(limit: MAX_TEAMS).flat_map do |team|
+          graph.channels(team["id"]).map do |channel|
+            label = "#{team['displayName']} › #{channel['displayName']}"
+            {
+              "id" => "#{team['id']}|#{channel['id']}",
+              "name" => label,
+              "label" => label,
+              "team_id" => team["id"],
+              "is_private" => channel["membershipType"].present? && channel["membershipType"] != "standard"
+            }
+          end
+        end
+      end
     end
 
     def channel_members(channel)
