@@ -1,0 +1,23 @@
+<%# locals: (participant:, index:) %>
+<% pending = participant[:id].blank? && participant[:slack_name].blank? %>
+<% name = participant[:slack_name].presence || participant[:slack_id] %>
+<span class="person-chip <%= "is-pending" if pending %> <%= "is-inactive" unless participant[:active] %> <%= "is-removed" if participant[:destroy] %>" data-person-chip>
+  <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][slack_id]", participant[:slack_id], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][original_slack_id]", participant[:slack_id], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][slack_name]", participant[:slack_name], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone], id: nil %>
+  <%= hidden_field_tag "standup[participants][#{index}][active]", participant[:active] ? "1" : "0", id: nil %>
+  <%= avatar(name, size: "sm", url: participant[:avatar_url]) %>
+  <span class="person-chip-name"><%= name %></span>
+  <% if pending %>
+    <span class="person-chip-meta">looked up on save</span>
+  <% elsif !participant[:active] %>
+    <span class="person-chip-meta">inactive</span>
+  <% end %>
+  <label class="person-chip-remove" title="Remove <%= name %>">
+    <%= hidden_field_tag "standup[participants][#{index}][_destroy]", "0", id: nil %>
+    <%= check_box_tag "standup[participants][#{index}][_destroy]", "1", participant[:destroy], id: nil, class: "sr-only", data: { person_destroy: true }, "aria-label": "Remove #{name}" %>
+    <%= icon(:x) %>
+  </label>
+</span>

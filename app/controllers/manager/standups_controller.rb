@@ -2,11 +2,9 @@ module Manager
   class StandupsController < ApplicationController
     before_action :set_standup, only: [ :show, :edit, :update, :destroy, :pause, :resume ]
 
-    PREVIEW_OCCURRENCE_COUNT = 5
+    PREVIEW_OCCURRENCE_COUNT = 4
     OVERVIEW_PERIOD_DAYS = 14
     BLANK_TEMPLATE_ATTRIBUTES = { schedule_type: "weekdays", schedule_days: [], default_hour: 9, default_minute: 30, questions: [] }.freeze
-    MIN_QUESTION_ROWS = 3
-    BLANK_PARTICIPANT_ROWS = 1
     TEMPLATES = {
       "daily" => {
         label: "Daily standup",
@@ -204,13 +202,18 @@ module Manager
         :max_reminders,
         :questions_text,
         :schedule_days_text,
+        :frequency,
+        :participant_handles,
         question_rows: [],
         questions: [],
         schedule_days: [],
+        days: [],
         participants: [ :id, :slack_id, :original_slack_id, :slack_name, :cached_timezone, :active, :_destroy ]
       )
       attrs = permitted.to_h
       attrs.delete("participants")
+      attrs.delete("participant_handles")
+      apply_day_picker!(attrs) if attrs.key?("frequency")
 
       if attrs.key?("question_rows") || attrs.key?("questions_text") || attrs.key?("questions")
         attrs["questions"] = questions_from_attrs(attrs)
@@ -227,8 +230,39 @@ module Manager
       attrs
     end
 
+    WEEKDAY_NUMBERS = [ 1, 2, 3, 4, 5 ].freeze
+
+    # The editor picks days and a repeat interval; turn that into the
+    # schedule type the scheduler understands. "weekly" and "biweekly" only
+    # support a single day, so several days become "custom".
+    def apply_day_picker!(attrs)
+      frequency = attrs.delete("frequency").to_s
+      days = Array(attrs.delete("days")).filter_map { |day| Integer(day, exception: false) }.select { |day| (0..6).cover?(day) }.uniq.sort
+
+      case frequency
+      when "monthly"
+        attrs["schedule_type"] = "monthly"
+      when "biweekly"
+        attrs["schedule_type"] = "biweekly"
+        attrs["schedule_days"] = days
+        @schedule_error = "Every other week runs on one day. Pick a single day." unless days.size == 1
+      else
+        attrs["schedule_type"], attrs["schedule_days"] =
+          if days.size == 7 then [ "daily", [] ]
+          elsif days == WEEKDAY_NUMBERS then [ "weekdays", [] ]
+          elsif days.size == 1 then [ "weekly", days ]
+          else [ "custom", days ]
+          end
+        @schedule_error = "Pick at least one day." if days.empty?
+      end
+    end
+
     def valid_standup_form?(participant_rows)
       standup_valid = @standup.valid?
+      if @schedule_error
+        @standup.errors.add(:base, @schedule_error)
+        standup_valid = false
+      end
       resolve_participant_rows(participant_rows)
       validate_participant_rows(participant_rows)
       standup_valid && @standup.errors.none?
@@ -245,6 +279,10 @@ module Manager
     def prepare_schedule_preview
       @schedule_preview_error = nil
       @schedule_preview = build_schedule_preview(@standup, @preview_timezone || DEFAULT_PREVIEW_TIMEZONE)
+      return unless @schedule_error
+
+      @schedule_preview_error = @schedule_error
+      @schedule_preview = []
     end
 
     def build_schedule_preview(standup, timezone)
@@ -314,13 +352,14 @@ module Manager
       ActiveSupport::TimeZone.all.find { |zone| zone.tzinfo.identifier == iana_name }&.name
     end
 
+    # Always end with one empty row so there's somewhere to type a new question,
+    # even without JavaScript. Blank rows are dropped on save.
     def padded_question_rows(rows)
-      normalized_rows = rows.map(&:to_s)
-      normalized_rows + Array.new([ MIN_QUESTION_ROWS - normalized_rows.size, 0 ].max, "")
+      rows.map(&:to_s).reject(&:blank?) + [ "" ]
     end
 
     def padded_participant_rows(rows)
-      rows + Array.new(BLANK_PARTICIPANT_ROWS) { blank_participant_row }
+      rows
     end
 
     def participant_rows_for(standup)
@@ -342,11 +381,20 @@ module Manager
     def participant_rows_from_params
       return [] unless params[:standup].present?
 
-      raw_rows = params.require(:standup).permit(
+      permitted = params.require(:standup).permit(
+        :participant_handles,
         participants: [ :id, :slack_id, :original_slack_id, :slack_name, :cached_timezone, :active, :_destroy ]
-      )[:participants]
+      )
 
-      ordered_participant_rows(raw_rows).map { |row| sanitize_participant_row(row) }
+      ordered_participant_rows(permitted[:participants]).map { |row| sanitize_participant_row(row) } +
+        participant_handle_rows(permitted[:participant_handles])
+    end
+
+    # "Add people" accepts several handles separated by commas or new lines.
+    def participant_handle_rows(text)
+      text.to_s.split(/[,\n]/).map(&:strip).reject(&:blank?).uniq.map do |handle|
+        { id: nil, slack_id: normalize_participant_identifier(handle), slack_name: "", cached_timezone: nil, active: true, destroy: false }
+      end
     end
 
     def ordered_participant_rows(raw_rows)
@@ -506,10 +554,6 @@ module Manager
       payload = participant_snapshot(participant).merge(action: action)
       payload[:before] = before if before
       payload
-    end
-
-    def blank_participant_row
-      { id: nil, slack_id: "", slack_name: "", cached_timezone: "", active: true, destroy: false }
     end
 
     def blank_participant_row?(row)

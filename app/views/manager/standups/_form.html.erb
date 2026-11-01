@@ -1,9 +1,16 @@
-<% weekday_visible = %w[custom weekly biweekly].include?(standup.schedule_type) %>
-<% monthly_visible = standup.schedule_type == "monthly" %>
-<% selected_days = Array(standup.schedule_days).map(&:to_i) %>
+<% picker = schedule_picker_state(standup) %>
+<% advanced_open = picker[:frequency] != "weekly" || !standup.respect_timezone? || standup.errors.any? %>
+<% question_suggestions = [
+  "What did you get done yesterday?",
+  "What are you working on today?",
+  "Is anything blocking you?",
+  "What are you proud of this week?",
+  "Where could you use help?",
+  "How are you feeling today, from 1 to 5?"
+] %>
 
 <turbo-frame id="standup_wizard">
-  <%= form_with model: [ :manager, standup ], data: { turbo_frame: "_top" } do |form| %>
+  <%= form_with model: [ :manager, standup ], data: { turbo_frame: "_top", unsaved_guard: true }, class: "editor" do |form| %>
     <% if standup.errors.any? %>
       <section class="form-errors" aria-labelledby="standup-errors" role="alert">
         <h2 id="standup-errors"><%= pluralize(standup.errors.count, "error") %> prevented saving</h2>
@@ -15,218 +22,226 @@
       </section>
     <% end %>
 
-    <section class="form-section" id="basics">
-      <div class="form-section-intro">
-        <h2>Basics</h2>
-        <p>What the standup is called and where the summary gets posted.</p>
-      </div>
-      <div class="grid grid-2">
-        <div class="field">
-          <%= form.label :name %>
-          <%= form.text_field :name, required: true, placeholder: "Platform daily" %>
-        </div>
-        <div class="field">
-          <%= form.label :slack_channel, "Summary channel" %>
-          <div class="input-prefix">
-            <span>#</span>
-            <%= form.text_field :slack_channel, value: standup.slack_channel.to_s.delete_prefix("#"), required: true, placeholder: "eng-standup" %>
-          </div>
-          <span class="hint">Channel name or ID, like <code>C012ABC</code>.</span>
-        </div>
-      </div>
-    </section>
+    <div class="editor-layout">
+      <div class="stack-lg">
+        <section class="card" id="basics">
+          <div class="card-body"><div class="grid grid-2">
+            <div class="field">
+              <%= form.label :name %>
+              <%= form.text_field :name, required: true, placeholder: "Platform daily", autofocus: standup.new_record? %>
+            </div>
+            <div class="field">
+              <%= form.label :slack_channel, "Post summaries to" %>
+              <div class="input-prefix">
+                <span>#</span>
+                <%= form.text_field :slack_channel, value: standup.slack_channel.to_s.delete_prefix("#"), required: true, placeholder: "eng-standup" %>
+              </div>
+            </div>
+          </div></div>
+        </section>
 
-    <section class="form-section" id="schedule">
-      <div class="form-section-intro">
-        <h2>Schedule</h2>
-        <p>When participants get their DM. The preview updates as you change these.</p>
-      </div>
-      <div class="stack">
-        <div class="grid grid-3">
-          <div class="field" data-schedule-input>
-            <%= form.label :schedule_type, "Repeats" %>
-            <%= form.select :schedule_type,
-              Standup::SCHEDULE_TYPES.map { |type| [ { "weekdays" => "Weekdays", "biweekly" => "Every 2 weeks", "custom" => "Specific days" }.fetch(type, type.titleize), type ] },
-              {},
-              data: { schedule_type_select: true } %>
-          </div>
-          <div class="field" data-schedule-input>
-            <%= label_tag "standup_send_time", "Send at" %>
-            <%= time_field_tag "standup[send_time]", format("%02d:%02d", standup.default_hour || 9, standup.default_minute || 0), id: "standup_send_time", required: true %>
-          </div>
-          <div class="field" data-schedule-input>
-            <%= form.label :respect_timezone, "Timezone" %>
-            <%= form.select :respect_timezone, [ [ "Local time", true ], [ "UTC", false ] ] %>
-            <span class="hint">Local time uses each person's Slack timezone.</span>
-          </div>
-        </div>
-
-        <fieldset class="field fieldset-reset" data-weekday-schedule-section <%= "hidden" unless weekday_visible %>>
-          <legend class="label">On these days</legend>
-          <%= hidden_field_tag "standup[schedule_days][]", "", id: nil %>
-          <div class="chips mt-2" data-schedule-input>
-            <% Manager::StandupsController::WEEKDAY_OPTIONS.rotate(1).each do |label, value| %>
-              <label class="chip-toggle" title="<%= label %>">
-                <%= check_box_tag "standup[schedule_days][]", value, selected_days.include?(value), id: "standup_schedule_day_#{value}" %>
-                <span><%= label.first(3) %></span>
-              </label>
-            <% end %>
-          </div>
-        </fieldset>
-
-        <div class="field max-w-xs" data-monthly-schedule-section <%= "hidden" unless monthly_visible %> data-schedule-input>
-          <%= label_tag "standup_monthly_day", "Day of the month" %>
-          <%= number_field_tag "standup[monthly_day]", selected_days.first.presence || 1, id: "standup_monthly_day", in: 1..31 %>
-          <span class="hint">Short months use their last day.</span>
-        </div>
-
-        <div class="card card-flush">
+        <section class="card" id="schedule">
           <div class="card-header">
-            <h3>Next runs</h3>
-            <div class="input-group" data-schedule-input>
+            <div>
+              <h2>When</h2>
+              <p class="hint" data-schedule-summary><%= schedule_sentence(standup) %></p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="schedule-row">
+              <fieldset class="fieldset-reset field" data-day-picker>
+                <legend class="label">Days</legend>
+                <div class="chips mt-2" data-schedule-input>
+                  <%= hidden_field_tag "standup[days][]", "", id: nil %>
+                  <% Manager::StandupsController::WEEKDAY_OPTIONS.rotate(1).each do |label, value| %>
+                    <label class="chip-toggle" title="<%= label %>">
+                      <%= check_box_tag "standup[days][]", value, picker[:days].include?(value), id: "standup_day_#{value}" %>
+                      <span><%= label.first(3) %></span>
+                    </label>
+                  <% end %>
+                </div>
+                <div class="day-presets">
+                  <button type="button" class="link-button" data-set-days="1,2,3,4,5">Weekdays</button>
+                  <button type="button" class="link-button" data-set-days="0,1,2,3,4,5,6">Every day</button>
+                  <button type="button" class="link-button" data-set-days="1,3,5">Mon, Wed, Fri</button>
+                </div>
+              </fieldset>
+              <div class="field" data-monthly-schedule-section data-schedule-input>
+                <%= label_tag "standup_monthly_day", "Day of the month" %>
+                <%= number_field_tag "standup[monthly_day]", picker[:monthly_day] || 1, id: "standup_monthly_day", in: 1..31 %>
+              </div>
+              <div class="field time-field" data-schedule-input>
+                <%= label_tag "standup_send_time", "At" %>
+                <%= time_field_tag "standup[send_time]", format("%02d:%02d", standup.default_hour || 9, standup.default_minute || 0), id: "standup_send_time", required: true %>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="questions">
+          <div class="card-header">
+            <div>
+              <h2>Questions</h2>
+              <p class="hint">Asked one at a time in a Slack DM. Press Enter to add another.</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="row-editor" data-row-editor data-question-editor>
+              <div class="row-editor" data-rows>
+                <% @question_rows.each_with_index do |question, index| %>
+                  <div class="question-row" data-row>
+                    <span class="row-editor-index" data-row-index><%= index + 1 %></span>
+                    <%= text_field_tag "standup[question_rows][]", question, id: nil, placeholder: "Ask something…", "aria-label": "Question #{index + 1}", data: { question_input: true } %>
+                    <span class="question-row-actions">
+                      <button type="button" class="btn btn-ghost btn-sm btn-icon" data-move-row="up" aria-label="Move up"><%= icon(:chevron_up) %></button>
+                      <button type="button" class="btn btn-ghost btn-sm btn-icon" data-move-row="down" aria-label="Move down"><%= icon(:chevron_down) %></button>
+                      <button type="button" class="btn btn-ghost btn-sm btn-icon" data-remove-row aria-label="Remove question"><%= icon(:x) %></button>
+                    </span>
+                  </div>
+                <% end %>
+              </div>
+              <template>
+                <div class="question-row" data-row>
+                  <span class="row-editor-index" data-row-index></span>
+                  <input type="text" name="standup[question_rows][]" placeholder="Ask something…" aria-label="Question" data-question-input>
+                  <span class="question-row-actions">
+                    <button type="button" class="btn btn-ghost btn-sm btn-icon" data-move-row="up" aria-label="Move up"><%= icon(:chevron_up) %></button>
+                    <button type="button" class="btn btn-ghost btn-sm btn-icon" data-move-row="down" aria-label="Move down"><%= icon(:chevron_down) %></button>
+                    <button type="button" class="btn btn-ghost btn-sm btn-icon" data-remove-row aria-label="Remove question"><%= icon(:x) %></button>
+                  </span>
+                </div>
+              </template>
+              <div class="flex wrap items-center gap-2">
+                <button type="button" class="btn btn-sm" data-add-row><%= icon(:plus) %> Add question</button>
+                <span class="small muted">or try:</span>
+                <% question_suggestions.each do |suggestion| %>
+                  <button type="button" class="suggestion" data-suggestion="<%= suggestion %>" <%= "hidden" if @question_rows.include?(suggestion) %>><%= suggestion %></button>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="participants">
+          <div class="card-header">
+            <div>
+              <h2>People</h2>
+              <p class="hint">Names and timezones come from Slack.<% if standup.persisted? %> Set time away and more on the <%= link_to "Participants", manager_standup_participants_path(standup), data: { turbo_frame: "_top" } %> tab.<% end %></p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="people" data-people>
+              <% @participant_rows.each_with_index do |participant, index| %>
+                <%= render "person_chip", participant: participant, index: index %>
+              <% end %>
+            </div>
+            <div class="field">
+              <%= label_tag "standup_participant_handles", "Add people", class: "sr-only" %>
+              <%= text_field_tag "standup[participant_handles]", nil, id: "standup_participant_handles", placeholder: "Add people: @ada, Grace Hopper, or U123ABC, then press Enter", autocomplete: "off", data: { people_input: true } %>
+              <span class="hint">Separate several people with commas.</span>
+            </div>
+            <template data-person-template>
+              <span class="person-chip is-pending" data-person-chip>
+                <input type="hidden" name="standup[participants][__INDEX__][slack_id]" data-person-handle>
+                <input type="hidden" name="standup[participants][__INDEX__][active]" value="1">
+                <%= avatar("?", size: "sm") %>
+                <span class="person-chip-name" data-person-label></span>
+                <span class="person-chip-meta">looked up on save</span>
+                <button type="button" class="person-chip-remove" data-person-remove aria-label="Remove"><%= icon(:x) %></button>
+              </span>
+            </template>
+          </div>
+        </section>
+
+        <details class="card disclosure" id="advanced" <%= "open" if advanced_open %>>
+          <summary>
+            <span>
+              <span class="strong">Advanced settings</span>
+              <span class="small muted">Repeat interval, timezone, reminders, and messages</span>
+            </span>
+          </summary>
+          <div class="card-body">
+            <fieldset class="fieldset-reset field" data-schedule-input>
+              <legend class="label">Repeat</legend>
+              <div class="segmented-choice mt-2">
+                <% [ [ "weekly", "Every week" ], [ "biweekly", "Every other week" ], [ "monthly", "Once a month" ] ].each do |value, label| %>
+                  <label>
+                    <%= radio_button_tag "standup[frequency]", value, picker[:frequency] == value, data: { frequency_input: true } %>
+                    <span><%= label %></span>
+                  </label>
+                <% end %>
+              </div>
+              <span class="hint" data-biweekly-hint>Every other week runs on a single day.</span>
+            </fieldset>
+
+            <div class="field max-w-md" data-schedule-input>
+              <%= form.label :respect_timezone, "Send at" %>
+              <%= form.select :respect_timezone, [ [ "Each person's local time", true ], [ "The same moment for everyone (UTC)", false ] ], {}, data: { timezone_mode: true } %>
+            </div>
+
+            <fieldset class="fieldset-reset field">
+              <legend class="label">Reminders</legend>
+              <div class="inline-fields mt-2">
+                <label class="check">
+                  <%= form.check_box :reminder_enabled %>
+                  Remind people who haven't answered after
+                </label>
+                <%= form.number_field :reminder_after_minutes, min: 1, step: 1, class: "input-narrow", "aria-label": "Minutes before the first reminder" %>
+                <span>minutes, up to</span>
+                <%= form.number_field :max_reminders, min: 0, step: 1, class: "input-narrow", "aria-label": "Maximum reminders" %>
+                <span>times</span>
+              </div>
+            </fieldset>
+
+            <div class="grid grid-2">
+              <div class="field">
+                <%= form.label :intro, "Greeting" %>
+                <%= form.text_area :intro, rows: 3, placeholder: "Morning! Time for a quick standup.", data: { intro_input: true } %>
+              </div>
+              <div class="field">
+                <%= form.label :outro, "Sign-off" %>
+                <%= form.text_area :outro, rows: 3, placeholder: "Thanks, have a good day." %>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div class="form-actions">
+          <%= link_to "Cancel", standup.persisted? ? manager_standup_path(standup) : manager_standups_path, class: "btn btn-ghost", data: { turbo_frame: "_top" } %>
+          <%= form.submit standup.persisted? ? "Save changes" : "Create standup", class: "btn btn-primary" %>
+        </div>
+      </div>
+
+      <aside class="editor-aside stack-lg">
+        <section class="card">
+          <div class="card-header"><h2>What people see</h2></div>
+          <div class="card-body">
+            <div class="slack-preview" aria-label="Preview of the Slack DM">
+              <span class="slack-preview-icon"><%= icon(:logo) %></span>
+              <div class="grow">
+                <div class="slack-preview-meta"><strong>Standup Bot</strong> <span class="slack-app-tag">APP</span> <span class="muted" data-preview-time><%= format_clock(standup.default_hour || 9, standup.default_minute || 0) %></span></div>
+                <p class="slack-preview-text" data-preview-intro><%= standup.intro %></p>
+                <p class="slack-preview-question">
+                  <span class="muted small" data-preview-count>Question 1 of <%= [ @question_rows.count(&:present?), 1 ].max %></span>
+                  <span data-preview-question><%= @question_rows.find(&:present?) || "Your first question shows up here." %></span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card card-flush">
+          <div class="card-header">
+            <h2>Next runs</h2>
+            <div class="input-group items-center grow" data-schedule-input>
               <%= label_tag "preview_timezone", "Preview timezone", class: "sr-only" %>
-              <%= select_tag "preview_timezone", options_for_select(@time_zone_options || ActiveSupport::TimeZone.all.map(&:name), @preview_timezone), class: "w-full", data: { detect_timezone: (true if @detect_preview_timezone) } %>
-              <button type="submit" formaction="<%= preview_manager_standups_path %>" formmethod="post" formnovalidate data-turbo-frame="schedule_preview" data-preview-button class="btn">Preview schedule</button>
+              <%= select_tag "preview_timezone", options_for_select(@time_zone_options || ActiveSupport::TimeZone.all.map(&:name), @preview_timezone), class: "select-compact", data: { detect_timezone: (true if @detect_preview_timezone) } %>
+              <button type="submit" formaction="<%= preview_manager_standups_path %>" formmethod="post" formnovalidate data-turbo-frame="schedule_preview" data-preview-button class="btn btn-sm btn-ghost btn-icon" title="Preview schedule" aria-label="Preview schedule"><%= icon(:refresh) %></button>
             </div>
           </div>
           <%= render "schedule_preview", occurrences: @schedule_preview, preview_timezone: @preview_timezone, schedule_preview_error: @schedule_preview_error %>
-        </div>
-      </div>
-    </section>
-
-    <section class="form-section" id="questions">
-      <div class="form-section-intro">
-        <h2>Questions</h2>
-        <p>Asked one at a time in a DM. Empty rows are ignored.</p>
-      </div>
-      <div class="row-editor" data-row-editor>
-        <div class="row-editor" data-rows>
-          <% @question_rows.each_with_index do |question, index| %>
-            <div class="row-editor-item" data-row>
-              <span class="row-editor-index" data-row-index><%= index + 1 %></span>
-              <%= text_field_tag "standup[question_rows][]", question, id: nil, placeholder: "Ask something…", "aria-label": "Question #{index + 1}" %>
-              <button type="button" class="btn btn-ghost btn-icon" data-remove-row aria-label="Remove question"><%= icon(:x) %></button>
-            </div>
-          <% end %>
-        </div>
-        <template>
-          <div class="row-editor-item" data-row>
-            <span class="row-editor-index" data-row-index></span>
-            <input type="text" name="standup[question_rows][]" placeholder="Ask something…" aria-label="Question">
-            <button type="button" class="btn btn-ghost btn-icon" data-remove-row aria-label="Remove question"><%= icon(:x) %></button>
-          </div>
-        </template>
-        <div><button type="button" class="btn btn-sm" data-add-row><%= icon(:plus) %> Add question</button></div>
-      </div>
-    </section>
-
-    <section class="form-section" id="messages">
-      <div class="form-section-intro">
-        <h2>Messages</h2>
-        <p>Optional text sent before the first question and after the last.</p>
-      </div>
-      <div class="grid grid-2">
-        <div class="field">
-          <%= form.label :intro, "Greeting" %>
-          <%= form.text_area :intro, rows: 3, placeholder: "Morning! Time for a quick standup." %>
-        </div>
-        <div class="field">
-          <%= form.label :outro, "Sign-off" %>
-          <%= form.text_area :outro, rows: 3, placeholder: "Thanks, have a good day." %>
-        </div>
-      </div>
-    </section>
-
-    <section class="form-section" id="reminders">
-      <div class="form-section-intro">
-        <h2>Reminders</h2>
-        <p>Nudge people who haven't answered yet.</p>
-      </div>
-      <div class="stack">
-        <label class="check">
-          <%= form.check_box :reminder_enabled %>
-          Send reminders
-        </label>
-        <div class="grid grid-2 max-w-md">
-          <div class="field">
-            <%= form.label :reminder_after_minutes, "First reminder after" %>
-            <div class="input-group items-center">
-              <%= form.number_field :reminder_after_minutes, min: 1, step: 1 %>
-              <span class="muted small">minutes</span>
-            </div>
-          </div>
-          <div class="field">
-            <%= form.label :max_reminders, "Up to" %>
-            <div class="input-group items-center">
-              <%= form.number_field :max_reminders, min: 0, step: 1 %>
-              <span class="muted small">reminders</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="form-section" id="participants">
-      <div class="form-section-intro">
-        <h2>Participants</h2>
-        <p>Add people by @username, display name, or Slack ID. Names and timezones come from Slack.</p>
-      </div>
-      <div class="row-editor" data-row-editor>
-        <div class="participant-editor" data-rows>
-          <% @participant_rows.each_with_index do |participant, index| %>
-            <div class="participant-editor-row" data-row>
-              <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id] %>
-              <%= hidden_field_tag "standup[participants][#{index}][original_slack_id]", participant[:slack_id] %>
-              <%= hidden_field_tag "standup[participants][#{index}][slack_name]", participant[:slack_name] %>
-              <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone] %>
-              <div class="person">
-                <% if participant[:slack_name].present? %>
-                  <%= avatar(participant[:slack_name], url: participant[:avatar_url]) %>
-                <% end %>
-                <div class="grow">
-                  <%= label_tag "standup_participants_#{index}_slack_id", "Slack user", class: "sr-only" %>
-                  <%= text_field_tag "standup[participants][#{index}][slack_id]", participant[:slack_id], id: "standup_participants_#{index}_slack_id", placeholder: "@ada, Ada Lovelace, or U123ABC" %>
-                  <% if participant[:slack_name].present? || participant[:cached_timezone].present? %>
-                    <span class="hint"><%= [ participant[:slack_name].presence, participant[:cached_timezone].presence ].compact.join(" · ") %></span>
-                  <% end %>
-                </div>
-              </div>
-              <label class="check small">
-                <%= hidden_field_tag "standup[participants][#{index}][active]", "0", id: nil %>
-                <%= check_box_tag "standup[participants][#{index}][active]", "1", participant[:active] %>
-                Active
-              </label>
-              <label class="check small">
-                <%= hidden_field_tag "standup[participants][#{index}][_destroy]", "0", id: nil %>
-                <%= check_box_tag "standup[participants][#{index}][_destroy]", "1", participant[:destroy] %>
-                Remove
-              </label>
-            </div>
-          <% end %>
-        </div>
-        <template>
-          <div class="participant-editor-row" data-row>
-            <div class="person">
-              <div class="grow">
-                <label class="sr-only" for="standup_participants___INDEX___slack_id">Slack user</label>
-                <input type="text" name="standup[participants][__INDEX__][slack_id]" id="standup_participants___INDEX___slack_id" placeholder="@ada, Ada Lovelace, or U123ABC">
-              </div>
-            </div>
-            <label class="check small">
-              <input type="hidden" name="standup[participants][__INDEX__][active]" value="0">
-              <input type="checkbox" name="standup[participants][__INDEX__][active]" value="1" checked>
-              Active
-            </label>
-            <button type="button" class="btn btn-ghost btn-sm" data-remove-row>Remove</button>
-          </div>
-        </template>
-        <div><button type="button" class="btn btn-sm" data-add-row><%= icon(:plus) %> Add person</button></div>
-      </div>
-    </section>
-
-    <div class="form-actions">
-      <%= link_to "Cancel", standup.persisted? ? manager_standup_path(standup) : manager_standups_path, class: "btn btn-ghost", data: { turbo_frame: "_top" } %>
-      <%= form.submit standup.persisted? ? "Save changes" : "Create standup", class: "btn btn-primary" %>
+        </section>
+      </aside>
     </div>
   <% end %>
 </turbo-frame>

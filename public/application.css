@@ -2061,3 +2061,314 @@ a.cell-title:hover {
   .funnel > li { grid-template-columns: minmax(0, 1fr) 3rem; }
   .funnel-label { grid-column: 1 / -1; }
 }
+
+/* Standup editor */
+.editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 21rem;
+  align-items: start;
+  gap: 1.5rem;
+}
+
+.editor-aside {
+  position: sticky;
+  top: 1.5rem;
+}
+
+.schedule-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.25rem 2rem;
+}
+
+.time-field input {
+  width: 9rem;
+}
+
+.day-presets {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.link-button {
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  padding: 0;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.question-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.question-row-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0.35;
+  transition: opacity 120ms ease;
+}
+
+.question-row:hover .question-row-actions,
+.question-row:focus-within .question-row-actions {
+  opacity: 1;
+}
+
+.question-row:first-child [data-move-row="up"],
+.question-row:last-child [data-move-row="down"] {
+  visibility: hidden;
+}
+
+.suggestion {
+  border: 1px dashed var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.1875rem 0.625rem;
+}
+
+.suggestion:hover {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.people:empty {
+  display: none;
+}
+
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.8125rem;
+  padding: 0 0.25rem 0 0.25rem;
+}
+
+.person-chip-name {
+  font-weight: 500;
+}
+
+.person-chip-meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.person-chip-remove {
+  display: grid;
+  width: 1.375rem;
+  height: 1.375rem;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.person-chip-remove:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.person-chip-remove svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.person-chip.is-pending {
+  border-style: dashed;
+}
+
+.person-chip.is-inactive .person-chip-name {
+  color: var(--text-muted);
+}
+
+.person-chip.is-removed {
+  opacity: 0.5;
+}
+
+.person-chip.is-removed .person-chip-name {
+  text-decoration: line-through;
+}
+
+.person-chip.is-removed .person-chip-remove {
+  transform: rotate(45deg);
+}
+
+.segmented-choice {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-radius: var(--radius);
+  background: var(--surface-hover);
+  padding: 2px;
+}
+
+.segmented-choice label {
+  position: relative;
+  cursor: pointer;
+}
+
+.segmented-choice input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+}
+
+.segmented-choice span {
+  display: inline-flex;
+  align-items: center;
+  height: 1.875rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0 0.75rem;
+}
+
+.segmented-choice input:checked + span {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+
+.segmented-choice input:focus-visible + span {
+  box-shadow: var(--focus);
+}
+
+input.input-narrow {
+  width: 5rem !important;
+}
+
+select.select-compact {
+  width: 100%;
+  min-width: 0;
+  min-height: 1.875rem;
+  font-size: 0.8125rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.slack-preview {
+  display: flex;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+}
+
+.slack-preview-icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+}
+
+.slack-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.slack-app-tag {
+  border-radius: 3px;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.0625rem 0.25rem;
+}
+
+.slack-preview-text {
+  margin-top: 0.25rem;
+  white-space: pre-wrap;
+}
+
+.slack-preview-text:empty {
+  display: none;
+}
+
+.slack-preview-question {
+  display: grid;
+  gap: 0.125rem;
+  margin-top: 0.5rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 2px;
+  padding-left: 0.625rem;
+}
+
+@media (max-width: 1100px) {
+  .editor-layout { grid-template-columns: minmax(0, 1fr); }
+  .editor-aside { position: static; }
+}
+
+@media (hover: none) {
+  .question-row-actions { opacity: 1; }
+}
+
+.inline-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.occurrence time {
+  display: grid;
+  line-height: 1.35;
+}
+
+@media (max-width: 560px) {
+  .question-row [data-move-row] { display: none; }
+  .question-row:focus-within [data-move-row] { display: inline-flex; }
+}
+
+/* Frequency-dependent fields work without JavaScript via :has(). */
+.editor [data-monthly-schedule-section],
+.editor [data-biweekly-hint] {
+  display: none;
+}
+
+.editor:has(input[name="standup[frequency]"][value="monthly"]:checked) [data-monthly-schedule-section] {
+  display: grid;
+}
+
+.editor:has(input[name="standup[frequency]"][value="monthly"]:checked) [data-day-picker] {
+  display: none;
+}
+
+.editor:has(input[name="standup[frequency]"][value="biweekly"]:checked) [data-biweekly-hint] {
+  display: block;
+}
+
+label.person-chip-remove:has(:focus-visible) {
+  box-shadow: var(--focus);
+}
