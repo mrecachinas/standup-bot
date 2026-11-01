@@ -231,4 +231,29 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
 
     assert_not StandupAnalyticsService.new(@standup, start_date: "2025-04-08", end_date: "2025-04-09").responses?
   end
+  test "question funnel shows where started check-ins stop" do
+    @standup.update!(questions: [ "Yesterday?", "Today?", "Blockers?" ])
+    participants = @standup.standup_participants.active.order(:slack_id).first(2)
+    @standup.standup_responses.delete_all
+    date = Date.new(2025, 4, 9)
+    @standup.standup_responses.create!(slack_id: participants[0].slack_id, standup_date: date, status: "completed", answers: [
+      { "question" => "Yesterday?", "answer" => "Shipped" },
+      { "question" => "Today?", "answer" => "(skipped)" },
+      { "question" => "Blockers?", "answer" => "None" }
+    ])
+    @standup.standup_responses.create!(slack_id: participants[1].slack_id, standup_date: date, status: "expired", answers: [
+      { "question" => "Yesterday?", "answer" => "Reviews" }
+    ])
+    @standup.standup_responses.create!(slack_id: "UINPROGRESS", standup_date: date, status: "pending", answers: [
+      { "question" => "Yesterday?", "answer" => "Still typing" }
+    ])
+
+    funnel = StandupAnalyticsService.new(@standup, start_date: "2025-04-09", end_date: "2025-04-09").question_funnel
+
+    assert_equal [ 2, 2, 2 ], funnel.map { |row| row[:started] }
+    assert_equal [ 2, 0, 1 ], funnel.map { |row| row[:answered] }
+    assert_equal [ 0, 1, 0 ], funnel.map { |row| row[:skipped] }
+    assert_equal [ 0, 1, 1 ], funnel.map { |row| row[:not_reached] }
+    assert_equal [ 0, 1, 0 ], funnel.map { |row| row[:drop_off] }
+  end
 end

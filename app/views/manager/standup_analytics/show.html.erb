@@ -145,6 +145,50 @@
       </div>
     </section>
 
+    <% started = @question_funnel.first&.dig(:started).to_i %>
+    <% biggest_drop = @question_funnel.max_by { |row| row[:drop_off] } %>
+    <section class="card" id="question-completion">
+      <div class="card-header">
+        <div>
+          <h2>Completion by question</h2>
+          <p class="hint">Out of <%= pluralize(started, "check-in") %> started in this period</p>
+        </div>
+        <div class="legend">
+          <span><i class="swatch-completed"></i>Answered</span>
+          <span><i class="swatch-skipped"></i>Skipped</span>
+          <span><i class="swatch-missed"></i>Stopped before</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <% if started.zero? %>
+          <p class="muted">No check-ins were started in this period.</p>
+        <% else %>
+          <% if biggest_drop && biggest_drop[:drop_off].positive? %>
+            <div class="alert alert-info">
+              <%= icon(:info) %>
+              <span>Most drop-off happens at question <%= biggest_drop[:position] %>: <%= pluralize(biggest_drop[:drop_off], "check-in") %> ended there without an answer.</span>
+            </div>
+          <% end %>
+          <ol class="funnel">
+            <% @question_funnel.each do |row| %>
+              <li>
+                <div class="funnel-label">
+                  <span class="row-editor-index"><%= row[:position] %></span>
+                  <span class="truncate" title="<%= row[:question] %>"><%= row[:question] %></span>
+                </div>
+                <span class="stacked-bar" role="img" aria-label="<%= row[:answered] %> answered, <%= row[:skipped] %> skipped, <%= row[:not_reached] %> stopped before this question">
+                  <% [ [ :answered, "completed" ], [ :skipped, "skipped" ], [ :not_reached, "missed" ] ].each do |key, css| %>
+                    <% if row[key].positive? %><span class="bar-<%= css %>" style="width: <%= (row[key] * 100.0 / row[:started]).round(2) %>%" title="<%= row[key] %> <%= key.to_s.humanize(capitalize: false) %>"></span><% end %>
+                  <% end %>
+                </span>
+                <span class="funnel-value"><%= percent(row[:answer_rate]) %></span>
+              </li>
+            <% end %>
+          </ol>
+        <% end %>
+      </div>
+    </section>
+
     <section class="stack">
       <h2>Answers by question</h2>
       <div class="grid grid-<%= [ @question_summaries.size, 3 ].min.clamp(1, 3) %>">

@@ -17,6 +17,7 @@ class StandupAnalyticsService
     "Answer"
   ].freeze
 
+  FUNNEL_STATUSES = %w[completed expired cancelled].freeze
   COMMON_WORDS = %w[
     a an and are as at be been but by for from had has have i in is it my no none not of on or our
     the this to today was we were with working
@@ -140,6 +141,39 @@ class StandupAnalyticsService
         answer_rate: percentage(answered_answers.count, completed_count),
         common_keywords: keywords_for(answered_answers.map { |entry| entry[:answer] }, limit: 5),
         latest_answers: latest_answers(answered_answers, limit: limit)
+      }
+    end
+  end
+
+  # Where people stop: for each current question, how many check-ins that were
+  # started answered it, skipped it, or ended before reaching it. Pending
+  # check-ins are left out because they may still be in progress.
+  def question_funnel
+    started = started_check_ins
+    previous_not_reached = 0
+
+    Array(standup.questions).map(&:to_s).each_with_index.map do |question, index|
+      answered = 0
+      skipped = 0
+      started.each do |answers|
+        entry = answers.find { |answer| answer[:question] == question }
+        next unless entry
+
+        skipped_answer?(entry[:answer]) ? skipped += 1 : answered += 1
+      end
+      not_reached = started.size - answered - skipped
+      drop_off = [ not_reached - previous_not_reached, 0 ].max
+      previous_not_reached = not_reached
+
+      {
+        position: index + 1,
+        question: question,
+        started: started.size,
+        answered: answered,
+        skipped: skipped,
+        not_reached: not_reached,
+        drop_off: drop_off,
+        answer_rate: percentage(answered, started.size)
       }
     end
   end
@@ -384,6 +418,15 @@ class StandupAnalyticsService
 
   def answer_value(answer, key)
     answer[key] || answer[key.to_sym]
+  end
+
+  def started_check_ins
+    @started_check_ins ||= responses_by_date.values.flat_map(&:values).filter_map do |response|
+      next unless FUNNEL_STATUSES.include?(response.status)
+
+      answers = normalized_answers(response)
+      answers if response.status == "completed" || answers.any?
+    end
   end
 
   def skipped_answer?(answer)

@@ -27,6 +27,7 @@ class Manager::StandupAnalyticsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Participation"
     assert_includes response.body, "Average response time"
     assert_includes response.body, "Answers by question"
+    assert_select "#question-completion h2", "Completion by question"
     assert_includes response.body, "Jane Smith"
     assert_includes response.body, "1 missed response"
     assert_includes response.body, "Fixed bugs"

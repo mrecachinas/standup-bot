@@ -1863,3 +1863,47 @@ a.cell-title:hover {
 @media (max-width: 860px) {
   .border-right { border-right: 0; border-bottom: 1px solid var(--border); }
 }
+
+/* Completion by question */
+.funnel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.funnel > li {
+  display: grid;
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: 1rem;
+}
+
+.funnel-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+.funnel-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.stacked-bar {
+  display: flex;
+  height: 0.625rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-hover);
+}
+
+.stacked-bar .bar-completed { background: var(--chart-1); }
+.stacked-bar .bar-skipped { background: var(--chart-2); }
+.stacked-bar .bar-missed { background: var(--chart-4); }
+
+@media (max-width: 860px) {
+  .funnel > li { grid-template-columns: minmax(0, 1fr) 3rem; }
+  .funnel-label { grid-column: 1 / -1; }
+}
