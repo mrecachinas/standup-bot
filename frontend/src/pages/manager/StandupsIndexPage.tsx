@@ -1,6 +1,6 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router";
-import { Button, FormControl, SegmentedControl, Select } from "@primer/react";
+import { Button, Dialog, FormControl, SegmentedControl, Select } from "@primer/react";
 import { Table } from "@primer/react/experimental";
 import { CheckIcon, CommentDiscussionIcon, PlusIcon } from "@primer/octicons-react";
 import type { NeedsAttentionItem, OverviewPayload, OverviewStandup, Visibility } from "../../api/types/standups";
@@ -143,6 +143,9 @@ export function StandupsIndexPage() {
   );
 }
 
+// Keeps the card about as tall as the chart beside it; the rest open in a dialog.
+const ATTENTION_VISIBLE = 3;
+
 function NeedsAttention({
   items,
   emptyMessage,
@@ -154,31 +157,54 @@ function NeedsAttention({
   busy: boolean;
   onResume: (item: NeedsAttentionItem) => void;
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const hidden = items.length - ATTENTION_VISIBLE;
+
   return (
     <Section title="Needs attention" flush className={styles.fillRow}>
       {items.length > 0 ? (
-        <ul className={styles.list}>
-          {items.map((item) => (
-            <li key={item.standup_id}>
-              <span className={`${styles.dot} ${styles[`dot-${item.tone ?? "warning"}`]}`} aria-hidden="true" />
-              <div className={styles.grow}>
-                <RouterLink to={paths.standup(item.standup_id)} className={styles.title}>
-                  {item.name}
-                </RouterLink>
-                <div className={styles.sub}>{item.reason}</div>
-              </div>
-              {!item.active && (
-                <Button size="small" disabled={busy} onClick={() => onResume(item)} aria-label={`Resume ${item.name}`}>
-                  Resume
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <AttentionList items={items.slice(0, ATTENTION_VISIBLE)} busy={busy} onResume={onResume} />
+          {hidden > 0 && (
+            <div className={styles.cardFooterLink}>
+              <Button variant="invisible" size="small" onClick={() => setShowAll(true)}>
+                Show all {items.length}
+              </Button>
+            </div>
+          )}
+          {showAll && (
+            <Dialog title="Needs attention" subtitle={`${items.length} standups`} onClose={() => setShowAll(false)} width="medium">
+              <AttentionList items={items} busy={busy} onResume={onResume} />
+            </Dialog>
+          )}
+        </>
       ) : (
         <EmptyState icon={CheckIcon} title="All clear" description={emptyMessage} border={false} size="small" headingLevel="h3" />
       )}
     </Section>
+  );
+}
+
+function AttentionList({ items, busy, onResume }: { items: NeedsAttentionItem[]; busy: boolean; onResume: (item: NeedsAttentionItem) => void }) {
+  return (
+    <ul className={styles.list}>
+      {items.map((item) => (
+        <li key={item.standup_id}>
+          <span className={`${styles.dot} ${styles[`dot-${item.tone ?? "warning"}`]}`} aria-hidden="true" />
+          <div className={styles.grow}>
+            <RouterLink to={paths.standup(item.standup_id)} className={styles.title}>
+              {item.name}
+            </RouterLink>
+            <div className={styles.sub}>{item.reason}</div>
+          </div>
+          {!item.active && (
+            <Button size="small" disabled={busy} onClick={() => onResume(item)} aria-label={`Resume ${item.name}`}>
+              Resume
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

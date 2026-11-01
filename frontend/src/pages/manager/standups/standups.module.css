@@ -51,8 +51,8 @@
   align-items: start;
 }
 
-/* Side-by-side cards that line up: the main card sets the row's height, and
-   a .fillRow card matches it, scrolling its list if it has more to show. */
+/* Side-by-side cards that line up: both take the row's height. A .fillRow
+   card keeps its footer at the bottom when the other card is taller. */
 .matchHeights {
   align-items: stretch;
 }
@@ -60,14 +60,15 @@
 .fillRow {
   display: flex;
   flex-direction: column;
-  height: 0;
-  min-height: 100%;
 }
 
 .fillRow > .list {
   flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+}
+
+.cardFooterLink {
+  padding: var(--base-size-4) var(--base-size-8);
+  border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
 }
 
 .stack {
@@ -178,11 +179,6 @@
 }
 
 @media (max-width: 1011px) {
-  .fillRow {
-    height: auto;
-    min-height: 0;
-  }
-
   .mainAside {
     grid-template-columns: minmax(0, 1fr);
   }
