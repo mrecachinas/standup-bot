@@ -158,7 +158,7 @@ class StandupCommandHandler
   end
 
   def report_queued_reply(standup)
-    Reply.text("Generating report for #{standup.name}. It will be posted to #{chat.channel_reference(standup.platform_channel)} shortly.")
+    Reply.text("Generating report for #{standup.name}. It will be posted to #{chat.channel_reference(standup.platform_channel, name: standup.platform_channel_name)} shortly.")
   end
 
   def selection(text, participants, action_id)

@@ -21,7 +21,7 @@ module Manager
         prepare_index
         render :index, status: :unprocessable_entity
       end
-    rescue SlackUserResolver::ResolutionError => error
+    rescue ChatUserResolver::ResolutionError => error
       @participant = @standup.standup_participants.new(participant_params)
       @participant.errors.add(:base, error.message)
       prepare_index
@@ -55,7 +55,7 @@ module Manager
 
     def bulk_import
       @bulk_import_text = params[:participants_text]
-      result = StandupParticipantImporter.new(@standup, user_resolver: slack_user_resolver).import_text(@bulk_import_text)
+      result = StandupParticipantImporter.new(@standup, user_resolver: user_resolver).import_text(@bulk_import_text)
 
       if result.success?
         audit_import_result!(result, "standup_participant.bulk_import", "bulk_import")
@@ -82,17 +82,18 @@ module Manager
       result = StandupParticipantImporter.new(@standup).sync_profiles(profiles, deactivate_missing: @deactivate_missing)
 
       if result.success?
-        audit_import_result!(result, "standup_participant.sync", "slack_sync")
+        audit_import_result!(result, "standup_participant.sync", "#{@standup.platform}_sync")
         redirect_to manager_standup_participants_path(@standup), status: :see_other
       else
-        audit_import_result!(result, "standup_participant.sync", "slack_sync") if result.changed_count.positive?
+        audit_import_result!(result, "standup_participant.sync", "#{@standup.platform}_sync") if result.changed_count.positive?
         @sync_errors = result.errors
         prepare_index
         render :index, status: :unprocessable_entity
       end
     rescue StandardError => error
-      Rails.logger.warn "Unable to sync Slack channel #{@sync_channel}: #{error.class} - #{error.message}"
-      @sync_errors = [ "Unable to sync Slack channel. Check the channel and Slack app permissions, then try again." ]
+      label = @standup.chat_platform.label
+      Rails.logger.warn "Unable to sync #{label} channel #{@sync_channel}: #{error.class} - #{error.message}"
+      @sync_errors = [ "Unable to sync #{label} channel. Check the channel and #{label} app permissions, then try again." ]
       prepare_index
       render :index, status: :unprocessable_entity
     end
@@ -158,7 +159,7 @@ module Manager
       identifier = permitted[:platform_user_id].to_s.strip
       return permitted if identifier.blank?
 
-      resolved_user = slack_user_resolver.resolve(identifier, fallback_name: permitted[:display_name])
+      resolved_user = user_resolver.resolve(identifier, fallback_name: permitted[:display_name])
       permitted[:platform_user_id] = resolved_user.platform_user_id
       permitted[:display_name] = permitted[:display_name].presence || resolved_user.display_name
       permitted[:cached_timezone] = permitted[:cached_timezone].presence || resolved_user.cached_timezone
@@ -166,8 +167,8 @@ module Manager
       permitted
     end
 
-    def slack_user_resolver
-      @slack_user_resolver ||= SlackUserResolver.new
+    def user_resolver
+      @user_resolver ||= ChatUserResolver.new(service: ChatIntegrationService.for(@standup.platform))
     end
 
     def audit_import_result!(result, summary_action, source)

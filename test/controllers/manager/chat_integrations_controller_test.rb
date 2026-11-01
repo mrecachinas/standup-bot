@@ -1,6 +1,6 @@
 require "test_helper"
 
-class Manager::SlackIntegrationsControllerTest < ActionDispatch::IntegrationTest
+class Manager::ChatIntegrationsControllerTest < ActionDispatch::IntegrationTest
   setup do
     @manager = users(:manager)
     @owned_standup = standups(:daily)
@@ -9,7 +9,7 @@ class Manager::SlackIntegrationsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "requires authentication" do
-    get manager_slack_integration_path
+    get manager_integrations_path
 
     assert_redirected_to new_session_path
   end
@@ -17,7 +17,7 @@ class Manager::SlackIntegrationsControllerTest < ActionDispatch::IntegrationTest
   test "manager sees Slack status without secret values and only manageable standups" do
     sign_in(@manager, "manager-access-token")
 
-    get manager_slack_integration_path
+    get manager_integrations_path
 
     assert_response :success
     assert_includes response.body, "Slack app status"
@@ -34,7 +34,7 @@ class Manager::SlackIntegrationsControllerTest < ActionDispatch::IntegrationTest
       .returns(SlackIntegrationService::Result.new(status: "ok", records: [ { "id" => "C123", "label" => "#general" } ], message: "Found 1 Slack channel(s)."))
     sign_in(@manager, "manager-access-token")
 
-    get manager_slack_integration_path, params: { discover: "channels", channel_query: "gen" }
+    get manager_integrations_path, params: { discover: "channels", channel_query: "gen" }
 
     assert_response :success
     assert_includes response.body, "#general"

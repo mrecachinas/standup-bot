@@ -14,7 +14,8 @@ class HealthCheckService
       checks = {
         database: database_check,
         job_queue: job_queue_check,
-        slack_api: slack_check
+        slack_api: slack_check,
+        teams_api: teams_check
       }
 
       {
@@ -45,6 +46,10 @@ class HealthCheckService
 
     def slack_status
       slack_check
+    end
+
+    def platform_status(platform)
+      platform.to_s == "teams" ? teams_check : slack_check
     end
 
     private
@@ -93,14 +98,31 @@ class HealthCheckService
       bot_token_configured = slack_config_value(:bot_token).present?
       signing_secret_configured = slack_config_value(:signing_secret).present?
       configured = bot_token_configured && signing_secret_configured
+      # Slack can be left off entirely when Teams is set up instead.
+      disabled = !bot_token_configured && !signing_secret_configured && Microsoft::Config.bot_configured?
 
       {
-        status: configured ? "ok" : "warn",
+        status: configured || disabled ? "ok" : "warn",
         configured: configured,
         bot_token_configured: bot_token_configured,
         signing_secret_configured: signing_secret_configured,
         last_successful_message_at: StandupMetrics.last_seen("slack.message_sent"),
         last_rate_limited_at: StandupMetrics.last_seen("slack.rate_limited")
+      }
+    end
+
+    def teams_check
+      credentials = %i[app_id app_password tenant_id].index_with { |key| Microsoft::Config.value(key).present? }
+      configured = credentials.values.all?
+
+      {
+        status: configured || credentials.values.none? ? "ok" : "warn",
+        configured: configured,
+        app_id_configured: credentials[:app_id],
+        app_password_configured: credentials[:app_password],
+        tenant_id_configured: credentials[:tenant_id],
+        last_successful_message_at: StandupMetrics.last_seen("teams.message_sent"),
+        last_rate_limited_at: StandupMetrics.last_seen("teams.rate_limited")
       }
     end
 

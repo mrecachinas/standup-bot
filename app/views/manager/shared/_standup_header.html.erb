@@ -58,7 +58,7 @@
       [ :participants, "Participants", manager_standup_participants_path(standup), participant_count ],
       [ :schedule, "Schedule", manager_standup_schedule_exceptions_path(standup) ],
       [ :reports, "Reports", manager_standup_report_path(standup) ],
-      [ :slack, "Slack", manager_standup_slack_setup_path(standup) ],
+      [ :chat, standup.chat_platform.label, manager_standup_chat_setup_path(standup) ],
       [ :settings, "Settings", edit_manager_standup_path(standup) ]
     ].each do |key, label, path, count| %>
       <%= link_to path, class: [ "tab", key == active && "is-active" ].compact_blank.join(" "), "aria-current": (key == active ? "page" : nil), data: { turbo_frame: "_top" } do %>

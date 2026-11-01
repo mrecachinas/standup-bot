@@ -1,7 +1,9 @@
-<section id="slack-status" class="card">
+<%# locals: (status:, connection_result:, platform: status[:platform]) %>
+<% label = status[:label].presence || platform_label(platform) %>
+<section id="<%= platform %>-status" class="card">
   <div class="card-header">
     <div>
-      <h2>Slack app status</h2>
+      <h2><%= label %> app status</h2>
       <p class="hint"><%= status[:installation][:message] %></p>
     </div>
     <%= status[:configured] ? status_badge("Connected", "success") : status_badge("Needs setup", "warning") %>
@@ -9,7 +11,7 @@
 
   <ul class="list">
     <% status[:credentials].each do |key, credential| %>
-      <li id="slack-credential-<%= key %>">
+      <li id="<%= platform %>-credential-<%= key %>">
         <span class="<%= credential[:configured] ? "text-success" : (credential[:required] ? "text-warning" : "subtle") %>">
           <%= icon(credential[:configured] ? :check_circle : (credential[:required] ? :x_circle : :info)) %>
         </span>
@@ -23,11 +25,11 @@
   </ul>
 
   <% if connection_result.present? %>
-    <div id="slack-connection-health" class="card-body">
+    <div id="<%= platform %>-connection-health" class="card-body">
       <div class="alert alert-<%= connection_result.success? ? "success" : "warning" %> w-full">
         <%= icon(connection_result.success? ? :check_circle : :alert) %>
         <div class="stack-sm">
-          <p><strong>Slack API connection.</strong> <%= connection_result.message %></p>
+          <p><strong><%= label %> API connection.</strong> <%= connection_result.message %></p>
           <% if connection_result.success? && connection_result.metadata.present? %>
             <dl class="kv xsmall">
               <% connection_result.metadata.each do |key, value| %>

@@ -71,7 +71,8 @@ module Manager
     def new
       @template_key = params[:template].presence_in(TEMPLATES.keys + [ "blank" ]) || "daily"
       template_attributes = TEMPLATES.dig(@template_key, :attributes) || BLANK_TEMPLATE_ATTRIBUTES
-      @standup = Standup.new(respect_timezone: true, active: true, **template_attributes)
+      platform = params[:platform].presence_in(enabled_platform_keys) || enabled_platform_keys.first
+      @standup = Standup.new(platform: platform, respect_timezone: true, active: true, **template_attributes)
       creator_rows = creator_participant_rows
       @default_preview_timezone = rails_time_zone_name(creator_rows.first&.dig(:cached_timezone))
       @detect_preview_timezone = @default_preview_timezone.nil?
@@ -113,7 +114,7 @@ module Manager
     end
 
     def update
-      @standup.assign_attributes(standup_params)
+      @standup.assign_attributes(standup_params.except("platform", :platform))
       participant_rows = participant_rows_from_params
 
       if valid_standup_form?(participant_rows)
@@ -178,6 +179,15 @@ module Manager
       authorize_standup!(@standup)
     end
 
+    def enabled_platform_keys
+      @enabled_platform_keys ||= ChatPlatform.enabled.map { |adapter| adapter.key.to_s }.presence || [ ChatPlatform::DEFAULT.to_s ]
+    end
+
+    def teams_channel_options
+      service = ChatIntegrationService.for(:teams)
+      service.discover_channels(limit: ChatIntegrationService::MAX_LIMIT, include_private: current_user.admin?)
+    end
+
     def latest_run_responses
       latest_date = @standup.standup_responses.where.not(standup_date: nil).maximum(:standup_date)
       return [] unless latest_date
@@ -188,7 +198,9 @@ module Manager
     def standup_params
       permitted = params.require(:standup).permit(
         :name,
+        :platform,
         :platform_channel,
+        :platform_channel_name,
         :intro,
         :outro,
         :schedule_type,
@@ -209,7 +221,7 @@ module Manager
         questions: [],
         schedule_days: [],
         days: [],
-        participants: [ :id, :platform_user_id, :original_slack_id, :display_name, :cached_timezone, :active, :_destroy ]
+        participants: [ :id, :platform_user_id, :original_platform_user_id, :display_name, :cached_timezone, :active, :_destroy ]
       )
       attrs = permitted.to_h
       attrs.delete("participants")
@@ -270,6 +282,8 @@ module Manager
     end
 
     def prepare_wizard(participant_rows: nil)
+      @platform_options = (enabled_platform_keys | [ @standup.platform.to_s ]).select { |key| ChatPlatform.supported?(key) }
+      @channel_options = teams_channel_options if @standup.platform == "teams"
       @question_rows = padded_question_rows(Array(@standup.questions))
       @participant_rows = padded_participant_rows(participant_rows || participant_rows_for(@standup))
       @preview_timezone = preview_timezone_param
@@ -386,7 +400,7 @@ module Manager
 
       permitted = params.require(:standup).permit(
         :participant_handles,
-        participants: [ :id, :platform_user_id, :original_slack_id, :display_name, :cached_timezone, :active, :_destroy ]
+        participants: [ :id, :platform_user_id, :original_platform_user_id, :display_name, :cached_timezone, :active, :_destroy ]
       )
 
       ordered_participant_rows(permitted[:participants]).map { |row| sanitize_participant_row(row) } +
@@ -418,8 +432,8 @@ module Manager
       platform_user_id = normalize_participant_identifier(attributes["platform_user_id"].to_s.strip)
       # If someone typed a different person into a pre-filled row, the cached
       # name and timezone belong to the old person, so look the new one up instead.
-      original_slack_id = attributes["original_slack_id"].to_s.strip
-      replaced = original_slack_id.present? && platform_user_id != normalize_participant_identifier(original_slack_id)
+      original_platform_user_id = attributes["original_platform_user_id"].to_s.strip
+      replaced = original_platform_user_id.present? && platform_user_id != normalize_participant_identifier(original_platform_user_id)
       {
         id: attributes["id"].presence,
         platform_user_id: platform_user_id,
@@ -480,10 +494,13 @@ module Manager
 
     def normalize_participant_identifier(identifier)
       normalized = identifier.delete_prefix("@")
-      upcased = normalized.upcase
-      looks_like_id = (normalized == upcased && upcased.match?(ChatPlatform::SlackAdapter::USER_ID_PATTERN)) ||
-        upcased.match?(/\A[UW][A-Z0-9]*\d[A-Z0-9]*\z/)
-      looks_like_id ? upcased : identifier
+      participant_platform.looks_like_user_id?(normalized) ? participant_platform.normalize_user_id(normalized) : identifier
+    end
+
+    # Rows are parsed before the standup is built on create, so fall back to the submitted platform.
+    def participant_platform
+      platform = @standup&.platform.presence || params.dig(:standup, :platform).presence
+      ChatPlatform.supported?(platform) ? ChatPlatform.for(platform) : ChatPlatform.for(ChatPlatform::DEFAULT)
     end
 
     def resolve_participant_rows(rows)
@@ -491,18 +508,18 @@ module Manager
         next if blank_participant_row?(row) || row[:destroy] || row[:platform_user_id].blank?
         next if @standup.chat_platform.valid_user_id?(row[:platform_user_id]) && row[:display_name].present?
 
-        resolved_user = slack_user_resolver.resolve(row[:platform_user_id], fallback_name: row[:display_name])
+        resolved_user = user_resolver.resolve(row[:platform_user_id], fallback_name: row[:display_name])
         row[:platform_user_id] = resolved_user.platform_user_id
         row[:display_name] = row[:display_name].presence || resolved_user.display_name
         row[:cached_timezone] = row[:cached_timezone].presence || resolved_user.cached_timezone
         row[:avatar_url] = resolved_user.avatar_url
-      rescue SlackUserResolver::ResolutionError => error
+      rescue ChatUserResolver::ResolutionError => error
         @standup.errors.add(:base, "Participant #{index + 1}: #{error.message}")
       end
     end
 
-    def slack_user_resolver
-      @slack_user_resolver ||= SlackUserResolver.new
+    def user_resolver
+      @user_resolver ||= ChatUserResolver.new(service: ChatIntegrationService.for(@standup.platform))
     end
 
     def apply_participant_rows!(standup, rows)

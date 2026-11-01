@@ -1,4 +1,6 @@
-class SlackUserResolver
+# Turns what someone typed (an ID, name, email, or Slack mention) into a
+# person on the standup's chat platform.
+class ChatUserResolver
   ResolutionError = Class.new(StandardError)
 
   ResolvedUser = Struct.new(:platform_user_id, :display_name, :cached_timezone, :avatar_url, keyword_init: true)

@@ -131,6 +131,8 @@ GEM
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (2.21.2)
+    jwt (3.3.0)
+      base64
     kamal (2.12.0)
       activesupport (>= 7.0)
       base64 (~> 0.2)
@@ -384,6 +386,7 @@ DEPENDENCIES
   bundler-audit
   csv (~> 3.3)
   debug
+  jwt (~> 3.3)
   kamal
   lograge
   mocha

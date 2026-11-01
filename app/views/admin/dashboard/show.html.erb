@@ -20,11 +20,12 @@
     <% end %>
   </div>
 
-  <div class="grid grid-3">
+  <div class="grid grid-4">
     <% [
       [ :database, "Database", :database ],
       [ :job_queue, "Job queue", :layers ],
-      [ :slack_api, "Slack", :hash ]
+      [ :slack_api, "Slack", :hash ],
+      [ :teams_api, "Microsoft Teams", :users ]
     ].each do |key, label, icon_name| %>
       <% check = checks[key] || {} %>
       <% state = check[:status].to_s.presence || "warn" %>
@@ -33,7 +34,7 @@
         <div class="grow stack-sm">
           <div class="flex items-center justify-between gap-2">
             <h2><%= label %></h2>
-            <% state_label = key == :slack_api && state == "warn" && !check[:configured] ? "Not configured" : { "ok" => "Operational", "warn" => "Degraded", "error" => "Down" }.fetch(state, state) %>
+            <% state_label = key.in?(%i[slack_api teams_api]) && !check[:configured] ? "Not configured" : { "ok" => "Operational", "warn" => "Degraded", "error" => "Down" }.fetch(state, state) %>
             <%= status_badge(state_label, { "ok" => "success", "warn" => "warning", "error" => "danger" }[state]) %>
           </div>
           <dl class="kv small">
@@ -49,6 +50,11 @@
             <% when :slack_api %>
               <dt>Bot token</dt><dd><%= check[:bot_token_configured] ? "Configured" : "Missing" %></dd>
               <dt>Signing secret</dt><dd><%= check[:signing_secret_configured] ? "Configured" : "Missing" %></dd>
+              <dt>Last message</dt><dd><%= check[:last_successful_message_at].present? ? relative_time(Time.zone.parse(check[:last_successful_message_at].to_s)) : "—" %></dd>
+            <% when :teams_api %>
+              <dt>App ID</dt><dd><%= check[:app_id_configured] ? "Configured" : "Missing" %></dd>
+              <dt>Client secret</dt><dd><%= check[:app_password_configured] ? "Configured" : "Missing" %></dd>
+              <dt>Tenant</dt><dd><%= check[:tenant_id_configured] ? "Configured" : "Missing" %></dd>
               <dt>Last message</dt><dd><%= check[:last_successful_message_at].present? ? relative_time(Time.zone.parse(check[:last_successful_message_at].to_s)) : "—" %></dd>
             <% end %>
           </dl>
@@ -117,7 +123,7 @@
   <section class="card card-flush">
     <div class="card-header">
       <h2>Users</h2>
-      <span class="hint">Anyone who signs in with Slack gets an account</span>
+      <span class="hint">Anyone who signs in with Slack or Microsoft gets an account</span>
     </div>
     <div class="table-wrap">
       <table class="table">

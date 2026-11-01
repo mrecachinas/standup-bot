@@ -10,6 +10,8 @@ Rails.application.routes.draw do
   resource :session, only: [ :new, :create, :destroy ]
   get "auth/slack", to: "slack_sessions#new", as: :slack_sign_in
   get "auth/slack/callback", to: "slack_sessions#callback", as: :slack_sign_in_callback
+  get "auth/microsoft", to: "microsoft_sessions#new", as: :microsoft_sign_in
+  get "auth/microsoft/callback", to: "microsoft_sessions#callback", as: :microsoft_sign_in_callback
 
   namespace :me do
     root "standups#index"
@@ -20,7 +22,8 @@ Rails.application.routes.draw do
   end
 
   namespace :manager do
-    get "slack_integration", to: "slack_integrations#show", as: :slack_integration
+    get "integrations", to: "chat_integrations#show", as: :integrations
+    get "slack_integration", to: redirect("/manager/integrations")
 
     resources :standups, only: [ :index, :show, :new, :edit, :create, :update, :destroy ] do
       match :preview, via: [ :post, :patch ], on: :collection
@@ -30,11 +33,12 @@ Rails.application.routes.draw do
         patch :resume
       end
 
-      get "slack_setup", to: "standup_slack_integrations#show", as: :slack_setup
-      patch "slack_setup/channel", to: "standup_slack_integrations#update_channel", as: :slack_setup_channel
-      post "slack_setup/participants", to: "standup_slack_integrations#add_participant", as: :slack_setup_participants
-      delete "slack_setup/participants/:participant_id", to: "standup_slack_integrations#remove_participant", as: :slack_setup_participant
-      post "slack_setup/test_message", to: "standup_slack_integrations#test_message", as: :slack_setup_test_message
+      get "chat_setup", to: "standup_chat_integrations#show", as: :chat_setup
+      patch "chat_setup/channel", to: "standup_chat_integrations#update_channel", as: :chat_setup_channel
+      post "chat_setup/participants", to: "standup_chat_integrations#add_participant", as: :chat_setup_participants
+      delete "chat_setup/participants/:participant_id", to: "standup_chat_integrations#remove_participant", as: :chat_setup_participant
+      post "chat_setup/test_message", to: "standup_chat_integrations#test_message", as: :chat_setup_test_message
+      get "slack_setup", to: redirect { |params, _request| "/manager/standups/#{params[:standup_id]}/chat_setup" }
 
       resources :participants, controller: "standup_participants", only: [ :index, :create, :update, :destroy ] do
         post :bulk_import, on: :collection
@@ -59,6 +63,8 @@ Rails.application.routes.draw do
   post "slack/interactions", to: "slack_events#interactions", as: :interactions
   post "/slack/commands/standup", to: "slack_slash_commands#standup", as: :slack_standup_command
   post "/slack/commands/standup-status", to: "slack_slash_commands#standup_status", as: :slack_standup_status_command
+
+  post "/teams/messages", to: "teams_activities#create", as: :teams_messages
 
   get "health", to: "health#show"
   get "health/detailed", to: "health#detailed"

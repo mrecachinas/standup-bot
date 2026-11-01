@@ -39,6 +39,8 @@ gem "thruster", require: false
 # gem "rack-cors"
 
 gem "slack-ruby-client", "~> 3.3.0"
+# Verifies Microsoft Teams (Bot Framework) and Entra ID tokens
+gem "jwt", "~> 3.3"
 
 gem "rack-attack"
 gem "lograge"

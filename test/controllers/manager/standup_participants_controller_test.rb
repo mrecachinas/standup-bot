@@ -83,9 +83,9 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "manager can create participant from Slack username" do
-    SlackUserResolver.any_instance.expects(:resolve)
+    ChatUserResolver.any_instance.expects(:resolve)
       .with("@created", fallback_name: "")
-      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UCREATE2", display_name: "Created From Slack", cached_timezone: "America/New_York"))
+      .returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UCREATE2", display_name: "Created From Slack", cached_timezone: "America/New_York"))
     sign_in(@manager, "manager-access-token")
 
     assert_difference "StandupParticipant.count", 1 do
@@ -199,9 +199,9 @@ class Manager::StandupParticipantsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "bulk import resolves Slack usernames" do
-    SlackUserResolver.any_instance.expects(:resolve)
+    ChatUserResolver.any_instance.expects(:resolve)
       .with("@bulk", fallback_name: "Bulk User")
-      .returns(SlackUserResolver::ResolvedUser.new(platform_user_id: "UBULK3", display_name: "Bulk User", cached_timezone: "UTC"))
+      .returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UBULK3", display_name: "Bulk User", cached_timezone: "UTC"))
     sign_in(@manager, "manager-access-token")
 
     assert_difference "StandupParticipant.count", 1 do

@@ -43,8 +43,8 @@
 
               <div class="field">
                 <%= form.label :recipients_text, "Also send to" %>
-                <%= form.text_area :recipients_text, rows: 3, placeholder: "One Slack user or channel ID per line" %>
-                <span class="hint">Optional. Slack user IDs get a DM; channel IDs get a post.</span>
+                <%= form.text_area :recipients_text, rows: 3, placeholder: platform_copy(@standup.platform, :recipients_placeholder) %>
+                <span class="hint"><%= platform_copy(@standup.platform, :recipients_hint) %></span>
               </div>
 
               <div class="grid grid-2">

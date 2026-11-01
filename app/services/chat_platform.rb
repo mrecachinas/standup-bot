@@ -3,7 +3,8 @@
 module ChatPlatform
   DEFAULT = :slack
   ADAPTERS = {
-    slack: "ChatPlatform::SlackAdapter"
+    slack: "ChatPlatform::SlackAdapter",
+    teams: "ChatPlatform::TeamsAdapter"
   }.freeze
 
   UnknownPlatform = Class.new(ArgumentError)

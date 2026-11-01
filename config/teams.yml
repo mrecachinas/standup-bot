@@ -1,0 +1,23 @@
+default: &default
+  # Entra ID app registration behind the Azure Bot (single-tenant).
+  app_id: <%= ENV.fetch('TEAMS_APP_ID', nil) %>
+  app_password: <%= ENV.fetch('TEAMS_APP_PASSWORD', nil) %>
+  tenant_id: <%= ENV.fetch('TEAMS_TENANT_ID', nil) %>
+  # Used for proactive messages until a conversation gives us a regional one.
+  service_url: <%= ENV.fetch('TEAMS_SERVICE_URL', 'https://smba.trafficmanager.net/teams/') %>
+  # Optional: the Teams app's ID in your org's app catalog. When set, the bot
+  # installs itself for participants who haven't installed it yet.
+  app_catalog_id: <%= ENV.fetch('TEAMS_APP_CATALOG_ID', nil) %>
+  # Optional: "Sign in with Microsoft" uses the same app registration unless
+  # these override it.
+  sign_in_client_id: <%= ENV.fetch('TEAMS_SIGN_IN_CLIENT_ID', nil) %>
+  sign_in_client_secret: <%= ENV.fetch('TEAMS_SIGN_IN_CLIENT_SECRET', nil) %>
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default

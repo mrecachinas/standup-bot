@@ -16,6 +16,19 @@ Standup Bot is configured with environment variables. You can set up standups th
 
 See [Slack setup](slack-setup.md) for where to find these.
 
+### Microsoft Teams
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `TEAMS_APP_ID` | Yes, to use Teams | Application (client) ID of the Azure Bot's app registration |
+| `TEAMS_APP_PASSWORD` | Yes, to use Teams | Client secret for that app registration |
+| `TEAMS_TENANT_ID` | Yes, to use Teams | Microsoft Entra tenant the bot and "Sign in with Microsoft" are pinned to |
+| `TEAMS_SERVICE_URL` | No | Bot Connector URL for proactive messages. Defaults to `https://smba.trafficmanager.net/teams/` |
+| `TEAMS_APP_CATALOG_ID` | No | Teams app catalog ID, so the bot can install itself for participants |
+| `TEAMS_SIGN_IN_CLIENT_ID`, `TEAMS_SIGN_IN_CLIENT_SECRET` | No | A separate app registration for "Sign in with Microsoft". Defaults to the bot's |
+
+See [Microsoft Teams setup](teams-setup.md) for where to find these and which Graph permissions to grant. You can configure Slack, Teams, or both. Each standup picks one.
+
 ### Access
 
 | Variable | Description |
@@ -40,6 +53,7 @@ Each of the cache, queue, and cable databases also accepts `CACHE_DB_*`, `QUEUE_
 | Variable | Default | Description |
 | --- | --- | --- |
 | `ADMIN_CHANNEL` | _(unset)_ | Slack channel that gets a message when a background job fails |
+| `TEAMS_ADMIN_CHANNEL` | _(unset)_ | Teams channel (`TEAM_ID\|CHANNEL_ID`) that gets a message when a background job fails |
 | `RESPONSE_RETENTION_DAYS` | `90` | How long to keep standup responses |
 | `STALE_PENDING_DAYS` | `7` | When unanswered standups are marked expired |
 | `CLEANUP_BATCH_SIZE` | `1000` | Rows per batch in the nightly cleanup job |
@@ -86,7 +100,7 @@ participants:
     active: false # on vacation
 ```
 
-`name`, `platform_channel`, and `questions` are required. `platform` is optional and defaults to `slack`. A `days` list of Monday through Friday becomes a weekdays schedule, all seven days becomes daily, and anything else becomes a weekly schedule on those days. When `timezone` is set, each participant gets their DM at `time` in their own Slack timezone.
+`name`, `platform_channel`, and `questions` are required. `platform` is optional and defaults to `slack`. For a Teams standup, set `platform: "teams"`, use a `TEAM_ID|CHANNEL_ID` channel, and list participants by Entra object ID. A `days` list of Monday through Friday becomes a weekdays schedule, all seven days becomes daily, and anything else becomes a weekly schedule on those days. When `timezone` is set, each participant gets their DM at `time` in their own Slack timezone.
 
 Check your files, then load them into the database:
 

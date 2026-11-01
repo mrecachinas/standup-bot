@@ -45,8 +45,8 @@
             <nav class="nav" aria-label="Main">
               <%= nav_link "Overview", manager_standups_path, icon_name: :grid,
                 active: controller_path == "manager/standups" && action_name == "index", data: { turbo_frame: "_top" } %>
-              <%= nav_link "Slack", manager_slack_integration_path, icon_name: :hash,
-                active: controller_path == "manager/slack_integrations", data: { turbo_frame: "_top" } %>
+              <%= nav_link "Integrations", manager_integrations_path, icon_name: :hash,
+                active: controller_path == "manager/chat_integrations", data: { turbo_frame: "_top" } %>
               <% if current_user.admin? %>
                 <%= nav_link "Admin", admin_root_path, icon_name: :shield,
                   active: controller_path.start_with?("admin/"), data: { turbo_frame: "_top" } %>

@@ -192,4 +192,25 @@ class StandupTest < ActiveSupport::TestCase
     assert_not standup.valid?
     assert_includes standup.errors[:platform], "can't be changed after the standup is created"
   end
+
+  test "Teams standups need a TEAM_ID|CHANNEL_ID channel" do
+    standup = Standup.new(name: "Teams", platform: "teams", platform_channel: "general", questions: [ "Q?" ])
+
+    assert_not standup.valid?
+    assert_includes standup.errors[:platform_channel], "must be a Teams channel picked from channel discovery"
+
+    standup.platform_channel = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee|19:x@thread.tacv2"
+    assert standup.valid?
+  end
+
+  test "Teams participants are lowercase Entra object IDs" do
+    standup = Standup.create!(name: "Teams", platform: "teams", platform_channel: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee|19:x@thread.tacv2", questions: [ "Q?" ])
+
+    participant = standup.standup_participants.create!(platform_user_id: "0F0F0F0F-1111-2222-3333-444444444444", display_name: "Tess")
+    assert_equal "0f0f0f0f-1111-2222-3333-444444444444", participant.platform_user_id
+
+    invalid = standup.standup_participants.build(platform_user_id: "U123ABC", display_name: "Slack person")
+    assert_not invalid.valid?
+    assert_includes invalid.errors[:platform_user_id], "must be a Microsoft Entra user object ID (a GUID)"
+  end
 end

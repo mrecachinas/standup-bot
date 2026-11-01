@@ -98,4 +98,29 @@ class HealthCheckServiceTest < ActiveSupport::TestCase
   ensure
     Rails.application.config.slack = original_config
   end
+
+  test "Teams is reported as off, not degraded, until it's configured" do
+    Rails.application.config.stubs(:teams).returns({})
+
+    check = HealthCheckService.call[:checks][:teams_api]
+
+    assert_equal "ok", check[:status]
+    assert_equal false, check[:configured]
+  end
+
+  test "partially configured Teams is degraded" do
+    Rails.application.config.stubs(:teams).returns({ app_id: "11111111-2222-3333-4444-555555555555" })
+
+    check = HealthCheckService.platform_status(:teams)
+
+    assert_equal "warn", check[:status]
+    assert_equal false, check[:app_password_configured]
+  end
+
+  test "an unconfigured Slack isn't degraded when Teams is set up" do
+    Rails.application.config.stubs(:slack).returns({})
+    Rails.application.config.stubs(:teams).returns({ app_id: "a", app_password: "b", tenant_id: "c" })
+
+    assert_equal "ok", HealthCheckService.slack_status[:status]
+  end
 end

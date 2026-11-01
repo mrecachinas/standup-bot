@@ -107,7 +107,7 @@ class StandupResponseService
     standup_response.status = "completed"
 
     chat = chat_for(standup_response)
-    channel = chat.channel_reference(standup.platform_channel)
+    channel = chat.channel_reference(standup.platform_channel, name: standup.platform_channel_name)
     completion_message = if standup.outro.present?
       "#{standup.outro}\n\nYour standup update has been posted to #{channel}."
     else
