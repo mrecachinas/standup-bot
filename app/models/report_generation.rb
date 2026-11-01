@@ -16,14 +16,6 @@ class ReportGeneration < ApplicationRecord
 
   scope :recent, -> { order(requested_at: :desc, created_at: :desc) }
 
-  def queued?
-    status == "queued"
-  end
-
-  def running?
-    status == "running"
-  end
-
   def succeeded?
     status == "succeeded"
   end
@@ -52,10 +44,6 @@ class ReportGeneration < ApplicationRecord
       error_message: message.to_s.truncate(2_000),
       metadata: merged_metadata(metadata)
     )
-  end
-
-  def delivery_targets
-    [ delivery_channel, *Array(recipients) ].reject(&:blank?)
   end
 
   private
