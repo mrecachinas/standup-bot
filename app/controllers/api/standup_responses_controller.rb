@@ -1,8 +1,14 @@
 module Api
+  # Admin API: a flat, filterable list of responses. The console asks for
+  # `?view=history` to get them grouped by standup date, with who was expected,
+  # who answered, and filters for date range, person, and question.
   class StandupResponsesController < BaseController
+    before_action :require_manager!
     before_action :set_standup
 
     def index
+      return render_history if params[:view] == "history"
+
       responses = @standup.standup_responses.order(created_at: :desc)
       responses = responses.where(status: params[:status]) if params[:status].present?
       responses = responses.where(platform_user_id: params[:platform_user_id]) if params[:platform_user_id].present?
@@ -15,6 +21,16 @@ module Api
     end
 
     private
+
+    def render_history
+      history = StandupResponseHistory.new(standup: @standup, params: params.permit(:start_date, :end_date, :participant, :question))
+      avatar_urls = @standup.standup_participants.pluck(:platform_user_id, :avatar_url).to_h
+
+      render json: {
+        standup: StandupSerializer.new(@standup, include_counts: true).as_json,
+        history: ResponseHistorySerializer.new(history, avatar_urls: avatar_urls).as_json
+      }
+    end
 
     def limit
       requested_limit = params.fetch(:limit, 100).to_i

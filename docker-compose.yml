@@ -10,7 +10,6 @@ x-app: &app
     APP_HOSTS: localhost,127.0.0.1,web
     FORCE_SSL: "false"
     ASSUME_SSL: "false"
-    ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-local-admin-api-token}
     MANAGER_ADMIN_EMAIL: ${MANAGER_ADMIN_EMAIL:-admin@example.com}
     MANAGER_ADMIN_NAME: ${MANAGER_ADMIN_NAME:-Local Admin}
     MANAGER_ADMIN_TOKEN: ${MANAGER_ADMIN_TOKEN:-local-manager-token}

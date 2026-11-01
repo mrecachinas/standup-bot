@@ -1,6 +1,6 @@
 # Architecture
 
-Standup Bot is a Rails 8 app. Most of it is API-only and serves Slack and Microsoft Teams webhooks and a JSON admin API. On top of that sits a server-rendered web console for managers. Background work runs on Solid Queue, and production data lives in PostgreSQL (development and test use MySQL).
+Standup Bot is a Rails 8 app. It's API-only: it serves Slack and Microsoft Teams webhooks and one JSON API under `/api`. The web console is a React single-page app (Primer React) that runs in the browser and talks to that same API. Background work runs on Solid Queue, and production data lives in PostgreSQL (development and test use MySQL).
 
 ## The big picture
 
@@ -20,14 +20,15 @@ flowchart LR
     subgraph App[Standup Bot]
         CTRL[Slack controllers]
         TCTRL[TeamsActivitiesController]
-        UI[Manager console]
-        API[Admin API]
+        SPA[SpaController<br/>serves the console]
+        API[JSON API<br/>/api]
         JOBS[Background jobs<br/>Solid Queue]
     end
 
     DB[(PostgreSQL)]
-    MGR([Managers]) --> UI
-    OPS([Scripts / tools]) --> API
+    MGR([Browser: React console]) -->|session cookie| API
+    MGR -.->|page loads| SPA
+    OPS([Scripts / tools]) -->|bearer token| API
 
     EV --> CTRL
     SC --> CTRL
@@ -38,7 +39,6 @@ flowchart LR
     JOBS --> BF
     JOBS --> GR
     CTRL --> DB
-    UI --> DB
     API --> DB
     JOBS --> DB
 ```
@@ -162,26 +162,68 @@ The web console uses cookie-backed sessions and serves three kinds of people:
 2. If there isn't one, it links an existing account by a Slack-verified email.
 3. Otherwise it creates a standard account.
 
-Anyone who manages a standup can make other people in it managers, or remove them, from the Participants tab (`Manager::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their user ID on the standup's platform, and they're matched to it when they first sign in. A standup always keeps at least one manager.
+Anyone who manages a standup can make other people in it managers, or remove them, from the Participants tab (`Api::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their user ID on the standup's platform, and they're matched to it when they first sign in. A standup always keeps at least one manager.
 
-Every console action has to check authorization. `Web::ApplicationController` runs `verify_authorized` after each action, and it raises `AuthorizationNotPerformed` unless the action called one of:
+### One API, two ways in
 
-- `authorize_standup!`, for actions on one standup
-- `require_admin!`, for admin-only pages
+Everything the console shows comes from `/api`, the same API that scripts use. Every request acts as a user, who can arrive one of two ways, and `Api::BaseController` picks exactly one per request:
+
+```mermaid
+flowchart TD
+    R[Request to /api] --> H{Authorization header?}
+    H -->|yes| T{Bearer token matches<br/>an active user's access token?}
+    T -->|no| U401[401]
+    T -->|yes| TP[That user<br/>no CSRF, no session]
+    H -->|no| S[Session cookie]
+    S --> C{Changes data?}
+    C -->|yes| X{Valid X-CSRF-Token?}
+    X -->|no| E422[422]
+    X -->|yes| SP[Signed-in user<br/>and member]
+    C -->|no| SP
+```
+
+A wrong token is always rejected; it never falls back to the cookie. Both ways end up as a `Principal` (`app/models/principal.rb`) for the same user, so authorization doesn't care how someone arrived: admins can manage every standup, and everyone else only the standups they own. Audit log entries record that user, with `auth_method: "access_token"` for token requests. Tokens are looked up by their SHA-256 digest, and a digest shared by two accounts is refused.
+
+Every `/api` action has to check authorization. `Api::BaseController` runs `verify_authorized` after each action, and it raises `AuthorizationNotPerformed` unless the action called one of:
+
+- `authorize_standup!`, for actions on one standup (`set_standup` does this for nested routes)
+- `require_admin!`, for admin-only endpoints
+- `require_member!`, for the member area (`/api/me/*`), which only reads the signed-in member's own data and needs a session
 - `skip_authorization`, for actions any signed-in user may take, such as creating a standup or listing the ones they manage
 
-The sign-in controllers and the member area (`Me::`) opt out with `skip_after_action :verify_authorized`. Member pages only read the signed-in member's own data.
+`test/controllers/api/authorization_check_test.rb` fails if any routed `/api` controller is missing this check.
 
 Avatars use each person's Slack photo when we have one. Teams photos aren't public URLs, so Teams participants show initials. `avatar_url` on `StandupParticipant` and `User` is filled in whenever the app already talks to Slack about that person: user search and resolution, channel sync, timezone refresh, and Slack sign-in, which also refreshes that person's participant rows. `SlackAvatar` only accepts `https` URLs. If a photo is missing or fails to load, the avatar falls back to initials.
 
 Slack and Microsoft guests are refused at sign-in. Since anyone else can sign in, non-admins only see public channels in channel discovery, and can only sync participants from channels they belong to.
 
-Everyone signed in with Slack or Microsoft can use the console for the standups they own, and the member area under `/me` (`Me::*` controllers) for the standups they're in. Accounts can also sign in with an email and access token. Only a SHA-256 digest of the token is stored.
+Everyone signed in with Slack or Microsoft can use the console for the standups they own, and the member area under `/me` for the standups they're in. Accounts can also sign in with an email and access token. Only a SHA-256 digest of the token is stored.
 
 - **Admins** also get an **Admin** page (`/admin`) that shows database, job queue, and Slack health, usage, users, failed reports, and recent audit log entries.
 
-The console is server-rendered ERB with Turbo. Styles live in [`public/application.css`](../public/application.css) and the small amount of client-side behavior (adding question rows, live schedule preview) in [`public/application.js`](../public/application.js). Shared building blocks are in `app/helpers/ui_helper.rb` (icons, badges, avatars) and `app/helpers/charts_helper.rb` (server-rendered SVG charts, so there's no charting dependency).
+### The console
 
-When you write new console controllers, scope records with `Standup.manageable_by(user)` or check `standup.manageable_by?(user)` / `user.can_manage_standup?(standup)`. Create, update, and delete actions should call `AuditLogger.log!` (or the controller helpers) so changes show up in `AuditLog`.
+The console lives in [`frontend/`](../frontend). It's a Vite + TypeScript + React app built with [Primer React](https://primer.style/product/getting-started/react/) and Octicons, and `vite build` writes it to `public/app`.
 
-The [admin API](api.md) is separate. It uses a single global bearer token (`ADMIN_API_TOKEN`) rather than user accounts.
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant R as Rails
+    B->>R: GET /manager/standups/42
+    R-->>B: public/app/index.html (SpaController)
+    B->>R: GET /api/session
+    R-->>B: user, member, sidebar, platforms, CSRF token, flash
+    B->>R: GET /api/standups/42?include=overview
+    R-->>B: JSON
+    B->>R: PATCH /api/standups/42/pause + X-CSRF-Token
+    R-->>B: { standup, notice }
+```
+
+- Console URLs are the same as before (`/manager/standups/:id/participants`, `/me/responses`, `/admin`, and so on). `SpaController` serves the app for any browser navigation that isn't `/api`, `/slack`, `/teams`, `/auth`, or a health check, and React Router takes it from there.
+- "Sign in with Slack" and "Sign in with Microsoft" are still server-side redirects under `/auth`. When they finish, they send people to a console URL. Any error shows up as a flash, which `GET /api/session` hands to the app once.
+- Serializers in `app/serializers/` shape the JSON. They also compute display values such as schedule summaries, status labels and tones, and per-platform wording (`UiFormat`, `PlatformSerializer`), so the browser doesn't reimplement scheduling rules.
+- Charts are small SVG components in `frontend/src/components/charts`, so there's no charting dependency.
+
+When you add a console feature, add or extend an `Api::` endpoint first. Scope records with `principal.manageable_standups` or `set_standup`, and record changes with `audit_change!` so they show up in `AuditLog`. Then build the page in `frontend/src/pages` (see [`frontend/README.md`](../frontend/README.md)).
+
+See [API](api.md) for using the API from scripts with an access token.

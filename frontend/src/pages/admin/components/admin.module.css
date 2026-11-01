@@ -1,0 +1,123 @@
+.healthGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--base-size-16);
+}
+
+.healthCard {
+  display: flex;
+  gap: var(--base-size-12);
+  min-width: 0;
+  padding: var(--base-size-16);
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-default);
+}
+
+.healthIcon {
+  display: inline-grid;
+  flex-shrink: 0;
+  width: var(--base-size-32);
+  height: var(--base-size-32);
+  place-items: center;
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-attention-muted);
+  color: var(--fgColor-attention);
+}
+
+.healthCard[data-status="ok"] .healthIcon {
+  background: var(--bgColor-success-muted);
+  color: var(--fgColor-success);
+}
+
+.healthCard[data-status="error"] .healthIcon {
+  background: var(--bgColor-danger-muted);
+  color: var(--fgColor-danger);
+}
+
+.healthBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--base-size-8);
+  min-width: 0;
+}
+
+.healthTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base-size-8);
+}
+
+.healthTitle {
+  margin: 0;
+  font-size: var(--text-body-size-large);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-12);
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--base-size-4);
+  font-size: var(--text-body-size-small);
+}
+
+.count {
+  color: var(--fgColor-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8);
+  min-width: 0;
+}
+
+.personName {
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.sub {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.muted {
+  color: var(--fgColor-muted);
+  font-weight: var(--base-text-weight-normal);
+}
+
+.time {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+  white-space: nowrap;
+}
+
+.dangerDot {
+  display: inline-block;
+  width: var(--base-size-8);
+  height: var(--base-size-8);
+  border-radius: var(--borderRadius-full);
+  background: var(--bgColor-danger-emphasis);
+}
+
+.mainAside {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: var(--base-size-16);
+}
+
+@media (max-width: 1011px) {
+  .mainAside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

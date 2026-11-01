@@ -1,0 +1,126 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-24);
+}
+
+.narrow {
+  max-width: 720px;
+}
+
+.muted {
+  color: var(--fgColor-muted);
+}
+
+.small {
+  font-size: var(--text-body-size-small);
+}
+
+.tip {
+  margin: 0;
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.code {
+  padding: var(--base-size-2) var(--base-size-4);
+  border-radius: var(--borderRadius-small);
+  background: var(--bgColor-neutral-muted);
+  font-family: var(--fontStack-monospace);
+  font-size: 85%;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-default);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--base-size-12);
+  padding: var(--base-size-16);
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--text-title-size-small);
+  font-weight: var(--base-text-weight-semibold);
+  line-height: var(--text-title-lineHeight-small);
+  overflow-wrap: anywhere;
+}
+
+.cardHint {
+  margin: var(--base-size-4) 0 0;
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.cardBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--base-size-16);
+  padding: var(--base-size-16);
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--base-size-8);
+  padding: var(--base-size-12) var(--base-size-16);
+  border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
+  background: var(--bgColor-muted);
+  border-radius: 0 0 var(--borderRadius-medium) var(--borderRadius-medium);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list > li {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-12);
+  padding: var(--base-size-12) var(--base-size-16);
+}
+
+.list > li + li {
+  border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+
+.dateTile {
+  display: inline-flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--base-size-40);
+  height: var(--base-size-40);
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-muted);
+  line-height: 1;
+}
+
+.dateTileMonth {
+  color: var(--fgColor-muted);
+  font-size: var(--text-caption-size);
+  font-weight: var(--base-text-weight-semibold);
+  text-transform: uppercase;
+}
+
+.dateTileDay {
+  margin-top: var(--base-size-2);
+  font-size: var(--text-body-size-large);
+  font-weight: var(--base-text-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,122 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-16);
+  min-height: 100vh;
+  padding: var(--base-size-16) var(--base-size-8);
+  background: var(--bgColor-muted);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8);
+  padding: var(--base-size-4) var(--base-size-8);
+  color: var(--fgColor-default);
+  font-size: var(--text-title-size-small);
+  font-weight: var(--base-text-weight-semibold);
+  text-decoration: none;
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-accent-emphasis);
+  color: var(--fgColor-onEmphasis);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--base-size-8);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--base-size-4) var(--base-size-8);
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dotActive {
+  background: var(--bgColor-success-emphasis);
+}
+
+.dotPaused {
+  background: var(--bgColor-attention-emphasis);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-12);
+  margin-top: auto;
+  padding: var(--base-size-12) var(--base-size-8) 0;
+  border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8);
+  min-width: 0;
+}
+
+.userMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.userName {
+  overflow: hidden;
+  font-weight: var(--base-text-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userRole {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.content {
+  min-width: 0;
+  padding: var(--base-size-24) var(--base-size-32) var(--base-size-48);
+}
+
+.signedOut {
+  min-height: 100vh;
+}
+
+@media (max-width: 767px) {
+  .sidebar {
+    min-height: auto;
+  }
+
+  .content {
+    padding: var(--base-size-16);
+  }
+}

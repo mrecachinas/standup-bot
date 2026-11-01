@@ -34,17 +34,16 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
     get slack_sign_in_callback_path, params: { code: "abc", state: "not-the-state" }
 
     assert_redirected_to new_session_path
-    follow_redirect!
-    assert_includes response.body, "Your sign-in link expired"
+    assert_flash_from_session "Your sign-in link expired"
   end
 
   test "signs a participant into the member area" do
     sign_in_with_slack(platform_user_id: "U123456", email: "john@example.com")
 
     assert_redirected_to me_root_path
-    follow_redirect!
+    get api_me_standups_path, as: :json
     assert_response :success
-    assert_includes response.body, standups(:daily).name
+    assert_includes response.parsed_body["standups"].map { |entry| entry.dig("standup", "name") }, standups(:daily).name
   end
 
   test "links an existing account by verified email and lands owners in the console" do
@@ -52,7 +51,7 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to manager_standups_path
     assert_equal "U999999", users(:manager).reload.platform_user_id_for(:slack)
-    follow_redirect!
+    get api_standups_path, as: :json
     assert_response :success
   end
 
@@ -63,7 +62,7 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to me_root_path
     assert_nil users(:admin).reload.platform_user_id_for(:slack)
-    get admin_root_path
+    get api_admin_dashboard_path, as: :json
     assert_response :forbidden
   end
 
@@ -75,8 +74,9 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
     user = User.find_by_identity!(:slack, "UVTEAM1")
     assert_equal "manager", user.role
     assert_redirected_to manager_standups_path
-    follow_redirect!
-    assert_includes response.body, "Create your first standup"
+    get api_overview_path, as: :json
+    assert_response :success
+    assert response.parsed_body["empty"]
   end
 
   test "returning users are matched by Slack user ID" do
@@ -94,8 +94,7 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
     sign_in_with_slack(platform_user_id: "UOFF", email: users(:inactive_manager).email)
 
     assert_redirected_to new_session_path
-    follow_redirect!
-    assert_includes response.body, "turned off"
+    assert_flash_from_session "turned off"
   end
 
   test "refuses to relink an email that belongs to another Slack account" do
@@ -117,6 +116,13 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  # Sign-in errors reach the console as a flash in the session bootstrap.
+  def assert_flash_from_session(text)
+    get api_session_path, as: :json
+    messages = response.parsed_body["flash"].map { |flash| flash["message"] }
+    assert messages.any? { |message| message.include?(text) }, "expected a flash including #{text.inspect}, got #{messages.inspect}"
+  end
 
   def sign_in_with_slack(platform_user_id:, email:, email_verified: true, avatar_url: nil)
     get slack_sign_in_path

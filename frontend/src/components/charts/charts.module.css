@@ -1,0 +1,126 @@
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart text {
+  fill: var(--fgColor-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart :global(.grid-line) {
+  stroke: var(--borderColor-muted);
+  stroke-dasharray: 2 3;
+}
+
+.chart :global(.axis-line) {
+  stroke: var(--borderColor-default);
+}
+
+.chart :global(.bar-completed),
+.legend :global(.swatch-completed) {
+  fill: var(--bgColor-accent-emphasis);
+  background: var(--bgColor-accent-emphasis);
+}
+
+.chart :global(.bar-skipped),
+.legend :global(.swatch-skipped) {
+  fill: var(--data-blue-color-muted, var(--bgColor-accent-muted));
+  background: var(--data-blue-color-muted, var(--bgColor-accent-muted));
+}
+
+.chart :global(.bar-pending),
+.legend :global(.swatch-pending) {
+  fill: var(--bgColor-attention-emphasis);
+  background: var(--bgColor-attention-emphasis);
+}
+
+.chart :global(.bar-missed),
+.legend :global(.swatch-missed) {
+  fill: var(--borderColor-default);
+  background: var(--borderColor-default);
+}
+
+.chart :global(.bar-group):hover rect {
+  opacity: 0.85;
+}
+
+.chart :global(.line) {
+  fill: none;
+  stroke: var(--fgColor-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.chart :global(.point) {
+  fill: var(--bgColor-default);
+  stroke: var(--fgColor-accent);
+  stroke-width: 2;
+}
+
+.gradientStart {
+  stop-color: var(--fgColor-accent);
+  stop-opacity: 0.18;
+}
+
+.gradientEnd {
+  stop-color: var(--fgColor-accent);
+  stop-opacity: 0;
+}
+
+.sparkline {
+  display: block;
+  overflow: visible;
+}
+
+.sparkline :global(.line) {
+  fill: none;
+  stroke: var(--fgColor-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.sparkline :global(.area) {
+  fill: var(--bgColor-accent-muted);
+}
+
+.subtle {
+  color: var(--fgColor-muted);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--base-size-4) var(--base-size-16);
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--base-size-6);
+}
+
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.empty {
+  display: grid;
+  height: 12rem;
+  place-items: center;
+  border: var(--borderWidth-thin) dashed var(--borderColor-default);
+  border-radius: var(--borderRadius-large);
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-medium);
+}

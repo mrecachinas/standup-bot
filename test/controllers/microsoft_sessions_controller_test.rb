@@ -54,15 +54,16 @@ class MicrosoftSessionsControllerTest < ActionDispatch::IntegrationTest
     user = User.find_by_identity!(:teams, TEAMS_USER_ID)
     assert_equal "#{TEAMS_USER_ID}@teams-users.invalid", user.email
 
-    get me_root_path
+    get api_me_standups_path, as: :json
     assert_response :success
-    assert_includes response.body, standup.name
-    assert_includes response.body, "Microsoft Teams DMs"
+    assert_includes response.parsed_body["standups"].map { |entry| entry.dig("standup", "name") }, standup.name
+    assert_equal "teams", response.parsed_body.dig("member", "platform")
   end
 
-  test "shows the Microsoft button on the sign-in page" do
-    get new_session_path
+  test "offers Microsoft sign-in in the session bootstrap" do
+    get api_session_path, as: :json
 
-    assert_includes response.body, "Sign in with Microsoft"
+    teams = response.parsed_body["platforms"].find { |platform| platform["key"] == "teams" }
+    assert teams["sign_in_enabled"]
   end
 end

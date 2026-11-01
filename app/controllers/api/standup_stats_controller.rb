@@ -1,5 +1,6 @@
 module Api
   class StandupStatsController < BaseController
+    before_action :require_manager!
     before_action :set_standup
 
     def show

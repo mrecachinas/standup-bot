@@ -18,3 +18,12 @@ updates:
     actions-deps:
       patterns:
         - "*"
+- package-ecosystem: npm
+  directory: "/frontend"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  groups:
+    npm-deps:
+      patterns:
+        - "*"

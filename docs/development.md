@@ -2,9 +2,19 @@
 
 To get the app running locally first, see [Getting started](getting-started.md).
 
+## Running the app
+
+```bash
+bin/dev                 # Rails on :3000 and the console's Vite dev server on :5173
+```
+
+Open <http://localhost:5173>. Vite reloads the console as you edit it and passes `/api` and `/auth` requests through to Rails. `script/server` does the same after preparing and seeding the database. If you only need Rails (for example to work on Slack webhooks), run `bin/dev --rails-only`. To serve the built console from Rails itself on port 3000, run `npm run build` in `frontend/` first.
+
+You'll need Node (the version in [`.node-version`](../.node-version)) for the console. `script/bootstrap` installs its packages, and `bin/dev` does too if they're missing.
+
 ## Tests
 
-The suite uses Minitest with Mocha and runs against MySQL.
+The Rails suite uses Minitest with Mocha and runs against MySQL.
 
 ```bash
 script/test                                   # start MySQL if needed, prepare the test DB, run everything
@@ -12,9 +22,29 @@ script/test test/models/standup_test.rb       # run one file
 bin/rails test test/services/                 # or call Rails directly if the DB is already up
 ```
 
+The console has its own checks, run from `frontend/`:
+
+```bash
+npm test                                      # Vitest + React Testing Library
+npm run typecheck                             # TypeScript
+npm run lint                                  # ESLint
+npm run build                                 # build into public/app
+```
+
+End-to-end tests drive the built console in Chromium, in light and dark mode, against a real Rails server. That server runs in development mode (so CSRF and sessions behave as in production) against a throwaway `nerdbot_e2e` database loaded with the test fixtures. They need MySQL running.
+
+```bash
+cd frontend
+npm run build
+npx playwright install chromium               # first time only
+npm run e2e                                   # starts script/e2e-server on port 3100
+```
+
+They cover signing in and out, creating, editing, pausing and resuming a standup, importing people, every standup tab, access rules, the admin pages, and the member area, and they fail on console errors. To reach the member area, the e2e server fakes Slack's token exchange (`config/initializers/e2e_fake_slack_sign_in.rb`, enabled only by `E2E_FAKE_SLACK_SIGN_IN=1` and refused in production), and the tests skip the visit to slack.com while the rest of sign-in runs for real.
+
 ## Linting and security checks
 
-These are the same checks that CI runs:
+These are the same checks that CI runs, along with the console checks above:
 
 ```bash
 bin/rubocop                                   # style (Rails Omakase); add -A to auto-fix
@@ -37,11 +67,10 @@ bin/rails standups:validate                   # check config/standups/*.yml
 | Path | What's there |
 | --- | --- |
 | `app/controllers/slack_*` | Slack events, interactions, and slash commands |
-| `app/controllers/manager/` | The manager web console |
-| `app/controllers/admin/` | The admin-only installation health page |
-| `app/helpers/` | Console UI helpers and server-rendered SVG charts |
-| `public/application.css`, `public/application.js` | Console styles and client-side behavior |
-| `app/controllers/api/` | The admin JSON API |
+| `app/controllers/api/` | The JSON API, for scripts (access token) and the console (session) |
+| `app/serializers/` | JSON shapes and display values for the API |
+| `app/controllers/spa_controller.rb` | Serves the console's `index.html` for console URLs |
+| `frontend/` | The web console: React, TypeScript, and Primer React (see [`frontend/README.md`](../frontend/README.md)) |
 | `app/jobs/` | Scheduling, DMs, reminders, reports, and cleanup |
 | `app/services/` | Slack client, response handling, analytics, and audit logging |
 | `config/standups/` | YAML standup definitions |

@@ -43,14 +43,14 @@ This runs the whole app (web console, background worker, and Postgres) without c
 | [Slack setup](docs/slack-setup.md) | Creating the Slack app, scopes, slash commands, and DM commands |
 | [Microsoft Teams setup](docs/teams-setup.md) | Registering the bot, Graph permissions, the Teams app manifest, and Teams commands |
 | [Configuration](docs/configuration.md) | Environment variables and YAML standup files |
-| [Architecture](docs/architecture.md) | How the pieces fit together: models, jobs, and manager permissions |
-| [API](docs/api.md) | Admin API and health check endpoints |
+| [Architecture](docs/architecture.md) | How the pieces fit together: models, jobs, the React console, and permissions |
+| [API](docs/api.md) | The JSON API (access token or console session) and health check endpoints |
 | [Deployment](docs/deployment.md) | Docker, Kamal, and Kubernetes |
 | [Development](docs/development.md) | Tests, linting, security scans, and troubleshooting |
 
 ## Contributing
 
-Fork the repo, create a branch, and make your change with tests. Before you open a pull request, run `bin/rails test` and `bin/rubocop`. See [Development](docs/development.md) for more detail.
+Fork the repo, create a branch, and make your change with tests. Before you open a pull request, run `bin/rails test`, `bin/rubocop`, and the console checks in `frontend/` (`npm test`, `npm run lint`, `npm run typecheck`). See [Development](docs/development.md) for more detail.
 
 ## License
 

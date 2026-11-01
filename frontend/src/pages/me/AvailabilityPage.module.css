@@ -1,0 +1,27 @@
+.awayItem {
+  font-size: var(--text-body-size-medium);
+}
+
+.awayDot {
+  flex-shrink: 0;
+  color: var(--fgColor-attention);
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dateInput {
+  max-width: 240px;
+}
+
+.cardHeaderAction {
+  align-items: center;
+}
+
+.emptyInline {
+  margin: 0;
+  color: var(--fgColor-muted);
+}

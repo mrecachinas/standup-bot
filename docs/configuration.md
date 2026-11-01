@@ -33,7 +33,6 @@ See [Microsoft Teams setup](teams-setup.md) for where to find these and which Gr
 
 | Variable | Description |
 | --- | --- |
-| `ADMIN_API_TOKEN` | Bearer token for the [`/api/*` endpoints](api.md). It can also be stored in Rails credentials as `admin.api_token`. |
 | `MANAGER_ADMIN_EMAIL`, `MANAGER_ADMIN_TOKEN`, `MANAGER_ADMIN_NAME` | When the email and token are both set, `bin/rails db:seed` creates or updates an admin user for the web console. |
 
 ### Database
@@ -124,6 +123,8 @@ token = SecureRandom.hex(32)
 User.create!(email: "lead@example.com", name: "Team Lead", role: "manager", access_token: token)
 puts token # share this once with the manager
 ```
+
+The same email and access token work as a bearer token for the [API](api.md), so scripts act as that person. Slack and Microsoft accounts get a random token nobody sees; to give one to someone for scripting, set a new one in the Rails console with `user.update!(access_token: SecureRandom.hex(32))`. That also signs out any script using their old token.
 
 There are two roles:
 
