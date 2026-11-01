@@ -1,0 +1,46 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: var(--base-size-24);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--base-size-8) var(--base-size-16);
+  align-items: center;
+  margin: 0;
+}
+
+.kv dt {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.kv dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8);
+}
+
+.meterBar {
+  flex: 1;
+  max-width: 160px;
+}
+
+.meterValue {
+  font-size: var(--text-body-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.teammates {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8);
+  margin-top: auto;
+}

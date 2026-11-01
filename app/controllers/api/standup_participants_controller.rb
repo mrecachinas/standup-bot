@@ -126,7 +126,7 @@ module Api
             today: today
           ).as_json
         end,
-        standup: StandupSerializer.new(@standup).as_json,
+        standup: StandupSerializer.new(@standup, include_counts: true).as_json,
         platform: PlatformSerializer.new(@standup.platform).as_json,
         managers: managers.map do |user|
           ParticipantManagerSerializer.new(user, standup: @standup, manager_count: managers.size, current_user: current_user).as_json

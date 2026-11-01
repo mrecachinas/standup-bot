@@ -96,6 +96,12 @@ describe("api client", () => {
     await expect(get("/api/admin/dashboard")).rejects.toMatchObject({ status: 403, message: "Forbidden", errors: ["Forbidden"], fieldErrors: {} });
   });
 
+  it("doesn't repeat a message sent as both error and errors", async () => {
+    stubFetch(jsonResponse({ error: "Pick a date.", errors: ["Pick a date."] }, 422));
+
+    await expect(patch("/api/me/availability", {})).rejects.toMatchObject({ message: "Pick a date.", errors: ["Pick a date."] });
+  });
+
   it("tells the session layer about a 401", async () => {
     const onUnauthorized = vi.fn();
     configureSessionHooks({ onUnauthorized });

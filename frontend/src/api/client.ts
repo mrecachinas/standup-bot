@@ -163,10 +163,11 @@ function parseErrorBody(body: unknown): { message?: string; errors: string[]; fi
   const { error, errors, field_errors: fieldErrors } = body as ApiErrorBody;
   const list = Array.isArray(errors) ? errors.filter((item): item is string => typeof item === "string") : [];
   if (typeof error === "string" && error) list.unshift(error);
+  const unique = [...new Set(list)];
 
   return {
-    message: list.length > 0 ? list.join(" ") : undefined,
-    errors: list,
+    message: unique.length > 0 ? unique.join(" ") : undefined,
+    errors: unique,
     fieldErrors: isRecord(fieldErrors) ? (fieldErrors as Record<string, string[]>) : {},
   };
 }

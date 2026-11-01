@@ -27,7 +27,7 @@ module Api
       avatar_urls = @standup.standup_participants.pluck(:platform_user_id, :avatar_url).to_h
 
       render json: {
-        standup: StandupSerializer.new(@standup).as_json,
+        standup: StandupSerializer.new(@standup, include_counts: true).as_json,
         history: ResponseHistorySerializer.new(history, avatar_urls: avatar_urls).as_json
       }
     end

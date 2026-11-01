@@ -90,7 +90,7 @@ class StandupFormSerializer
   def as_json(*)
     {
       mode: @standup.persisted? ? "edit" : "new",
-      standup: StandupSerializer.new(@standup).as_json,
+      standup: StandupSerializer.new(@standup, include_counts: @standup.persisted?).as_json,
       templates: templates,
       template_key: @template_key,
       platform: PlatformSerializer.new(@standup.platform).as_json,

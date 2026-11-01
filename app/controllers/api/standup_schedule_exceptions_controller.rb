@@ -27,7 +27,7 @@ module Api
       next_occurrence = @standup.next_occurrence_detail_in_timezone(preview_timezone)
 
       render json: {
-        standup: StandupSerializer.new(@standup).as_json,
+        standup: StandupSerializer.new(@standup, include_counts: true).as_json,
         preview_timezone: preview_timezone,
         default_exception_timezone: DEFAULT_EXCEPTION_TIMEZONE,
         time_zone_options: ActiveSupport::TimeZone.all.map(&:name),
