@@ -255,49 +255,6 @@ class Standup < ApplicationRecord
 
   private
 
-  def next_daily_occurrence(now, zone)
-    candidate = scheduled_time_on(zone, now.to_date)
-    candidate < now ? scheduled_time_on(zone, now.to_date + 1.day) : candidate
-  end
-
-  def next_weekday_occurrence(now, zone, weekdays)
-    date = now.to_date
-
-    14.times do
-      if weekdays.include?(date.wday)
-        candidate = scheduled_time_on(zone, date)
-        return candidate if candidate >= now
-      end
-
-      date += 1.day
-    end
-
-    raise ArgumentError, "Unable to calculate next #{schedule_type} occurrence"
-  end
-
-  def next_biweekly_occurrence(now, zone, weekday)
-    date = now.to_date
-
-    28.times do
-      if date.wday == weekday && biweekly_week?(date)
-        candidate = scheduled_time_on(zone, date)
-        return candidate if candidate >= now
-      end
-
-      date += 1.day
-    end
-
-    raise ArgumentError, "Unable to calculate next biweekly occurrence"
-  end
-
-  def next_monthly_occurrence(now, zone, day_of_month)
-    month_start = now.to_date.beginning_of_month
-    candidate = scheduled_time_on(zone, date_for_month_day(month_start, day_of_month))
-    return candidate if candidate >= now
-
-    scheduled_time_on(zone, date_for_month_day(month_start.next_month, day_of_month))
-  end
-
   def scheduled_time_on(zone, date)
     zone.local(date.year, date.month, date.day, default_hour, default_minute)
   end
@@ -334,10 +291,6 @@ class Standup < ApplicationRecord
     return date.to_date if date.respond_to?(:to_date)
 
     Date.iso8601(date.to_s)
-  end
-
-  def date_for_month_day(month_start, day_of_month)
-    Date.new(month_start.year, month_start.month, [ day_of_month, month_start.end_of_month.day ].min)
   end
 
   def biweekly_week?(date)
