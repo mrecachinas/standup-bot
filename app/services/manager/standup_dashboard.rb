@@ -1,7 +1,6 @@
 module Manager
   class StandupDashboard
     DEFAULT_PERIOD_DAYS = 14
-    WEEKDAY_NAMES = Date::DAYNAMES.dup.freeze
 
     def initialize(standups, period_days: DEFAULT_PERIOD_DAYS, now: Time.current)
       @standups = standups
@@ -10,7 +9,20 @@ module Manager
     end
 
     def items
-      standups.map { |standup| Item.new(standup, period_days: period_days, now: now) }
+      @items ||= standups.map { |standup| Item.new(standup, period_days: period_days, now: now) }
+    end
+
+    # Team-wide totals per calendar date across every standup on the dashboard.
+    def daily_totals
+      totals = Hash.new { |hash, date| hash[date] = { date: date, expected: 0, completed: 0, skipped: 0, pending: 0, missed: 0 } }
+      items.each do |item|
+        item.runs.each do |run|
+          %i[expected completed skipped pending missed].each { |key| totals[run[:date]][key] += run[key] }
+        end
+      end
+      totals.values.sort_by { |row| row[:date] }.map do |row|
+        row.merge(completion_rate: row[:expected].zero? ? 0.0 : (row[:completed] * 100.0 / row[:expected]).round(1))
+      end
     end
 
     class Item
@@ -23,26 +35,43 @@ module Manager
       end
 
       def participant_count
-        standup.standup_participants.active.count
+        participant_names.size
+      end
+
+      def participant_names
+        @participant_names ||= standup.standup_participants.active.order(:slack_name).pluck(:slack_name, :slack_id)
+          .map { |name, slack_id| name.presence || slack_id }
+      end
+
+      def runs
+        @runs ||= analytics.run_breakdown
+      end
+
+      def trend_rates
+        runs.map { |run| run[:completion_rate] }
+      end
+
+      def next_occurrence
+        return unless standup.active?
+
+        @next_occurrence ||= standup.next_occurrence_detail_in_timezone("UTC", from: now)
+      rescue StandardError
+        nil
+      end
+
+      def needs_attention?
+        !standup.active? || participant_count.zero? || (expected_responses.positive? && completion_rate < 60)
+      end
+
+      def attention_reason
+        return "Paused" unless standup.active?
+        return "No active participants" if participant_count.zero?
+
+        "#{completion_rate.round}% completion over #{period_days} days"
       end
 
       def status_label
         standup.active? ? "Active" : "Paused"
-      end
-
-      def cadence_label
-        "#{schedule_label} at #{scheduled_time_label}"
-      end
-
-      def timezone_label
-        return "UTC" unless standup.respect_timezone?
-
-        cached_timezones = standup.standup_participants.active
-          .where.not(cached_timezone: [ nil, "" ])
-          .distinct
-          .pluck(:cached_timezone)
-
-        cached_timezones.any? ? cached_timezones.to_sentence : "Participant timezones"
       end
 
       def completion_rate
@@ -65,10 +94,13 @@ module Manager
         latest_run_status_counts.keys.map(&:titleize).to_sentence
       end
 
-      def latest_run_detail
-        return "No responses have been collected yet" unless latest_run_response
+      def latest_run_summary
+        return unless latest_run_response
 
-        "#{latest_run_date.to_fs(:medium)} · #{latest_run_status_counts.map { |status, count| "#{count} #{status}" }.join(", ")}"
+        counts = latest_run_status_counts
+        answered = counts["completed"].to_i
+        total = counts.values.sum
+        "#{latest_run_date.strftime("%b %-d")} · #{answered} of #{total} answered"
       end
 
       private
@@ -76,38 +108,11 @@ module Manager
       attr_reader :now
 
       def summary
-        @summary ||= StandupAnalyticsService.new(standup, period_days: period_days, now: now).summary
+        @summary ||= analytics.summary
       end
 
-      def schedule_label
-        case standup.schedule_type
-        when "daily"
-          "Daily"
-        when "weekdays"
-          "Weekdays"
-        when "weekly"
-          "Weekly #{weekday_names.to_sentence}"
-        when "biweekly"
-          "Biweekly #{weekday_names.to_sentence}"
-        when "monthly"
-          "Monthly day #{schedule_days.first || 1}"
-        when "custom"
-          "Custom #{weekday_names.to_sentence}"
-        else
-          standup.schedule_type.to_s.titleize
-        end
-      end
-
-      def scheduled_time_label
-        format("%02d:%02d", standup.default_hour, standup.default_minute)
-      end
-
-      def weekday_names
-        schedule_days.map { |day| WEEKDAY_NAMES[day] }.compact
-      end
-
-      def schedule_days
-        @schedule_days ||= Array(standup.schedule_days).filter_map { |day| Integer(day, exception: false) }
+      def analytics
+        @analytics ||= StandupAnalyticsService.new(standup, period_days: period_days, now: now)
       end
 
       def latest_run_response

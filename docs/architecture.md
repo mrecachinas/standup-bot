@@ -108,6 +108,10 @@ The web console (`/manager/*`) uses cookie-backed sessions. Users sign in with a
 - **Admins** can manage every standup.
 - **Managers** can only manage standups linked to them through `StandupOwnership`. Any standup a manager creates is theirs automatically.
 
+- **Admins** also get an **Admin** page (`/admin`) that shows database, job queue, and Slack health, usage, users, failed reports, and recent audit log entries.
+
+The console is server-rendered ERB with Turbo. Styles live in [`public/application.css`](../public/application.css) and the small amount of client-side behavior (adding question rows, live schedule preview) in [`public/application.js`](../public/application.js). Shared building blocks are in `app/helpers/ui_helper.rb` (icons, badges, avatars) and `app/helpers/charts_helper.rb` (server-rendered SVG charts, so there's no charting dependency).
+
 When you write new console controllers, scope records with `Standup.manageable_by(user)` or check `standup.manageable_by?(user)` / `user.can_manage_standup?(standup)`. Create, update, and delete actions should call `AuditLogger.log!` (or the controller helpers) so changes show up in `AuditLog`.
 
 The [admin API](api.md) is separate. It uses a single global bearer token (`ADMIN_API_TOKEN`) rather than user accounts.

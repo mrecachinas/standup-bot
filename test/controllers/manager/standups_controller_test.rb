@@ -60,10 +60,11 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_includes response.body, "Daily at 09:00"
-    assert_includes response.body, "Participant timezones"
+    assert_includes response.body, "Every day at 9:00 AM"
     assert_includes response.body, "2 active participants"
-    assert_includes response.body, "25.0% (1/4)"
+    # The completed response counts toward expected so the rate can't exceed 100%.
+    assert_includes response.body, "20%"
+    assert_includes response.body, "1 of 5 responses"
     assert_includes response.body, "Pending"
     assert_includes response.body, edit_manager_standup_path(@owned_standup)
     assert_includes response.body, manager_standup_participants_path(@owned_standup)
@@ -72,18 +73,43 @@ class Manager::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, manager_standup_report_path(@owned_standup)
   end
 
+  test "new standup form starts from a template" do
+    sign_in(@manager, "manager-access-token")
+
+    get new_manager_standup_path(template: "retro")
+
+    assert_response :success
+    assert_select "a.template.is-active", text: /Friday retro/
+    assert_select "input[name='standup[question_rows][]'][value='What went well this week?']"
+    assert_select "select[name='standup[schedule_type]'] option[selected][value='weekly']"
+    assert_select "input[name='standup[schedule_days][]'][value='5'][checked]"
+  end
+
+  test "standup overview shows stats, recent runs, and upcoming schedule" do
+    sign_in(@manager, "manager-access-token")
+
+    get manager_standup_path(@owned_standup)
+
+    assert_response :success
+    assert_select "nav.tabs a.is-active", text: /Overview/
+    assert_includes response.body, "Recent runs"
+    assert_includes response.body, "Upcoming"
+    Array(@owned_standup.questions).each { |question| assert_includes response.body, question }
+  end
+
   test "visibility filter can focus active or paused standups" do
     sign_in(@manager, "manager-access-token")
     @owned_standup.update!(active: false)
 
     get manager_standups_path(visibility: "active")
     assert_response :success
-    assert_not_includes response.body, @owned_standup.name
+    assert_select "turbo-frame#standups_dashboard table", count: 0
+    assert_select "turbo-frame#standups_dashboard", text: /No active standups/
 
     get manager_standups_path(visibility: "paused")
     assert_response :success
-    assert_includes response.body, @owned_standup.name
-    assert_includes response.body, "Paused"
+    assert_select "turbo-frame#standups_dashboard table", text: /#{Regexp.escape(@owned_standup.name)}/
+    assert_select "turbo-frame#standups_dashboard table .badge", text: "Paused"
   end
 
   test "manager can update owned standup and writes audit log" do

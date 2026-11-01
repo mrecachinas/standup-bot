@@ -1,25 +1,49 @@
-<div class="mt-3">
-  <% if result.success? %>
-    <% if result.records.any? %>
-      <ul class="divide-y divide-slate-100 rounded border border-slate-100">
-        <% result.records.each do |record| %>
-          <li class="flex items-center justify-between gap-3 p-2 text-sm text-slate-700">
-            <span class="min-w-0 truncate">
-              <span class="font-medium"><%= record["label"] || record["name"] || record["id"] %></span>
-              <span class="text-xs text-slate-500"><%= record["id"] %></span>
-            </span>
-          </li>
-        <% end %>
-      </ul>
-    <% else %>
-      <p class="text-sm text-slate-600"><%= empty_message %></p>
-    <% end %>
-  <% else %>
-    <div class="rounded border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
-      <p><%= result.message %></p>
-      <% if result.action.present? %>
-        <p class="mt-1 font-medium">Next step: <%= result.action %></p>
+<%# locals: (result:, empty_message:, action: nil, standup: nil) %>
+<% if result.success? %>
+  <% if result.records.any? %>
+    <ul class="list">
+      <% result.records.each do |record| %>
+        <li>
+          <% if record.key?("tz") || action == :add_user %>
+            <%= avatar(record["label"] || record["name"] || record["id"], size: "sm") %>
+          <% else %>
+            <span class="subtle"><%= icon(:hash) %></span>
+          <% end %>
+          <div class="grow">
+            <div class="small strong truncate"><%= record["label"] || record["name"] || record["id"] %></div>
+            <div class="cell-sub">
+              <span class="mono"><%= record["id"] %></span>
+              <%= " · @#{record["name"]}" if record.key?("tz") && record["name"].present? %>
+              <%= " · #{record["tz"]}" if record["tz"].present? %>
+              <%= " · private" if record["is_private"] %>
+              <%= " · bot is a member" if record["is_member"] %>
+            </div>
+          </div>
+          <% if action == :use_channel && standup %>
+            <%= button_to "Use channel", manager_standup_slack_setup_channel_path(standup), method: :patch,
+              params: { channel_id: record["id"], channel_name: record["name"] },
+              form: { data: { turbo_frame: dom_id(standup, :slack_setup) } }, class: "btn btn-sm" %>
+          <% elsif action == :add_user && standup %>
+            <%= button_to "Add user", manager_standup_slack_setup_participants_path(standup), method: :post,
+              params: { slack_id: record["id"], slack_name: record["label"] },
+              form: { data: { turbo_frame: dom_id(standup, :slack_setup) } }, class: "btn btn-sm" %>
+          <% end %>
+        </li>
       <% end %>
-    </div>
+    </ul>
+  <% else %>
+    <p class="empty-inline"><%= empty_message %></p>
   <% end %>
-</div>
+<% else %>
+  <div class="card-body">
+    <div class="alert alert-warning">
+      <%= icon(:alert) %>
+      <div>
+        <p><%= result.message %></p>
+        <% if result.action.present? %>
+          <p class="small mt-1">Next step: <%= result.action %></p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>

@@ -22,11 +22,12 @@ class Manager::StandupAnalyticsControllerTest < ActionDispatch::IntegrationTest
       params: { start_date: "2025-04-06", end_date: "2025-04-06" }
 
     assert_response :success
-    assert_includes response.body, "Insights for #{@owned_standup.name}"
-    assert_includes response.body, "Completion trends over time"
-    assert_includes response.body, "Frequent non-responders"
+    assert_includes response.body, "<title>Insights · #{@owned_standup.name} · Standup Bot</title>"
+    assert_includes response.body, "Completion over time"
+    assert_includes response.body, "Participation"
     assert_includes response.body, "Average response time"
-    assert_includes response.body, "Question-level summaries"
+    assert_includes response.body, "Answers by question"
+    assert_select "#question-completion h2", "Completion by question"
     assert_includes response.body, "Jane Smith"
     assert_includes response.body, "1 missed response"
     assert_includes response.body, "Fixed bugs"
@@ -90,7 +91,7 @@ class Manager::StandupAnalyticsControllerTest < ActionDispatch::IntegrationTest
       params: { start_date: "2025-04-06", end_date: "2025-04-06" }
 
     assert_response :success
-    assert_includes response.body, "Insights for #{@unowned_standup.name}"
+    assert_includes response.body, "<title>Insights · #{@unowned_standup.name} · Standup Bot</title>"
     assert_includes response.body, "Complete project X"
   end
 

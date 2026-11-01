@@ -1,9 +1,13 @@
+<% weekday_visible = %w[custom weekly biweekly].include?(standup.schedule_type) %>
+<% monthly_visible = standup.schedule_type == "monthly" %>
+<% selected_days = Array(standup.schedule_days).map(&:to_i) %>
+
 <turbo-frame id="standup_wizard">
-  <%= form_with model: [ :manager, standup ], data: { turbo_frame: "_top" }, class: "space-y-8" do |form| %>
+  <%= form_with model: [ :manager, standup ], data: { turbo_frame: "_top" } do |form| %>
     <% if standup.errors.any? %>
-      <section class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-900" aria-labelledby="standup-errors">
-        <h2 id="standup-errors" class="text-lg font-semibold"><%= pluralize(standup.errors.count, "error") %> prevented saving</h2>
-        <ul class="mt-3 list-disc space-y-1 pl-5 text-sm">
+      <section class="form-errors" aria-labelledby="standup-errors" role="alert">
+        <h2 id="standup-errors"><%= pluralize(standup.errors.count, "error") %> prevented saving</h2>
+        <ul>
           <% standup.errors.full_messages.each do |message| %>
             <li><%= message %></li>
           <% end %>
@@ -11,198 +15,217 @@
       </section>
     <% end %>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Step 1</p>
-      <h2 class="mt-1 text-xl font-semibold text-slate-900">Basics</h2>
-      <p class="mt-1 text-sm text-slate-600">Name the standup and choose where completed summaries post in Slack.</p>
-
-      <div class="mt-5 grid gap-4 md:grid-cols-2">
-        <div>
-          <%= form.label :name, class: "block text-sm font-medium text-slate-700" %>
-          <%= form.text_field :name, required: true, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <section class="form-section" id="basics">
+      <div class="form-section-intro">
+        <h2>Basics</h2>
+        <p>What the standup is called and where the summary gets posted.</p>
+      </div>
+      <div class="grid grid-2">
+        <div class="field">
+          <%= form.label :name %>
+          <%= form.text_field :name, required: true, placeholder: "Platform daily" %>
         </div>
-        <div>
-          <%= form.label :slack_channel, "Slack channel", class: "block text-sm font-medium text-slate-700" %>
-          <%= form.text_field :slack_channel, required: true, placeholder: "eng-standup or C012ABC", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
-          <p class="mt-1 text-xs text-slate-500">Use a channel name without spaces. A leading # is okay.</p>
+        <div class="field">
+          <%= form.label :slack_channel, "Summary channel" %>
+          <div class="input-prefix">
+            <span>#</span>
+            <%= form.text_field :slack_channel, value: standup.slack_channel.to_s.delete_prefix("#"), required: true, placeholder: "eng-standup" %>
+          </div>
+          <span class="hint">Channel name or ID, like <code>C012ABC</code>.</span>
         </div>
       </div>
     </section>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Step 2</p>
-      <h2 class="mt-1 text-xl font-semibold text-slate-900">Schedule</h2>
-      <p class="mt-1 text-sm text-slate-600">Configure recurrence, send time, and timezone behavior.</p>
-
-      <div class="mt-5 grid gap-4 md:grid-cols-3">
-        <div>
-          <%= form.label :schedule_type, "Recurrence", class: "block text-sm font-medium text-slate-700" %>
-          <%= form.select :schedule_type,
-            Standup::SCHEDULE_TYPES.map { |type| [ type.titleize, type ] },
-            {},
-            class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2",
-            data: { schedule_type_select: true } %>
-        </div>
-        <div>
-          <%= label_tag "standup_send_time", "Send time", class: "block text-sm font-medium text-slate-700" %>
-          <%= time_field_tag "standup[send_time]", format("%02d:%02d", standup.default_hour || 9, standup.default_minute || 0), id: "standup_send_time", required: true, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
-        </div>
-        <div>
-          <%= form.label :respect_timezone, "Timezone", class: "block text-sm font-medium text-slate-700" %>
-          <%= form.select :respect_timezone,
-            [
-              [ "Use each participant's Slack timezone", true ],
-              [ "Use UTC for everyone", false ]
-            ],
-            {},
-            class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
-        </div>
+    <section class="form-section" id="schedule">
+      <div class="form-section-intro">
+        <h2>Schedule</h2>
+        <p>When participants get their DM. The preview updates as you change these.</p>
       </div>
+      <div class="stack">
+        <div class="grid grid-3">
+          <div class="field" data-schedule-input>
+            <%= form.label :schedule_type, "Repeats" %>
+            <%= form.select :schedule_type,
+              Standup::SCHEDULE_TYPES.map { |type| [ { "weekdays" => "Weekdays", "biweekly" => "Every 2 weeks", "custom" => "Specific days" }.fetch(type, type.titleize), type ] },
+              {},
+              data: { schedule_type_select: true } %>
+          </div>
+          <div class="field" data-schedule-input>
+            <%= label_tag "standup_send_time", "Send at" %>
+            <%= time_field_tag "standup[send_time]", format("%02d:%02d", standup.default_hour || 9, standup.default_minute || 0), id: "standup_send_time", required: true %>
+          </div>
+          <div class="field" data-schedule-input>
+            <%= form.label :respect_timezone, "Timezone" %>
+            <%= form.select :respect_timezone, [ [ "Local time", true ], [ "UTC", false ] ] %>
+            <span class="hint">Local time uses each person's Slack timezone.</span>
+          </div>
+        </div>
 
-      <div class="mt-5 grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <div data-weekday-schedule-section <%= "hidden" unless %w[custom weekly biweekly].include?(standup.schedule_type) %>>
-          <span class="block text-sm font-medium text-slate-700">Weekdays</span>
-          <%= hidden_field_tag "standup[schedule_days][]", "" %>
-          <div class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <% Manager::StandupsController::WEEKDAY_OPTIONS.each do |label, value| %>
-              <% checkbox_id = "standup_schedule_day_#{value}" %>
-              <label for="<%= checkbox_id %>" class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                <%= check_box_tag "standup[schedule_days][]", value, Array(standup.schedule_days).map(&:to_i).include?(value), id: checkbox_id, class: "rounded border-slate-300" %>
-                <span><%= label %></span>
+        <fieldset class="field fieldset-reset" data-weekday-schedule-section <%= "hidden" unless weekday_visible %>>
+          <legend class="label">On these days</legend>
+          <%= hidden_field_tag "standup[schedule_days][]", "", id: nil %>
+          <div class="chips mt-2" data-schedule-input>
+            <% Manager::StandupsController::WEEKDAY_OPTIONS.rotate(1).each do |label, value| %>
+              <label class="chip-toggle" title="<%= label %>">
+                <%= check_box_tag "standup[schedule_days][]", value, selected_days.include?(value), id: "standup_schedule_day_#{value}" %>
+                <span><%= label.first(3) %></span>
               </label>
             <% end %>
           </div>
-          <p class="mt-1 text-xs text-slate-500">Weekly, biweekly, and custom schedules use these days. Daily and weekdays ignore this selection.</p>
+        </fieldset>
+
+        <div class="field max-w-xs" data-monthly-schedule-section <%= "hidden" unless monthly_visible %> data-schedule-input>
+          <%= label_tag "standup_monthly_day", "Day of the month" %>
+          <%= number_field_tag "standup[monthly_day]", selected_days.first.presence || 1, id: "standup_monthly_day", in: 1..31 %>
+          <span class="hint">Short months use their last day.</span>
         </div>
-        <div>
-          <%= label_tag "standup_monthly_day", "Monthly day", class: "block text-sm font-medium text-slate-700" %>
-          <%= number_field_tag "standup[monthly_day]", Array(standup.schedule_days).first.presence || 1, id: "standup_monthly_day", in: 1..31, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
-          <p class="mt-1 text-xs text-slate-500">Monthly schedules use this day and fall back to month-end when needed.</p>
-        </div>
-      </div>
 
-      <div class="mt-5 flex flex-col gap-3 rounded-xl bg-slate-50 p-4 md:flex-row md:items-end md:justify-between">
-        <div class="w-full md:max-w-sm">
-          <%= label_tag "preview_timezone", "Preview timezone", class: "block text-sm font-medium text-slate-700" %>
-          <%= select_tag "preview_timezone", options_for_select(@time_zone_options || ActiveSupport::TimeZone.all.map(&:name), @preview_timezone), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
-        </div>
-        <button type="submit" formaction="<%= preview_manager_standups_path %>" formmethod="post" data-turbo-frame="schedule_preview" class="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">
-          Preview schedule
-        </button>
-      </div>
-
-      <%= render "schedule_preview", occurrences: @schedule_preview, preview_timezone: @preview_timezone, schedule_preview_error: @schedule_preview_error %>
-    </section>
-
-    <script>
-      (() => {
-        if (window.StandupScheduleVisibility) {
-          window.StandupScheduleVisibility.bind();
-          return;
-        }
-
-        const visibleScheduleTypes = new Set(["custom", "weekly", "biweekly"]);
-
-        const updateWeekdayScheduleSections = (root = document) => {
-          root.querySelectorAll("[data-schedule-type-select]").forEach((select) => {
-            const form = select.closest("form");
-            const section = form?.querySelector("[data-weekday-schedule-section]");
-            if (!section) return;
-
-            const visible = visibleScheduleTypes.has(select.value);
-            section.hidden = !visible;
-            section.querySelectorAll("input").forEach((input) => {
-              input.disabled = !visible;
-            });
-          });
-        };
-
-        const bindWeekdayScheduleSections = (root = document) => {
-          root.querySelectorAll("[data-schedule-type-select]").forEach((select) => {
-            if (select.dataset.weekdayScheduleBound === "true") return;
-
-            select.dataset.weekdayScheduleBound = "true";
-            select.addEventListener("change", () => updateWeekdayScheduleSections(select.closest("form") || document));
-          });
-          updateWeekdayScheduleSections(root);
-        };
-
-        window.StandupScheduleVisibility = {
-          bind: bindWeekdayScheduleSections
-        };
-
-        bindWeekdayScheduleSections();
-        document.addEventListener("turbo:load", () => bindWeekdayScheduleSections());
-        document.addEventListener("turbo:frame-load", (event) => bindWeekdayScheduleSections(event.target));
-      })();
-    </script>
-
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Step 3</p>
-      <h2 class="mt-1 text-xl font-semibold text-slate-900">Questions</h2>
-      <p class="mt-1 text-sm text-slate-600">Edit, add, or reorder prompts by changing their order below. Blank rows are ignored.</p>
-
-      <div class="mt-5 space-y-3">
-        <% @question_rows.each_with_index do |question, index| %>
-          <div class="flex gap-3">
-            <span class="mt-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700"><%= index + 1 %></span>
-            <%= text_field_tag "standup[question_rows][]", question, placeholder: "What did you accomplish yesterday?", class: "w-full rounded-lg border border-slate-300 px-3 py-2" %>
-          </div>
-        <% end %>
-      </div>
-    </section>
-
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Step 4</p>
-      <h2 class="mt-1 text-xl font-semibold text-slate-900">Participants</h2>
-    <p class="mt-1 text-sm text-slate-600">Add Slack users by @username, display name, user mention, or ID. Names and timezones are resolved from Slack automatically.</p>
-
-      <div class="mt-5 overflow-hidden rounded-xl border border-slate-200">
-      <div class="hidden grid-cols-[1.4fr_0.7fr_0.7fr] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
-          <span>Slack user</span>
-        <span>Active</span>
-        <span>Remove</span>
-      </div>
-
-      <div class="divide-y divide-slate-200">
-        <% @participant_rows.each_with_index do |participant, index| %>
-          <div class="grid gap-3 px-4 py-4 md:grid-cols-[1.4fr_0.7fr_0.7fr] md:items-center">
-            <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id] %>
-            <%= hidden_field_tag "standup[participants][#{index}][slack_name]", participant[:slack_name] %>
-            <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone] %>
-              <div>
-                <%= label_tag "standup_participants_#{index}_slack_id", "Slack user", class: "block text-xs font-medium text-slate-500 md:hidden" %>
-                <%= text_field_tag "standup[participants][#{index}][slack_id]", participant[:slack_id], id: "standup_participants_#{index}_slack_id", placeholder: "@ada, Ada Lovelace, or U123ABC", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 md:mt-0" %>
-              <% if participant[:slack_name].present? || participant[:cached_timezone].present? %>
-                <p class="mt-1 text-xs text-slate-500">
-                  <%= participant[:slack_name].presence || participant[:slack_id] %>
-                  <% if participant[:cached_timezone].present? %>
-                    · <%= participant[:cached_timezone] %>
-                  <% end %>
-                </p>
-              <% else %>
-                <p class="mt-1 text-xs text-slate-500">Name and timezone will be pulled from Slack.</p>
-              <% end %>
+        <div class="card card-flush">
+          <div class="card-header">
+            <h3>Next runs</h3>
+            <div class="input-group" data-schedule-input>
+              <%= label_tag "preview_timezone", "Preview timezone", class: "sr-only" %>
+              <%= select_tag "preview_timezone", options_for_select(@time_zone_options || ActiveSupport::TimeZone.all.map(&:name), @preview_timezone), class: "w-full" %>
+              <button type="submit" formaction="<%= preview_manager_standups_path %>" formmethod="post" formnovalidate data-turbo-frame="schedule_preview" data-preview-button class="btn">Preview schedule</button>
             </div>
-            <label class="flex items-center gap-2 text-sm text-slate-700">
-              <%= hidden_field_tag "standup[participants][#{index}][active]", "0" %>
-                <%= check_box_tag "standup[participants][#{index}][active]", "1", participant[:active], class: "rounded border-slate-300" %>
+          </div>
+          <%= render "schedule_preview", occurrences: @schedule_preview, preview_timezone: @preview_timezone, schedule_preview_error: @schedule_preview_error %>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" id="questions">
+      <div class="form-section-intro">
+        <h2>Questions</h2>
+        <p>Asked one at a time in a DM. Empty rows are ignored.</p>
+      </div>
+      <div class="row-editor" data-row-editor>
+        <div class="row-editor" data-rows>
+          <% @question_rows.each_with_index do |question, index| %>
+            <div class="row-editor-item" data-row>
+              <span class="row-editor-index" data-row-index><%= index + 1 %></span>
+              <%= text_field_tag "standup[question_rows][]", question, id: nil, placeholder: "Ask something…", "aria-label": "Question #{index + 1}" %>
+              <button type="button" class="btn btn-ghost btn-icon" data-remove-row aria-label="Remove question"><%= icon(:x) %></button>
+            </div>
+          <% end %>
+        </div>
+        <template>
+          <div class="row-editor-item" data-row>
+            <span class="row-editor-index" data-row-index></span>
+            <input type="text" name="standup[question_rows][]" placeholder="Ask something…" aria-label="Question">
+            <button type="button" class="btn btn-ghost btn-icon" data-remove-row aria-label="Remove question"><%= icon(:x) %></button>
+          </div>
+        </template>
+        <div><button type="button" class="btn btn-sm" data-add-row><%= icon(:plus) %> Add question</button></div>
+      </div>
+    </section>
+
+    <section class="form-section" id="messages">
+      <div class="form-section-intro">
+        <h2>Messages</h2>
+        <p>Optional text sent before the first question and after the last.</p>
+      </div>
+      <div class="grid grid-2">
+        <div class="field">
+          <%= form.label :intro, "Greeting" %>
+          <%= form.text_area :intro, rows: 3, placeholder: "Morning! Time for a quick standup." %>
+        </div>
+        <div class="field">
+          <%= form.label :outro, "Sign-off" %>
+          <%= form.text_area :outro, rows: 3, placeholder: "Thanks, have a good day." %>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" id="reminders">
+      <div class="form-section-intro">
+        <h2>Reminders</h2>
+        <p>Nudge people who haven't answered yet.</p>
+      </div>
+      <div class="stack">
+        <label class="check">
+          <%= form.check_box :reminder_enabled %>
+          Send reminders
+        </label>
+        <div class="grid grid-2 max-w-md">
+          <div class="field">
+            <%= form.label :reminder_after_minutes, "First reminder after" %>
+            <div class="input-group items-center">
+              <%= form.number_field :reminder_after_minutes, min: 1, step: 1 %>
+              <span class="muted small">minutes</span>
+            </div>
+          </div>
+          <div class="field">
+            <%= form.label :max_reminders, "Up to" %>
+            <div class="input-group items-center">
+              <%= form.number_field :max_reminders, min: 0, step: 1 %>
+              <span class="muted small">reminders</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" id="participants">
+      <div class="form-section-intro">
+        <h2>Participants</h2>
+        <p>Add people by @username, display name, or Slack ID. Names and timezones come from Slack.</p>
+      </div>
+      <div class="row-editor" data-row-editor>
+        <div class="participant-editor" data-rows>
+          <% @participant_rows.each_with_index do |participant, index| %>
+            <div class="participant-editor-row" data-row>
+              <%= hidden_field_tag "standup[participants][#{index}][id]", participant[:id] %>
+              <%= hidden_field_tag "standup[participants][#{index}][slack_name]", participant[:slack_name] %>
+              <%= hidden_field_tag "standup[participants][#{index}][cached_timezone]", participant[:cached_timezone] %>
+              <div class="person">
+                <% if participant[:slack_name].present? %>
+                  <%= avatar(participant[:slack_name]) %>
+                <% end %>
+                <div class="grow">
+                  <%= label_tag "standup_participants_#{index}_slack_id", "Slack user", class: "sr-only" %>
+                  <%= text_field_tag "standup[participants][#{index}][slack_id]", participant[:slack_id], id: "standup_participants_#{index}_slack_id", placeholder: "@ada, Ada Lovelace, or U123ABC" %>
+                  <% if participant[:slack_name].present? || participant[:cached_timezone].present? %>
+                    <span class="hint"><%= [ participant[:slack_name].presence, participant[:cached_timezone].presence ].compact.join(" · ") %></span>
+                  <% end %>
+                </div>
+              </div>
+              <label class="check small">
+                <%= hidden_field_tag "standup[participants][#{index}][active]", "0", id: nil %>
+                <%= check_box_tag "standup[participants][#{index}][active]", "1", participant[:active] %>
                 Active
               </label>
-              <label class="flex items-center gap-2 text-sm text-slate-700">
-                <%= hidden_field_tag "standup[participants][#{index}][_destroy]", "0" %>
-                <%= check_box_tag "standup[participants][#{index}][_destroy]", "1", participant[:destroy], class: "rounded border-slate-300" %>
+              <label class="check small">
+                <%= hidden_field_tag "standup[participants][#{index}][_destroy]", "0", id: nil %>
+                <%= check_box_tag "standup[participants][#{index}][_destroy]", "1", participant[:destroy] %>
                 Remove
               </label>
             </div>
           <% end %>
         </div>
+        <template>
+          <div class="participant-editor-row" data-row>
+            <div class="person">
+              <div class="grow">
+                <label class="sr-only" for="standup_participants___INDEX___slack_id">Slack user</label>
+                <input type="text" name="standup[participants][__INDEX__][slack_id]" id="standup_participants___INDEX___slack_id" placeholder="@ada, Ada Lovelace, or U123ABC">
+              </div>
+            </div>
+            <label class="check small">
+              <input type="hidden" name="standup[participants][__INDEX__][active]" value="0">
+              <input type="checkbox" name="standup[participants][__INDEX__][active]" value="1" checked>
+              Active
+            </label>
+            <button type="button" class="btn btn-ghost btn-sm" data-remove-row>Remove</button>
+          </div>
+        </template>
+        <div><button type="button" class="btn btn-sm" data-add-row><%= icon(:plus) %> Add person</button></div>
       </div>
     </section>
 
-    <div class="flex flex-wrap items-center gap-3">
-      <%= form.submit standup.persisted? ? "Update standup" : "Create standup", class: "rounded-lg bg-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800" %>
-      <%= link_to "Cancel", standup.persisted? ? manager_standup_path(standup) : manager_standups_path, class: "rounded-lg px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100", data: { turbo_frame: "_top" } %>
+    <div class="form-actions">
+      <%= link_to "Cancel", standup.persisted? ? manager_standup_path(standup) : manager_standups_path, class: "btn btn-ghost", data: { turbo_frame: "_top" } %>
+      <%= form.submit standup.persisted? ? "Save changes" : "Create standup", class: "btn btn-primary" %>
     </div>
   <% end %>
 </turbo-frame>

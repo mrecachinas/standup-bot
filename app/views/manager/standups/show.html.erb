@@ -1,79 +1,170 @@
+<% content_for :title, @standup.name %>
+<% participants_by_id = @participants.index_by(&:slack_id) %>
+<% active_participants = @participants.select(&:active?) %>
+<% latest_date = @latest_responses.first&.standup_date %>
+
 <turbo-frame id="<%= dom_id(@standup) %>">
-  <section class="space-y-6">
-    <div class="page-hero">
-      <div>
-        <p class="page-kicker">Standup workspace</p>
-        <h1><%= @standup.name %></h1>
-        <p class="mt-4 text-lg">Configured for #<%= @standup.slack_channel %> with <%= pluralize(@standup.standup_participants.active.count, "active participant") %>.</p>
-        <div class="hero-actions mt-5">
-          <%= link_to "Edit wizard", edit_manager_standup_path(@standup), class: "button-primary", data: { turbo_frame: "_top" } %>
-          <%= link_to "Slack setup", manager_standup_slack_setup_path(@standup), class: "button-ghost", data: { turbo_frame: "_top" } %>
-        </div>
+  <div class="page">
+    <%= render "manager/shared/standup_header", standup: @standup, active: :overview %>
+
+    <dl class="stats">
+      <div class="stat">
+        <dt>Completion · 14 days</dt>
+        <dd>
+          <%= @summary[:expected_responses].positive? ? percent(@summary[:completion_rate]) : "—" %>
+          <%= delta_badge(@summary[:completion_rate], @previous_completion_rate) if @summary[:expected_responses].positive? %>
+        </dd>
+        <span class="stat-sub"><%= @summary[:completed_responses] %> of <%= @summary[:expected_responses] %> responses</span>
       </div>
-
-      <div class="hero-metrics">
-        <div class="hero-metric">
-          <span>Status</span>
-          <strong><%= @standup.active? ? "Active" : "Paused" %></strong>
-        </div>
-        <div class="hero-metric">
-          <span>Send time</span>
-          <strong><%= format("%02d:%02d", @standup.default_hour, @standup.default_minute) %></strong>
-        </div>
-        <div class="hero-metric">
-          <span>Cadence</span>
-          <strong><%= @standup.schedule_type.titleize %></strong>
-        </div>
+      <div class="stat">
+        <dt>Avg. time to respond</dt>
+        <dd><%= @summary[:average_response_time_minutes] ? distance_of_time_in_words(@summary[:average_response_time_minutes].minutes) : "—" %></dd>
+        <span class="stat-sub">From prompt to submitted</span>
       </div>
-    </div>
-
-    <nav class="action-row" aria-label="<%= @standup.name %> navigation">
-      <%= link_to "Participants", manager_standup_participants_path(@standup), class: "button-secondary", data: { turbo_frame: "_top" } %>
-      <%= link_to "Schedule exceptions", manager_standup_schedule_exceptions_path(@standup), class: "button-secondary", data: { turbo_frame: "_top" } %>
-      <%= link_to "Responses", manager_standup_responses_path(@standup), class: "button-secondary", data: { turbo_frame: "_top" } %>
-      <%= link_to "Analytics", manager_standup_analytics_path(@standup), class: "button-secondary", data: { turbo_frame: "_top" } %>
-      <%= link_to "Reports", manager_standup_report_path(@standup), class: "button-secondary", data: { turbo_frame: "_top" } %>
-    </nav>
-
-    <div class="grid gap-4 lg:grid-cols-3">
-      <section class="content-card p-5">
-        <h2 class="section-title">Schedule</h2>
-        <p class="section-copy">How Slack prompts are sent.</p>
-        <dl class="mt-4 space-y-3 text-sm">
-          <div>
-            <dt class="font-medium text-slate-500">Recurrence</dt>
-            <dd class="text-slate-900"><%= @standup.schedule_type.titleize %></dd>
-          </div>
-          <div>
-            <dt class="font-medium text-slate-500">Send time</dt>
-            <dd class="text-slate-900"><%= format("%02d:%02d", @standup.default_hour, @standup.default_minute) %></dd>
-          </div>
-          <div>
-            <dt class="font-medium text-slate-500">Timezone</dt>
-            <dd class="text-slate-900"><%= @standup.respect_timezone? ? "Participant Slack timezones" : "UTC" %></dd>
-          </div>
-        </dl>
-      </section>
-
-      <section class="content-card p-5">
-        <h2 class="section-title">Questions</h2>
-        <p class="section-copy">Prompts sent to each participant.</p>
-        <ol class="mt-4 list-decimal space-y-2 pl-5 text-sm text-slate-700">
-          <% Array(@standup.questions).each do |question| %>
-            <li><%= question %></li>
+      <div class="stat">
+        <dt>Participants</dt>
+        <dd><%= active_participants.size %></dd>
+        <span class="stat-sub"><%= @participants.size - active_participants.size %> inactive</span>
+      </div>
+      <div class="stat">
+        <dt>Next run</dt>
+        <dd class="stat-value-sm">
+          <% if @standup.active? && @schedule_preview.first %>
+            <%= @schedule_preview.first.in_time_zone(@preview_timezone).strftime("%a, %b %-d") %>
+          <% else %>
+            <%= @standup.active? ? "—" : "Paused" %>
           <% end %>
-        </ol>
-      </section>
+        </dd>
+        <span class="stat-sub"><%= @standup.active? && @schedule_preview.first ? format_clock(@standup.default_hour, @standup.default_minute) + (@standup.respect_timezone? ? " in each person's timezone" : " UTC") : "Resume to schedule runs" %></span>
+      </div>
+    </dl>
 
-      <section class="content-card p-5">
-        <h2 class="section-title">Participants</h2>
-        <p class="section-copy">Roster health for this standup.</p>
-        <p class="mt-4 text-3xl font-bold text-slate-900"><%= @standup.standup_participants.active.count %></p>
-        <p class="text-sm text-slate-500">active of <%= pluralize(@standup.standup_participants.count, "participant") %></p>
-        <%= link_to "Manage roster", manager_standup_participants_path(@standup), class: "button-secondary button-small mt-4", data: { turbo_frame: "_top" } %>
-      </section>
+    <div class="grid grid-main-aside grid-gap-lg">
+      <div class="stack-lg">
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2>Recent runs</h2>
+              <p class="hint">Last 14 days</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <%= run_legend(pending: @runs.any? { |run| run[:pending].positive? }) %>
+              <%= link_to "View insights", manager_standup_analytics_path(@standup), class: "btn btn-sm", data: { turbo_frame: "_top" } %>
+            </div>
+          </div>
+          <div class="card-body">
+            <%= run_breakdown_chart(@runs, height: 180, label: "Responses per run for #{@standup.name}") %>
+          </div>
+        </section>
+
+        <section class="card card-flush">
+          <div class="card-header">
+            <div>
+              <h2>Latest run</h2>
+              <p class="hint"><%= latest_date ? latest_date.to_fs(:long) : "No runs yet" %></p>
+            </div>
+            <%= link_to "All responses", manager_standup_responses_path(@standup), class: "btn btn-sm", data: { turbo_frame: "_top" } %>
+          </div>
+          <% if @latest_responses.any? %>
+            <ul class="list">
+              <% @latest_responses.sort_by { |response| participants_by_id[response.slack_id]&.slack_name.to_s }.each do |response| %>
+                <% name = participants_by_id[response.slack_id]&.slack_name.presence || response.slack_id %>
+                <% answers = Array(response.answers) %>
+                <li class="items-start">
+                  <%= avatar(name) %>
+                  <div class="grow">
+                    <div class="flex items-center gap-2">
+                      <span class="cell-title"><%= name %></span>
+                      <%= status_badge(response.status.titleize) %>
+                    </div>
+                    <% if answers.any? %>
+                      <div class="mt-2 stack-sm">
+                        <% answers.each do |answer| %>
+                          <div class="answer">
+                            <span class="answer-question"><%= answer["question"] || answer[:question] %></span>
+                            <span class="answer-text"><%= answer["answer"] || answer[:answer] %></span>
+                          </div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                </li>
+              <% end %>
+            </ul>
+          <% else %>
+            <div class="empty">
+              <span class="empty-icon"><%= icon(:inbox) %></span>
+              <p>Responses will show up here after the first run.</p>
+            </div>
+          <% end %>
+        </section>
+      </div>
+
+      <aside class="stack-lg">
+        <section class="card">
+          <div class="card-header">
+            <h2>Questions</h2>
+            <%= link_to "Edit", edit_manager_standup_path(@standup, anchor: "questions"), class: "btn btn-ghost btn-sm", data: { turbo_frame: "_top" } %>
+          </div>
+          <div class="card-body">
+            <ol class="numbered">
+              <% Array(@standup.questions).each do |question| %>
+                <li><%= question %></li>
+              <% end %>
+            </ol>
+          </div>
+        </section>
+
+        <section class="card card-flush">
+          <div class="card-header">
+            <h2>Upcoming</h2>
+            <%= link_to "Schedule", manager_standup_schedule_exceptions_path(@standup), class: "btn btn-ghost btn-sm", data: { turbo_frame: "_top" } %>
+          </div>
+          <% if !@standup.active? %>
+            <p class="empty-inline">This standup is paused. Resume it to schedule runs.</p>
+          <% elsif @schedule_preview.any? %>
+            <ul class="list">
+              <% @schedule_preview.first(4).each do |occurrence| %>
+                <% local = occurrence.in_time_zone(@preview_timezone) %>
+                <li class="occurrence">
+                  <%= date_tile(local.to_date) %>
+                  <div>
+                    <div class="strong"><time datetime="<%= occurrence.iso8601 %>"><%= local.strftime("%A") %></time></div>
+                    <div class="cell-sub"><%= local.strftime("%-l:%M %p %Z") %></div>
+                  </div>
+                </li>
+              <% end %>
+            </ul>
+          <% else %>
+            <p class="empty-inline"><%= @schedule_preview_error || "No upcoming runs." %></p>
+          <% end %>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h2>Participants</h2>
+            <%= link_to "Manage", manager_standup_participants_path(@standup), class: "btn btn-ghost btn-sm", data: { turbo_frame: "_top" } %>
+          </div>
+          <div class="card-body">
+            <% if active_participants.any? %>
+              <ul class="stack-sm">
+                <% active_participants.first(8).each do |participant| %>
+                  <li class="person">
+                    <%= avatar(participant.slack_name, size: "sm") %>
+                    <span class="truncate grow"><%= participant.slack_name %></span>
+                    <span class="xsmall muted"><%= participant.cached_timezone.to_s.split("/").last.to_s.tr("_", " ") %></span>
+                  </li>
+                <% end %>
+              </ul>
+              <% if active_participants.size > 8 %>
+                <p class="small muted"><%= active_participants.size - 8 %> more</p>
+              <% end %>
+            <% else %>
+              <p class="muted">No one has been added yet.</p>
+            <% end %>
+          </div>
+        </section>
+      </aside>
     </div>
-
-    <%= render "schedule_preview", occurrences: @schedule_preview, preview_timezone: @preview_timezone, schedule_preview_error: @schedule_preview_error %>
-  </section>
+  </div>
 </turbo-frame>

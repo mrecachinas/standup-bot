@@ -23,7 +23,7 @@ class Manager::StandupScheduleExceptionsControllerTest < ActionDispatch::Integra
     end
 
     assert_response :success
-    assert_includes response.body, "Schedule exceptions"
+    assert_includes response.body, "Upcoming runs"
     assert_includes response.body, "Monday, April 27, 2026 at 9:00 AM UTC"
     assert_includes response.body, "Skipped, holiday, and canceled dates do not create prompts, reminders, or expected report rows"
     assert_includes response.body, "responses and reports stay attached to the original standup date"

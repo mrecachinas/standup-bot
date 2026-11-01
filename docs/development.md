@@ -38,6 +38,9 @@ bin/rails standups:validate                   # check config/standups/*.yml
 | --- | --- |
 | `app/controllers/slack_*` | Slack events, interactions, and slash commands |
 | `app/controllers/manager/` | The manager web console |
+| `app/controllers/admin/` | The admin-only installation health page |
+| `app/helpers/` | Console UI helpers and server-rendered SVG charts |
+| `public/application.css`, `public/application.js` | Console styles and client-side behavior |
 | `app/controllers/api/` | The admin JSON API |
 | `app/jobs/` | Scheduling, DMs, reminders, reports, and cleanup |
 | `app/services/` | Slack client, response handling, analytics, and audit logging |

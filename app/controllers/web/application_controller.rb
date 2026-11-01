@@ -2,12 +2,18 @@ module Web
   class ApplicationController < ActionController::Base
     layout "web"
 
-    helper_method :current_user
+    helper_method :current_user, :sidebar_standups
 
     private
 
     def current_user
       @current_user ||= User.active.find_by(id: session[:user_id]) if session[:user_id].present?
+    end
+
+    def sidebar_standups
+      return [] unless current_user
+
+      @sidebar_standups ||= manageable_standups.order(:name).select(:id, :name, :active).to_a
     end
 
     def authenticate_user!
