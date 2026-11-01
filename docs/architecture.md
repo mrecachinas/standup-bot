@@ -117,6 +117,14 @@ The web console uses cookie-backed sessions and serves three kinds of people:
 
 Anyone who manages a standup can make other people in it managers, or remove them, from the Participants tab (`Manager::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their Slack user ID, and they're matched to it when they first sign in with Slack. A standup always keeps at least one manager.
 
+Every console action has to check authorization. `Web::ApplicationController` runs `verify_authorized` after each action, and it raises `AuthorizationNotPerformed` unless the action called one of:
+
+- `authorize_standup!`, for actions on one standup
+- `require_admin!`, for admin-only pages
+- `skip_authorization`, for actions any signed-in user may take, such as creating a standup or listing the ones they manage
+
+The sign-in controllers and the member area (`Me::`) opt out with `skip_after_action :verify_authorized`. Member pages only read the signed-in member's own data.
+
 Avatars use each person's Slack photo when we have one. `avatar_url` on `StandupParticipant` and `User` is filled in whenever the app already talks to Slack about that person: user search and resolution, channel sync, timezone refresh, and Slack sign-in, which also refreshes that person's participant rows. `SlackAvatar` only accepts `https` URLs. If a photo is missing or fails to load, the avatar falls back to initials.
 
 Slack guests are refused at sign-in. Since anyone else can sign in, non-admins only see public channels in channel discovery, and can only sync participants from channels they belong to.

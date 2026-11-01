@@ -1,4 +1,6 @@
 class SessionsController < Web::ApplicationController
+  skip_after_action :verify_authorized
+
   def new
     if current_user
       redirect_to manager_standups_path, status: :see_other

@@ -1,5 +1,7 @@
 module Manager
   class SlackIntegrationsController < ApplicationController
+    before_action :skip_authorization
+
     def show
       @slack_integration_status = slack_integration_service.configuration_status
       @connection_result = slack_integration_service.connection_status

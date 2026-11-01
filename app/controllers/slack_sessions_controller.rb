@@ -1,4 +1,6 @@
 class SlackSessionsController < Web::ApplicationController
+  skip_after_action :verify_authorized
+
   STATE_SESSION_KEY = :slack_sign_in_state
 
   def new
