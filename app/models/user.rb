@@ -35,6 +35,15 @@ class User < ApplicationRecord
     user
   end
 
+  # For "Authorization: Bearer <token>" on /api. Tokens are random, so a digest
+  # shared by two accounts means something is wrong; refuse rather than guess.
+  def self.authenticate_bearer(access_token)
+    return if access_token.blank?
+
+    matches = active.where(access_token_digest: digest_access_token(access_token)).limit(2).to_a
+    matches.first if matches.one?
+  end
+
   def self.find_by_identity(platform, platform_user_id)
     return if platform_user_id.blank?
 

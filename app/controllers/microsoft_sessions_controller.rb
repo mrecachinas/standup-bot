@@ -1,7 +1,5 @@
-class MicrosoftSessionsController < Web::ApplicationController
+class MicrosoftSessionsController < ActionController::Base
   include PlatformSignIn
-
-  skip_after_action :verify_authorized
 
   STATE_SESSION_KEY = :microsoft_sign_in_state
   NONCE_SESSION_KEY = :microsoft_sign_in_nonce

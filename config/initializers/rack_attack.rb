@@ -12,6 +12,9 @@ class Rack::Attack
     /slack/commands/standup-status
   ].freeze
 
+  # Matches format suffixes too, so /api/session.json can't dodge the sign-in limits.
+  API_SIGN_IN_PATH = %r{\A/api/session(\.[^/]*)?/?\z}
+
   Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new if Rails.env.test?
 
   throttle("slack/ip", limit: 120, period: 1.minute) do |request|
@@ -28,6 +31,30 @@ class Rack::Attack
 
   throttle("slack/event_replay", limit: 1, period: ::SlackSignatureVerifier::MAX_TIMESTAMP_AGE_SECONDS) do |request|
     slack_event_id(request) if request.post? && request.path == "/slack/events"
+  end
+
+  throttle("api/ip", limit: 600, period: 1.minute) do |request|
+    request.ip if api_request?(request)
+  end
+
+  throttle("api/sign_in/ip", limit: 10, period: 1.minute) do |request|
+    request.ip if api_sign_in?(request)
+  end
+
+  throttle("api/sign_in/email", limit: 5, period: 1.minute) do |request|
+    sign_in_email(request) if api_sign_in?(request)
+  end
+
+  # Ban an IP for a while after repeated wrong access tokens.
+  blocklist("api/bad_token") do |request|
+    Rack::Attack::Allow2Ban.filter("api-bad-token-#{request.ip}", maxretry: 10, findtime: 1.minute, bantime: 10.minutes) do
+      authorization = request.get_header("HTTP_AUTHORIZATION")
+      api_request?(request) && authorization && User.authenticate_bearer(authorization[/\ABearer (.+)\z/, 1]).nil?
+    end
+  end
+
+  self.blocklisted_responder = lambda do |_request|
+    [ 403, { "Content-Type" => "application/json" }, [ { error: "blocked" }.to_json ] ]
   end
 
   self.throttled_responder = lambda do |request|
@@ -47,6 +74,19 @@ class Rack::Attack
 
   class << self
     private
+
+    def api_sign_in?(request)
+      request.post? && request.path.match?(API_SIGN_IN_PATH)
+    end
+
+    def sign_in_email(request)
+      email = request.media_type == "application/json" ? parsed_json_body(request)["email"] : form_body(request)["email"]
+      email.to_s.strip.downcase.presence
+    end
+
+    def api_request?(request)
+      request.path == "/api" || request.path.start_with?("/api/")
+    end
 
     def slack_request?(request)
       request.post? && SLACK_PATHS.include?(request.path)

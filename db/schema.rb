@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_020000) do
   create_table "audit_logs", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "action", null: false
     t.string "actor_email"
@@ -180,6 +180,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_010000) do
     t.string "role", default: "manager", null: false
     t.datetime "updated_at", null: false
     t.string "avatar_url"
+    t.index ["access_token_digest"], name: "index_users_on_access_token_digest"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["role"], name: "index_users_on_role"
   end

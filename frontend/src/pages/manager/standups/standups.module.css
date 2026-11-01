@@ -1,0 +1,194 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-24);
+}
+
+.card {
+  min-width: 0;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-default);
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base-size-8) var(--base-size-16);
+  padding: var(--base-size-12) var(--base-size-16);
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--text-title-size-small);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.cardHint {
+  margin: var(--base-size-2) 0 0;
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--base-size-12);
+}
+
+.cardBody {
+  padding: var(--base-size-16);
+}
+
+.mainAside {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  gap: var(--base-size-24);
+  align-items: start;
+}
+
+/* Side-by-side cards that line up: the main card sets the row's height, and
+   a .fillRow card matches it, scrolling its list if it has more to show. */
+.matchHeights {
+  align-items: stretch;
+}
+
+.fillRow {
+  display: flex;
+  flex-direction: column;
+  height: 0;
+  min-height: 100%;
+}
+
+.fillRow > .list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-24);
+  min-width: 0;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list > li {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-12);
+  padding: var(--base-size-12) var(--base-size-16);
+  border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+
+.list > li:first-child {
+  border-top: 0;
+}
+
+.list > li.top {
+  align-items: flex-start;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  color: var(--fgColor-default);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.sub {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.muted {
+  color: var(--fgColor-muted);
+}
+
+.inlineEmpty {
+  margin: 0;
+  padding: var(--base-size-16);
+  color: var(--fgColor-muted);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--base-size-8);
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fgColor-muted);
+}
+
+.dot-danger { background: var(--bgColor-danger-emphasis); }
+.dot-warning { background: var(--bgColor-attention-emphasis); }
+.dot-success { background: var(--bgColor-success-emphasis); }
+.dot-info { background: var(--bgColor-accent-emphasis); }
+
+.dateTile {
+  display: inline-flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-muted);
+  line-height: 1.1;
+}
+
+.dateTileMonth {
+  color: var(--fgColor-danger);
+  font-size: var(--text-caption-size, 12px);
+  font-weight: var(--base-text-weight-semibold);
+  text-transform: uppercase;
+}
+
+.dateTileDay {
+  font-size: var(--text-title-size-small);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--base-size-8);
+}
+
+@media (max-width: 1011px) {
+  .fillRow {
+    height: auto;
+    min-height: 0;
+  }
+
+  .mainAside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tableEmpty {
+  grid-area: table;
+  margin-block-start: var(--base-size-8);
+}

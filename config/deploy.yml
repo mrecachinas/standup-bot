@@ -35,7 +35,6 @@ registry:
 env:
   secret:
     - RAILS_MASTER_KEY
-    - ADMIN_API_TOKEN
     - DATABASE_URL
     - CACHE_DATABASE_URL
     - QUEUE_DATABASE_URL

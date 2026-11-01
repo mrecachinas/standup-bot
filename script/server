@@ -24,5 +24,5 @@ bin/rails db:prepare
 echo "==> Seeding local manager admin..."
 bin/rails db:seed
 
-echo "==> Starting server..."
-bin/rails server "$@"
+echo "==> Starting Rails and the console dev server (open http://localhost:5173)..."
+exec bin/dev "$@"

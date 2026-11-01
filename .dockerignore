@@ -43,3 +43,7 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+
+# The console is built inside the image.
+/frontend/node_modules
+/public/app

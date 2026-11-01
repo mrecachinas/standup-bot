@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Starts Rails for the Playwright end-to-end tests: development mode (so CSRF
+# and sessions behave as in production) against a throwaway database loaded
+# with the test fixtures. Expects the console to be built into public/app.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+export RAILS_ENV=development
+# Slack sign-in is faked (config/initializers/e2e_fake_slack_sign_in.rb) so the
+# tests can reach the member area.
+export E2E_FAKE_SLACK_SIGN_IN=1 SLACK_CLIENT_ID=e2e SLACK_CLIENT_SECRET=e2e SLACK_TEAM_ID=TE2E
+export DATABASE_URL="${E2E_DATABASE_URL:-mysql2://${DB_USER:-root}:${DB_PASSWORD:-}@${DB_HOST:-127.0.0.1}:${DB_PORT:-3306}/nerdbot_e2e}"
+
+if [ ! -f public/app/index.html ]; then
+  echo "public/app/index.html is missing. Run 'npm run build' in frontend/ first." >&2
+  exit 1
+fi
+
+echo "==> Resetting the e2e database..."
+DISABLE_DATABASE_ENVIRONMENT_CHECK=1 bin/rails db:drop db:create db:schema:load db:fixtures:load
+
+echo "==> Starting Rails on port ${E2E_PORT:-3100}..."
+exec bin/rails server -p "${E2E_PORT:-3100}" -b 127.0.0.1

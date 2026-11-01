@@ -16,3 +16,10 @@ module ActiveSupport
     # Add more helper methods to be used by all tests here...
   end
 end
+
+module ActionDispatch
+  class IntegrationTest
+    # Rate limits are counted per IP, and every test request comes from the same one.
+    setup { Rack::Attack.reset! }
+  end
+end

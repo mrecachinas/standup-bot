@@ -1,0 +1,59 @@
+/* Table.Container is a grid; sit in its table area like a bare DataTable would. */
+.scroll {
+  grid-area: table;
+  margin-block-start: var(--base-size-8);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.nameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--base-size-8);
+}
+
+.name {
+  color: var(--fgColor-default);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.sub {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.muted {
+  color: var(--fgColor-muted);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8);
+}
+
+.meterBar {
+  flex: 1;
+  min-width: 4rem;
+}
+
+.meterValue {
+  min-width: 2.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--base-text-weight-semibold);
+  text-align: right;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
