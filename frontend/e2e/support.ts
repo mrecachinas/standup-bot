@@ -9,10 +9,18 @@ export const ADMIN_STATE = "e2e/.auth/admin.json";
 
 export async function signIn(page: Page, account: { email: string; token: string }) {
   await page.goto("/session/new");
+  await openTokenSignIn(page);
   await page.getByRole("textbox", { name: "Email" }).fill(account.email);
   await page.getByRole("textbox", { name: "Access token" }).fill(account.token);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/manager\/standups$/);
+}
+
+/** With Slack or Microsoft sign-in on, the token form is tucked behind a disclosure. */
+export async function openTokenSignIn(page: Page) {
+  await page.getByRole("heading", { name: "Sign in to Standup Bot" }).waitFor();
+  const disclosure = page.getByText("Sign in with an access token instead");
+  if (await disclosure.isVisible()) await disclosure.click();
 }
 
 /**

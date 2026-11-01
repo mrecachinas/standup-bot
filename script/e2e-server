@@ -8,6 +8,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 export RAILS_ENV=development
+# Slack sign-in is faked (config/initializers/e2e_fake_slack_sign_in.rb) so the
+# tests can reach the member area.
+export E2E_FAKE_SLACK_SIGN_IN=1 SLACK_CLIENT_ID=e2e SLACK_CLIENT_SECRET=e2e SLACK_TEAM_ID=TE2E
 export DATABASE_URL="${E2E_DATABASE_URL:-mysql2://${DB_USER:-root}:${DB_PASSWORD:-}@${DB_HOST:-127.0.0.1}:${DB_PORT:-3306}/nerdbot_e2e}"
 
 if [ ! -f public/app/index.html ]; then

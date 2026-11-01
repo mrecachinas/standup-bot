@@ -40,7 +40,7 @@ npx playwright install chromium               # first time only
 npm run e2e                                   # starts script/e2e-server on port 3100
 ```
 
-They cover signing in and out, creating, editing, pausing and resuming a standup, importing people, every standup tab, access rules, and the admin pages, and they fail on console errors. The member area isn't covered, because getting into it takes a Slack or Microsoft sign-in.
+They cover signing in and out, creating, editing, pausing and resuming a standup, importing people, every standup tab, access rules, the admin pages, and the member area, and they fail on console errors. To reach the member area, the e2e server fakes Slack's token exchange (`config/initializers/e2e_fake_slack_sign_in.rb`, enabled only by `E2E_FAKE_SLACK_SIGN_IN=1` and refused in production), and the tests skip the visit to slack.com while the rest of sign-in runs for real.
 
 ## Linting and security checks
 

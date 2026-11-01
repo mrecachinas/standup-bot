@@ -1,6 +1,6 @@
 import { crc32 } from "node:zlib";
 import { expect, test } from "@playwright/test";
-import { ADMIN, ADMIN_STATE, MANAGER, MANAGER_STATE, signIn, uniqueName, watchForErrors } from "./support";
+import { ADMIN, ADMIN_STATE, MANAGER, MANAGER_STATE, openTokenSignIn, signIn, uniqueName, watchForErrors } from "./support";
 
 test.describe("signing in", () => {
   test("signs in with an access token and signs out", async ({ page }) => {
@@ -25,6 +25,7 @@ test.describe("signing in", () => {
 
   test("rejects a wrong access token", async ({ page }) => {
     await page.goto("/session/new");
+    await openTokenSignIn(page);
     await page.getByRole("textbox", { name: "Email" }).fill(ADMIN.email);
     await page.getByRole("textbox", { name: "Access token" }).fill("not-the-token");
     await page.getByRole("button", { name: "Sign in" }).click();
