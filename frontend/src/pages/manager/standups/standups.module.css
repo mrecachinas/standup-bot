@@ -51,6 +51,25 @@
   align-items: start;
 }
 
+/* Side-by-side cards that line up: the main card sets the row's height, and
+   a .fillRow card matches it, scrolling its list if it has more to show. */
+.matchHeights {
+  align-items: stretch;
+}
+
+.fillRow {
+  display: flex;
+  flex-direction: column;
+  height: 0;
+  min-height: 100%;
+}
+
+.fillRow > .list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .stack {
   display: flex;
   flex-direction: column;
@@ -159,6 +178,11 @@
 }
 
 @media (max-width: 1011px) {
+  .fillRow {
+    height: auto;
+    min-height: 0;
+  }
+
   .mainAside {
     grid-template-columns: minmax(0, 1fr);
   }

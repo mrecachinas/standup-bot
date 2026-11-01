@@ -59,6 +59,16 @@ class Api::AdminDashboardTest < ActionDispatch::IntegrationTest
     assert_equal "Standup ##{standups(:daily).id}", log["auditable_label"]
   end
 
+  test "unconfigured chat platforms are shown neutrally, not as healthy or failing" do
+    HealthCheckService.stubs(:teams_check).returns({ status: "ok", configured: false })
+
+    get api_admin_dashboard_path, headers: { "Authorization" => "Bearer #{ADMIN_TOKEN}" }, as: :json
+
+    teams = response.parsed_body["health_checks"].find { |check| check["key"] == "teams_api" }
+    assert_equal "Not configured", teams["status_label"]
+    assert_nil teams["status_tone"]
+  end
+
   test "failed report deliveries are listed" do
     sign_in(users(:admin), "admin-access-token")
 

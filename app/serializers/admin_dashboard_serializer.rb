@@ -65,14 +65,15 @@ class AdminDashboardSerializer
   def health_card(key, label, icon)
     check = @health[:checks][key] || {}
     state = check[:status].to_s.presence || "warn"
-    platform_check = key.in?(%i[slack_api teams_api])
+    # An unconfigured chat platform isn't a fault, so its label stays neutral.
+    unconfigured = key.in?(%i[slack_api teams_api]) && !check[:configured]
     {
       key: key.to_s,
       label: label,
       icon: icon,
       status: state,
-      status_label: platform_check && !check[:configured] ? "Not configured" : CHECK_LABELS.fetch(state, state),
-      status_tone: CHECK_TONES[state],
+      status_label: unconfigured ? "Not configured" : CHECK_LABELS.fetch(state, state),
+      status_tone: unconfigured ? nil : CHECK_TONES[state],
       details: health_details(key, check)
     }
   end

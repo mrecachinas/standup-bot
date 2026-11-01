@@ -113,7 +113,6 @@
 .mainAside {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
-  align-items: start;
   gap: var(--base-size-16);
 }
 

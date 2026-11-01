@@ -102,7 +102,7 @@ export function StandupsIndexPage() {
             <StatCard label="Needs attention" value={data.stats.needs_attention_count} hint={data.stats.needs_attention_label} />
           </StatGrid>
 
-          <div className={styles.mainAside}>
+          <div className={`${styles.mainAside} ${styles.matchHeights}`}>
             <Section title="Responses by day" hint="All standups combined" actions={<RunLegend pending={data.daily_has_pending} />}>
               <RunBreakdownChart runs={data.daily_totals} height={220} label="Responses by day across all standups" />
             </Section>
@@ -155,7 +155,7 @@ function NeedsAttention({
   onResume: (item: NeedsAttentionItem) => void;
 }) {
   return (
-    <Section title="Needs attention" flush>
+    <Section title="Needs attention" flush className={styles.fillRow}>
       {items.length > 0 ? (
         <ul className={styles.list}>
           {items.map((item) => (
