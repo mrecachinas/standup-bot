@@ -32,3 +32,7 @@
 /config/master.key
 
 /vendor/bundle
+
+# Built console (frontend/ → vite build) and its dependencies.
+/public/app
+/frontend/node_modules

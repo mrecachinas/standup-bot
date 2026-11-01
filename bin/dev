@@ -1,2 +1,33 @@
 #!/usr/bin/env ruby
-exec "./bin/rails", "server", *ARGV
+# Runs Rails and the Vite dev server together. Open http://localhost:5173;
+# Vite proxies /api and /auth to Rails on port 3000.
+# Pass --rails-only to run just the Rails server.
+
+if ARGV.delete("--rails-only")
+  exec "./bin/rails", "server", *ARGV
+end
+
+frontend = File.expand_path("../frontend", __dir__)
+unless File.directory?(File.join(frontend, "node_modules"))
+  system("npm", "ci", chdir: frontend) || abort("npm ci failed in frontend/")
+end
+
+pids = [
+  spawn("./bin/rails", "server", "-p", "3000", *ARGV),
+  spawn("npm", "run", "dev", chdir: frontend)
+]
+
+stop = lambda do |_signal|
+  pids.each do |pid|
+    Process.kill("TERM", pid)
+  rescue Errno::ESRCH
+    nil
+  end
+end
+trap("INT", &stop)
+trap("TERM", &stop)
+
+# When either process exits, stop the other.
+Process.wait
+stop.call(nil)
+Process.waitall

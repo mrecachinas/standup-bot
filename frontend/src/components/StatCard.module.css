@@ -1,0 +1,41 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-4);
+  min-width: 0;
+  padding: var(--base-size-16);
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-default);
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-6);
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.value {
+  font-size: var(--text-title-size-medium);
+  font-weight: var(--base-text-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--text-title-lineHeight-medium);
+}
+
+.hint {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.success { color: var(--fgColor-success); }
+.info { color: var(--fgColor-accent); }
+.warning { color: var(--fgColor-attention); }
+.danger { color: var(--fgColor-danger); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--base-size-12);
+}
