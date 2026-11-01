@@ -3,18 +3,17 @@ class ApplicationJob < ActiveJob::Base
 
   # Retry only transient/network errors, not permanent failures
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :exponentially_longer, attempts: 5
+  retry_on ChatPlatform::RateLimitedError, wait: :exponentially_longer, attempts: 5
   retry_on Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED,
            wait: :exponentially_longer, attempts: 3
 
   discard_on ActiveRecord::RecordNotFound
 
-  def self.slack_client
-    SlackClient.instance
-  end
-
-  delegate :slack_client, to: :class
-
   private
+
+  def chat_for(standup)
+    ChatPlatform.for_standup(standup)
+  end
 
   def track_and_notify_failures
     yield
@@ -34,7 +33,7 @@ class ApplicationJob < ActiveJob::Base
     channel = ENV["ADMIN_CHANNEL"].presence
     return unless channel
 
-    slack_client.send_message(channel, "⚠️ Job #{self.class.name} failed: #{exception.class} - #{exception.message}")
+    ChatPlatform.for(:slack).send_message(channel, "⚠️ Job #{self.class.name} failed: #{exception.class} - #{exception.message}")
   rescue StandardError => notification_error
     Rails.logger.error "Failed to notify admin channel: #{notification_error.class} - #{notification_error.message}"
   end

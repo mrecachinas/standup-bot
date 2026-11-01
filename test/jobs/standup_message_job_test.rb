@@ -15,7 +15,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
 
     # Mock the slack client
     @mock_slack_client = mock("SlackClient")
-    StandupMessageJob.any_instance.stubs(:slack_client).returns(@mock_slack_client)
+    SlackClient.stubs(:instance).returns(@mock_slack_client)
 
     # Setup test data
     @standup.questions = [ "What did you do yesterday?", "What are you doing today?", "Any blockers?" ]

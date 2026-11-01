@@ -2,8 +2,8 @@ require "test_helper"
 
 class SlackEventProcessorJobTest < ActiveJob::TestCase
   setup do
-    @slack_commands = mock("SlackCommands")
-    SlackCommands.stubs(:new).returns(@slack_commands)
+    @slack_commands = mock("DirectMessageCommands")
+    DirectMessageCommands.stubs(:new).returns(@slack_commands)
 
     @slack_id = "U12345"
     @channel_id = "C12345"
@@ -31,7 +31,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     event = { "type" => "reaction_added" }
 
     # Ensure no processing happens for non-message events
-    SlackCommands.expects(:new).never
+    DirectMessageCommands.expects(:new).never
 
     SlackEventProcessorJob.perform_now(event)
   end

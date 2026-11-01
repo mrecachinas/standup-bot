@@ -37,11 +37,14 @@ class StandupMessageJob < ApplicationJob
         response_time_zone_for(participant)
       )
 
-      formatted_question = StandupFormatter.format_question(standup.questions.first, 1, standup.questions.size)
+      chat = chat_for(standup)
+      formatted_question = StandupFormatter.format_question(
+        standup.questions.first, 1, standup.questions.size, formatter: chat.formatter
+      )
       message_text = [ standup.intro, "", formatted_question ].join("\n")
 
-      message_response = slack_client.send_message(slack_id, message_text)
-      message_channel = response_value(message_response, "channel") || slack_id
+      message = chat.send_direct_message(slack_id, message_text)
+      message_channel = message&.channel.presence || slack_id
 
       standup_response = StandupResponse.create!(
         slack_id: slack_id,
@@ -74,11 +77,5 @@ class StandupMessageJob < ApplicationJob
 
   def response_time_zone_for(participant)
     participant&.standup_time_zone || Time.zone
-  end
-
-  def response_value(response, key)
-    return if response.blank?
-
-    response[key] || response[key.to_sym]
   end
 end

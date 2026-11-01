@@ -3,7 +3,7 @@ require "test_helper"
 class StandupResponseServiceTest < ActiveSupport::TestCase
   setup do
     @mock_slack_client = mock("SlackClient")
-    StandupResponseService.stubs(:slack_client).returns(@mock_slack_client)
+    SlackClient.stubs(:instance).returns(@mock_slack_client)
 
     # Setup a test standup with questions
     @standup = Standup.new(

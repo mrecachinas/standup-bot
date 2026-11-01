@@ -1,6 +1,8 @@
 class StandupResponseService
-  def self.slack_client
-    SlackClient.instance
+  SKIPPED_ANSWER = "(skipped)".freeze
+
+  def self.chat_for(standup_response)
+    ChatPlatform.for_standup(standup_response.standup)
   end
 
   def self.record_answer(standup_response, text)
@@ -12,7 +14,7 @@ class StandupResponseService
   end
 
   def self.skip_question(standup_response)
-    append_answer(standup_response, "(skipped)")
+    append_answer(standup_response, SKIPPED_ANSWER)
     process_answer_update(standup_response)
   end
 
@@ -21,14 +23,14 @@ class StandupResponseService
     standup_response.answers ||= []
 
     while standup_response.answers.size < standup.questions.size
-      append_answer(standup_response, "(skipped)")
+      append_answer(standup_response, SKIPPED_ANSWER)
     end
 
     standup_response.status = "skipped"
     standup_response.save!
 
     if notify
-      slack_client.send_message(
+      chat_for(standup_response).send_direct_message(
         standup_response.slack_id,
         "Your remaining #{standup.name} standup questions have been skipped."
       )
@@ -84,22 +86,19 @@ class StandupResponseService
   end
 
   def self.repost_response(standup_response)
-    message_ts = standup_response.slack_message_ts
-    return post_individual_response(standup_response) if message_ts.blank?
+    message_id = standup_response.slack_message_ts
+    return post_individual_response(standup_response) if message_id.blank?
 
-    display_name = display_name_for(standup_response.slack_id)
-    formatted_responses = formatted_answers(standup_response)
-    return if formatted_responses.empty?
+    chat = chat_for(standup_response)
+    display_name = chat.display_name_for(standup_response.slack_id)
+    answers = postable_answers(standup_response)
+    return if answers.empty?
 
-    blocks = [ "*#{display_name}'s Standup Update:*", *formatted_responses ].map do |text|
-      { type: "section", text: { type: "mrkdwn", text: text } }
-    end
-
-    slack_client.update_message(
+    chat.update_standup_update(
       standup_response.standup.slack_channel,
-      message_ts,
-      response_message(display_name, formatted_responses),
-      blocks
+      message_id,
+      display_name: display_name,
+      answers: answers
     )
   end
 
@@ -107,12 +106,14 @@ class StandupResponseService
     standup = standup_response.standup
     standup_response.status = "completed"
 
+    chat = chat_for(standup_response)
+    channel = chat.channel_reference(standup.slack_channel)
     completion_message = if standup.outro.present?
-      "#{standup.outro}\n\nYour standup update has been posted to ##{standup.slack_channel}."
+      "#{standup.outro}\n\nYour standup update has been posted to #{channel}."
     else
-      "Thank you! Your standup update has been posted to ##{standup.slack_channel}."
+      "Thank you! Your standup update has been posted to #{channel}."
     end
-    slack_client.send_message(standup_response.slack_id, completion_message)
+    chat.send_direct_message(standup_response.slack_id, completion_message)
 
     post_individual_response(standup_response)
 
@@ -134,50 +135,44 @@ class StandupResponseService
   def self.send_next_question(standup_response)
     standup = standup_response.standup
     current_question_idx = standup_response.answers.size
+    chat = chat_for(standup_response)
     formatted_question = StandupFormatter.format_question(
       standup.questions[current_question_idx],
       current_question_idx + 1,
-      standup.questions.size
+      standup.questions.size,
+      formatter: chat.formatter
     )
 
-    slack_client.send_message(standup_response.slack_id, formatted_question)
+    chat.send_direct_message(standup_response.slack_id, formatted_question)
   end
 
   def self.post_individual_response(standup_response)
-    display_name = display_name_for(standup_response.slack_id)
-    formatted_responses = formatted_answers(standup_response)
-    return if formatted_responses.empty?
+    chat = chat_for(standup_response)
+    display_name = chat.display_name_for(standup_response.slack_id)
+    answers = postable_answers(standup_response)
+    return if answers.empty?
 
-    # Keep the message ts so later edits can update the channel post in place.
-    response = slack_client.send_message(
+    # Keep the message ID so later edits can update the channel post in place.
+    message = chat.post_standup_update(
       standup_response.standup.slack_channel,
-      response_message(display_name, formatted_responses)
+      display_name: display_name,
+      answers: answers
     )
 
-    if response && response["ts"]
-      standup_response.slack_message_ts = response["ts"]
+    if message&.id.present?
+      standup_response.slack_message_ts = message.id
       standup_response.save!
     end
   end
 
-  def self.display_name_for(slack_id)
-    user_info = slack_client.get_user_info(slack_id)
-    user_info&.dig("profile", "display_name") || user_info&.dig("name") || "Unknown User"
-  end
+  # Answers worth posting, as [{ question:, answer: }]. Answers appended in
+  # this request still have symbol keys, so read both kinds.
+  def self.postable_answers(standup_response)
+    Array(standup_response.answers).filter_map do |answer|
+      text = answer["answer"] || answer[:answer]
+      next if text.blank? || text == SKIPPED_ANSWER
 
-  def self.formatted_answers(standup_response)
-    standup_response.answers.filter_map do |answer|
-      next if answer["answer"].blank? || answer["answer"] == "(skipped)"
-
-      "*#{answer["question"]}*\n#{answer["answer"]}"
+      { question: answer["question"] || answer[:question], answer: text }
     end
-  end
-
-  def self.response_message(display_name, formatted_responses)
-    [
-      "*#{display_name}'s Standup Update:*",
-      "",
-      formatted_responses.join("\n\n")
-    ].join("\n")
   end
 end

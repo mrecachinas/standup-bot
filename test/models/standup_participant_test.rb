@@ -46,25 +46,28 @@ class StandupParticipantTest < ActiveSupport::TestCase
     end
   end
 
-  test "should fetch info from Slack" do
+  test "should fetch profile through the standup's chat platform" do
     slack_client_mock = mock()
-    user_info = { "tz" => "America/New_York" }
+    user_info = { "name" => "jane", "tz" => "America/New_York", "avatar_url" => "https://example.com/a.png" }
     slack_client_mock.expects(:get_user_info).with(@participant.slack_id).returns(user_info)
 
     SlackClient.expects(:instance).returns(slack_client_mock)
 
-    assert_equal user_info, @participant.fetch_info
+    profile = @participant.fetch_profile
+    assert_equal "America/New_York", profile.timezone
+    assert_equal "jane", profile.name
+    assert_equal "https://example.com/a.png", profile.avatar_url
   end
 
   test "should get timezone from Slack info" do
-    @participant.expects(:fetch_info).returns({ "tz" => "America/Los_Angeles" })
+    @participant.expects(:fetch_profile).returns(ChatPlatform::UserProfile.new(timezone: "America/Los_Angeles"))
     assert_equal "America/Los_Angeles", @participant.timezone
 
     # Clear cached timezone to test fallback behavior
     @participant.update_column(:cached_timezone, nil)
 
     # Test fallback to UTC when timezone info unavailable
-    @participant.expects(:fetch_info).returns(nil)
+    @participant.expects(:fetch_profile).returns(nil)
     assert_equal "UTC", @participant.timezone
   end
 
@@ -73,14 +76,14 @@ class StandupParticipantTest < ActiveSupport::TestCase
       cached_timezone: "America/Chicago",
       cached_timezone_updated_at: Time.current
     )
-    @participant.expects(:fetch_info).never
+    @participant.expects(:fetch_profile).never
 
     assert_equal "America/Chicago", @participant.timezone
   end
 
   test "should fall back to UTC for invalid Slack timezone" do
     @participant.update_columns(cached_timezone: nil, cached_timezone_updated_at: nil)
-    @participant.expects(:fetch_info).returns({ "tz" => "Invalid/Zone" })
+    @participant.expects(:fetch_profile).returns(ChatPlatform::UserProfile.new(timezone: "Invalid/Zone"))
 
     assert_equal "UTC", @participant.timezone
     assert_equal "UTC", @participant.reload.cached_timezone

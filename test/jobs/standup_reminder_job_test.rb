@@ -6,7 +6,7 @@ class StandupReminderJobTest < ActiveJob::TestCase
     @standup.update!(reminder_enabled: true, reminder_after_minutes: 60, max_reminders: 2)
     StandupResponse.where(standup: @standup, status: "pending").delete_all
     @mock_slack_client = mock("SlackClient")
-    StandupReminderJob.any_instance.stubs(:slack_client).returns(@mock_slack_client)
+    SlackClient.stubs(:instance).returns(@mock_slack_client)
   end
 
   test "sends reminders for overdue pending responses" do

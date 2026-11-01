@@ -6,6 +6,7 @@ class StandupCollectionJob < ApplicationJob
     @report_generation&.mark_running!
 
     standup = Standup.find(standup_id)
+    @chat = chat_for(standup)
     options = (options || {}).with_indifferent_access
     report_zone = timezone.present? ? Standup.resolve_time_zone(timezone) : Time.zone
     report_date = standup_date.present? ? StandupResponse.normalize_date(standup_date) : report_zone.today
@@ -20,7 +21,7 @@ class StandupCollectionJob < ApplicationJob
 
     if responses.empty?
       no_responses_message = "No standup responses have been submitted today for #{standup.name}."
-      slack_client.send_message(destination_channel, no_responses_message)
+      @chat.send_message(destination_channel, no_responses_message)
       deliver_recipient_copies(recipients, no_responses_message)
       @report_generation&.mark_succeeded!(
         metadata: generation_metadata(destination_channel, recipients, response_count: 0, detail_level: detail_level, report_format: report_format)
@@ -61,12 +62,12 @@ class StandupCollectionJob < ApplicationJob
       answers = Array(response.answers).filter_map do |answer|
         next if answer["answer"].blank? || answer["answer"] == "(skipped)"
 
-        "*#{answer["question"]}*\n#{answer["answer"]}"
+        "#{bold(answer["question"])}\n#{answer["answer"]}"
       end
 
       next if answers.empty?
 
-      "*#{display_name}*\n#{answers.join("\n")}"
+      "#{bold(display_name)}\n#{answers.join("\n")}"
     end.compact
 
     summary_parts.join("\n\n---\n\n")
@@ -79,28 +80,31 @@ class StandupCollectionJob < ApplicationJob
     end
 
     [
-      "*#{standup.name} report for #{report_date.iso8601}*",
+      bold("#{standup.name} report for #{report_date.iso8601}"),
       "#{responses.count} completed response(s).",
       lines.join("\n")
     ].join("\n")
   end
 
-  def display_name_for(slack_id)
-    user_info = slack_client.get_user_info(slack_id)
-    user_info&.dig("profile", "display_name").presence || user_info&.dig("name").presence || "Unknown User"
+  def display_name_for(user_id)
+    @chat.display_name_for(user_id)
+  end
+
+  def bold(text)
+    @chat.formatter.bold(text)
   end
 
   def deliver_report(destination_channel, summary_text, outro, report_format)
     if report_format == "plain_text"
-      slack_client.send_message(destination_channel, [ summary_text, outro.presence ].compact.join("\n\n"))
+      @chat.send_message(destination_channel, [ summary_text, outro.presence ].compact.join("\n\n"))
     else
-      slack_client.send_standup_summary(destination_channel, summary_text, outro)
+      @chat.post_report(destination_channel, summary_text, outro: outro)
     end
   end
 
   def deliver_recipient_copies(recipients, summary_text)
     recipients.each do |recipient|
-      slack_client.send_message(recipient, summary_text)
+      @chat.send_message(recipient, summary_text)
     end
   end
 

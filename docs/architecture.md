@@ -33,7 +33,29 @@ flowchart LR
     JOBS --> DB
 ```
 
-Requests from Slack are verified with the signing secret and then handed off to background jobs, so the app can respond to Slack quickly. All outgoing Slack calls go through `SlackClient`.
+Requests from Slack are verified with the signing secret and then handed off to background jobs, so the app can respond to Slack quickly.
+
+## Chat platform adapters
+
+Standup logic doesn't talk to Slack directly. It goes through a chat platform adapter, so other platforms can plug in alongside Slack.
+
+```mermaid
+flowchart LR
+    SE[SlackEventsController] --> J[SlackEventProcessorJob]
+    SS[SlackSlashCommandsController] --> CMD[StandupCommandHandler]
+    J --> CH[StandupConversationHandler]
+    CH --> DM[DirectMessageCommands]
+    CH --> SVC[StandupResponseService]
+    CMD --> Jobs[Standup jobs]
+    SVC --> REG["ChatPlatform.for_standup(standup)"]
+    Jobs --> REG
+    REG --> SA[ChatPlatform::SlackAdapter]
+    SA --> SC[SlackClient]
+```
+
+- `ChatPlatform::Adapter` defines the contract: sending DMs and channel messages, posting and editing a person's update, posting reports, offering a choice of standups, looking up people and channels, and a `formatter` for bold, italic, code, and channel references.
+- `ChatPlatform::SlackAdapter` implements it. Block Kit and mrkdwn live there, and `SlackClient` stays the low-level Web API wrapper.
+- Inbound events are normalized into a `ChatPlatform::InboundMessage` and handled by `StandupConversationHandler`. Slash commands go through `StandupCommandHandler`, which returns `ChatPlatform::Reply` objects that each platform renders its own way.
 
 ## A standup, end to end
 

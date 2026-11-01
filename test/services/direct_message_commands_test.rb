@@ -1,9 +1,10 @@
 require "test_helper"
 
-class SlackCommandsTest < ActiveSupport::TestCase
+class DirectMessageCommandsTest < ActiveSupport::TestCase
   setup do
     @slack_client = mock("SlackClient")
-    @commands = SlackCommands.new(@slack_client)
+    SlackClient.stubs(:instance).returns(@slack_client)
+    @commands = DirectMessageCommands.new(ChatPlatform.for(:slack))
     @slack_id = "U12345678"
     @channel = "D87654321"
   end
