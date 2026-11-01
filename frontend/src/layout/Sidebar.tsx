@@ -116,13 +116,13 @@ export function Sidebar() {
       )}
 
       <div className={styles.footer}>
-        <ThemeSwitch />
         <div className={styles.user}>
           <Avatar name={displayName} src={user?.avatar_url ?? member?.avatar_url} size={32} />
           <div className={styles.userMeta}>
             <div className={styles.userName}>{displayName}</div>
             <div className={styles.userRole}>{user?.admin ? "Admin" : "Member"}</div>
           </div>
+          <ThemeSwitch />
           <IconButton icon={SignOutIcon} aria-label="Sign out" variant="invisible" size="small" onClick={handleSignOut} />
         </div>
       </div>
