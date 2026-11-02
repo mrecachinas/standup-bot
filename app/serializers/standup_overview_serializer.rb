@@ -125,7 +125,7 @@ class StandupOverviewSerializer
       local = occurrence.in_time_zone(preview.zone)
       {
         scheduled_at: occurrence.iso8601,
-        label: local.strftime("%a, %b %-d"),
+        label: local.to_fs(:short_weekday_month_day),
         sub_label: UiFormat.format_clock(@standup.default_hour, @standup.default_minute) +
           (@standup.respect_timezone? ? " in each person's timezone" : " UTC")
       }
@@ -148,7 +148,7 @@ class StandupOverviewSerializer
 
   def latest_run_responses
     @latest_run_responses ||= begin
-      latest_date = @standup.standup_responses.where.not(standup_date: nil).maximum(:standup_date)
+      latest_date = @standup.standup_responses.maximum(:standup_date)
       latest_date ? @standup.standup_responses.where(standup_date: latest_date).to_a : []
     end
   end
@@ -172,7 +172,7 @@ class StandupOverviewSerializer
       id: response.id,
       platform_user_id: response.platform_user_id,
       display_name: participant&.display_name.presence || response.platform_user_id,
-      avatar_url: (avatar_url if SlackAvatar.safe_url?(avatar_url)),
+      avatar_url: avatar_url,
       status: response.status,
       status_label: status_label,
       status_tone: UiFormat.status_tone(status_label),

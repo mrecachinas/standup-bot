@@ -11,7 +11,7 @@ class ResponseHistorySerializer
       filters: {
         start_date: @history.start_date.iso8601,
         end_date: @history.end_date.iso8601,
-        participant: @history.participant_slack_id,
+        participant: @history.participant_id,
         question: @history.question
       },
       range_limited: @history.range_limited?,
@@ -35,12 +35,12 @@ class ResponseHistorySerializer
 
   def summary
     summary = @history.summary
-    answer_rate = summary[:expected].to_i.positive? ? (summary[:answered] * 100.0 / summary[:expected]).round(1) : nil
+    answer_rate = Percentage.of(summary[:answered], summary[:expected].to_i, empty: nil)
     summary.merge(answer_rate: answer_rate, answer_rate_tone: (UiFormat.rate_tone(answer_rate) if answer_rate))
   end
 
   def serialize_day(day)
-    rate = day.expected_count.positive? ? (day.answered_count * 100.0 / day.expected_count).round(1) : 0.0
+    rate = Percentage.of(day.answered_count, day.expected_count)
 
     {
       date: day.date.iso8601,
@@ -60,7 +60,7 @@ class ResponseHistorySerializer
     {
       platform_user_id: entry.platform_user_id,
       display_name: entry.display_name,
-      avatar_url: (avatar_url if SlackAvatar.safe_url?(avatar_url)),
+      avatar_url: avatar_url,
       expected: entry.expected? || false,
       answered: entry.answered?,
       missed: entry.missed?,

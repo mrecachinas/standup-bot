@@ -109,6 +109,14 @@ module ChatPlatform
 
     # Shared helpers
 
+    def send_reply(target, reply)
+      if reply.selection?
+        send_selection(target, reply.text, reply.options, action_id: reply.action_id)
+      else
+        send_message(target, reply.text)
+      end
+    end
+
     def display_name_for(user_id)
       user_profile(user_id)&.preferred_name || UNKNOWN_USER
     end

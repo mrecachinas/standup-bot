@@ -57,7 +57,7 @@ flowchart LR
     J --> CH[StandupConversationHandler]
     TJ --> CH
     TJ --> CMD
-    CH --> DM[DirectMessageCommands]
+    CH --> CMD
     CH --> SVC[StandupResponseService]
     CMD --> Jobs[Standup jobs]
     SVC --> REG["ChatPlatform.for_standup(standup)"]
@@ -72,7 +72,7 @@ flowchart LR
 - `ChatPlatform::Adapter` defines the contract: sending DMs and channel messages, posting and editing a person's update, posting reports, offering a choice of standups, looking up people and channels, validating IDs and channels, and a `formatter` for bold, italic, code, and channel references. Every adapter's tests include `test/support/chat_platform_adapter_contract.rb`.
 - `ChatPlatform::SlackAdapter` implements it with Block Kit and mrkdwn on top of `SlackClient`, the low-level Web API wrapper.
 - `ChatPlatform::TeamsAdapter` implements it with Teams markdown and Adaptive Cards. It uses the Bot Connector to message people and channels, and Microsoft Graph to look people and channels up. People are identified by Entra object ID, and channels by `TEAM_ID|CHANNEL_ID`. Before the bot can DM someone it needs a 1:1 conversation, which it opens (or learns about from incoming activities) and caches in `ChatConversation`. See [Microsoft Teams setup](teams-setup.md).
-- Inbound messages are normalized into a `ChatPlatform::InboundMessage` and handled by `StandupConversationHandler`. Commands go through `StandupCommandHandler`, which returns `ChatPlatform::Reply` objects that each platform renders its own way: ephemeral Block Kit in Slack, chat messages and cards in Teams.
+- Inbound messages are normalized into a `ChatPlatform::InboundMessage` and handled by `StandupConversationHandler`. Slash commands, Teams @mentions, and DM keywords (`help`, `skip`, `away`, ...) all go through `StandupCommandHandler`, which returns `ChatPlatform::Reply` objects that each platform renders its own way (`Adapter#send_reply`): ephemeral Block Kit in Slack, chat messages and cards in Teams.
 - `ChatIntegrationService` (with `SlackIntegrationService` and `TeamsIntegrationService`) backs the console's credential checks, discovery, and test messages. `ChatUserResolver` turns what someone typed into a person on the standup's platform.
 
 ## A standup, end to end
@@ -143,7 +143,7 @@ Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custo
 | `TeamsActivityProcessorJob` | On each Teams activity | The same for Teams, plus `standup` commands and card choices. It also caches the 1:1 conversation |
 | `StandupReminderJob` | Every 15 minutes | Reminds people who haven't finished, based on each standup's reminder settings |
 | `StandupCollectionJob` | On demand | Gathers completed responses into a report (for `/standup report` or the console) |
-| `SlackUserReactivationJob` | When someone's `away` period ends | Puts the participant back in rotation |
+| `ParticipantReactivationJob` | When someone's `away` period ends | Puts the participant back in rotation |
 | `DataCleanupJob` | Daily at 3am | Expires stale pending responses and deletes data older than the retention window |
 
 Recurring schedules are defined in [`config/recurring.yml`](../config/recurring.yml). If you set `ADMIN_CHANNEL` (Slack) or `TEAMS_ADMIN_CHANNEL` (Teams), failed jobs post a message there.
@@ -193,7 +193,7 @@ Every `/api` action has to check authorization. `Api::BaseController` runs `veri
 
 `test/controllers/api/authorization_check_test.rb` fails if any routed `/api` controller is missing this check.
 
-Avatars use each person's Slack photo when we have one. Teams photos aren't public URLs, so Teams participants show initials. `avatar_url` on `StandupParticipant` and `User` is filled in whenever the app already talks to Slack about that person: user search and resolution, channel sync, timezone refresh, and Slack sign-in, which also refreshes that person's participant rows. `SlackAvatar` only accepts `https` URLs. If a photo is missing or fails to load, the avatar falls back to initials.
+Avatars use each person's Slack photo when we have one. Teams photos aren't public URLs, so Teams participants show initials. `avatar_url` on `StandupParticipant` and `User` is filled in whenever the app already talks to Slack about that person: user search and resolution, channel sync, timezone refresh, and Slack sign-in, which also refreshes that person's participant rows. `StandupParticipant` and `User` only store `https` URLs (`AvatarUrl`), so serializers can pass them straight through. If a photo is missing or fails to load, the avatar falls back to initials.
 
 Slack and Microsoft guests are refused at sign-in. Since anyone else can sign in, non-admins only see public channels in channel discovery, and can only sync participants from channels they belong to.
 

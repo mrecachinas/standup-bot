@@ -34,7 +34,7 @@ class StandupSchedulePreviewSerializer
       scheduled_at: occurrence.utc.iso8601,
       date: local.to_date.iso8601,
       weekday: local.strftime("%A"),
-      time: local.strftime("%-l:%M %p %Z"),
+      time: local.to_fs(:clock_with_zone),
       label: local.strftime("%A, %B %-d, %Y at %-l:%M %p %Z")
     }
   end

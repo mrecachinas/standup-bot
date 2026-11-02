@@ -2,9 +2,6 @@ require "test_helper"
 
 class SlackEventProcessorJobTest < ActiveJob::TestCase
   setup do
-    @slack_commands = mock("DirectMessageCommands")
-    DirectMessageCommands.stubs(:new).returns(@slack_commands)
-
     @platform_user_id = "U12345"
     @channel_id = "C12345"
 
@@ -31,16 +28,13 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     event = { "type" => "reaction_added" }
 
     # Ensure no processing happens for non-message events
-    DirectMessageCommands.expects(:new).never
+    StandupConversationHandler.expects(:new).never
 
     SlackEventProcessorJob.perform_now(event)
   end
 
   test "routes messages to commands, pending standup answers, or ignores them" do
-    command_info = { command: :help }
-    @slack_commands.stubs(:parse).returns(nil)
-    @slack_commands.stubs(:parse).with("help").returns(command_info)
-    @slack_commands.expects(:process).with(command_info, @platform_user_id, @channel_id).once
+    ChatPlatform::SlackAdapter.any_instance.expects(:send_reply).with(@channel_id, is_a(ChatPlatform::Reply)).once
     StandupResponseService.expects(:record_answer).with(@standup_response, "I worked on feature X").once
 
     perform_message("help")

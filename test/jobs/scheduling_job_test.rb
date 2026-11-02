@@ -141,20 +141,4 @@ class SchedulingJobTest < ActiveJob::TestCase
       end
     end
   end
-
-  test "does not schedule duplicate when same-day response has nil standup date" do
-    StandupParticipant.where.not(id: @participant.id).delete_all
-    response = StandupResponse.create!(
-      standup: @active_standup,
-      platform_user_id: @participant.platform_user_id,
-      status: "pending",
-      answers: [],
-      created_at: @scheduled_time
-    )
-    response.update_column(:standup_date, nil)
-
-    assert_no_enqueued_jobs(only: StandupMessageJob) do
-      SchedulingJob.perform_now
-    end
-  end
 end

@@ -20,8 +20,16 @@ module ChatPlatform
 
   class << self
     def for(platform)
-      key = normalize_key(platform)
+      key = key_for(platform)
       adapters[key] ||= ADAPTERS.fetch(key).constantize.new
+    end
+
+    # The platform's key; blank means DEFAULT and anything unknown raises UnknownPlatform.
+    def key_for(platform)
+      key = platform.to_s.presence&.to_sym || DEFAULT
+      raise UnknownPlatform, "Unknown chat platform: #{platform.inspect}" unless ADAPTERS.key?(key)
+
+      key
     end
 
     def for_standup(standup)
@@ -48,13 +56,6 @@ module ChatPlatform
 
     def adapters
       @adapters ||= {}
-    end
-
-    def normalize_key(platform)
-      key = platform.to_s.presence&.to_sym || DEFAULT
-      raise UnknownPlatform, "Unknown chat platform: #{platform.inspect}" unless ADAPTERS.key?(key)
-
-      key
     end
   end
 end

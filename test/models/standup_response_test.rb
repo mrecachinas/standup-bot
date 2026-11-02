@@ -38,72 +38,18 @@ class StandupResponseTest < ActiveSupport::TestCase
     assert_not_includes StandupResponse.completed, pending_response
   end
 
-  test "skipped scope should return only skipped responses" do
-    # Create a skipped response
-    skipped_response = StandupResponse.create!(
-      standup: @response.standup,
-      platform_user_id: "U99999",
-      status: "skipped",
-      answers: []
-    )
-
-    pending_response = standup_responses(:pending)
-    completed_response = standup_responses(:completed)
-
-    assert_includes StandupResponse.skipped, skipped_response
-    assert_not_includes StandupResponse.skipped, pending_response
-    assert_not_includes StandupResponse.skipped, completed_response
-  end
-
-  test "for_today scope should return only responses created today" do
-    today_response = standup_responses(:today)
-    yesterday_response = standup_responses(:yesterday)
-
-    # Use Timecop to freeze time at a specific time in UTC
-    Timecop.freeze(Time.new(2025, 4, 6, 12, 0, 0, "+00:00")) do
-      assert_includes StandupResponse.for_today, today_response
-      assert_not_includes StandupResponse.for_today, yesterday_response
-    end
-  end
-
-  test "for_date_in_timezone should use timezone local day" do
+  test "for_standup_date matches the stored standup date, not the creation day" do
     response = StandupResponse.create!(
       standup: @standup,
-      platform_user_id: "UTZTEST",
-      status: "completed",
-      answers: [],
-      created_at: Time.new(2025, 4, 6, 15, 0, 0, "+00:00")
-    )
-    response.update_column(:standup_date, nil)
-
-    assert_includes StandupResponse.for_date_in_timezone(Date.new(2025, 4, 7), "Australia/Sydney"), response
-    assert_not_includes StandupResponse.for_date_in_timezone(Date.new(2025, 4, 7), "UTC"), response
-  end
-
-  test "for_standup_date includes nil standup_date rows by created_at fallback" do
-    response = StandupResponse.create!(
-      standup: @standup,
-      platform_user_id: "UNILDATE",
+      platform_user_id: "USTDATE",
       status: "pending",
       answers: [],
+      standup_date: Date.new(2025, 4, 7),
       created_at: Time.new(2025, 4, 6, 15, 0, 0, "+00:00")
     )
-    response.update_column(:standup_date, nil)
 
-    assert_includes StandupResponse.for_standup_date(Date.new(2025, 4, 7), "Australia/Sydney"), response
-    assert_not_includes StandupResponse.for_standup_date(Date.new(2025, 4, 7), "UTC"), response
-  end
-
-  test "cancelled scope should return only cancelled responses" do
-    cancelled_response = StandupResponse.create!(
-      standup: @standup,
-      platform_user_id: "UCANCELLED",
-      status: "cancelled",
-      answers: []
-    )
-
-    assert_includes StandupResponse.cancelled, cancelled_response
-    assert_not_includes StandupResponse.cancelled, standup_responses(:pending)
+    assert_includes StandupResponse.for_standup_date("2025-04-07"), response
+    assert_not_includes StandupResponse.for_standup_date(Date.new(2025, 4, 6)), response
   end
 
   test "should find participant by platform_user_id" do

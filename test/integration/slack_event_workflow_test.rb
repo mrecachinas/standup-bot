@@ -26,8 +26,7 @@ class SlackEventWorkflowTest < ActionDispatch::IntegrationTest
     @standup.update!(questions: [ "Yesterday?", "Today?", "Blockers?" ], intro: "Time for standup!", outro: "Thanks!")
     StandupResponse.where(platform_user_id: @participant.platform_user_id, standup_id: @standup.id).delete_all
 
-    @fake_slack_client = FakeSlackClient.new
-    SlackClient.stubs(:instance).returns(@fake_slack_client)
+    @fake_slack_client = stub_slack_client(FakeSlackClient.new)
   end
 
   test "complete standup flow from DM to channel post" do

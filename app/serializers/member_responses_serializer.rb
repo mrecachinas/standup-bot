@@ -26,7 +26,7 @@ class MemberResponsesSerializer
   private
 
   def response_json(response)
-    date = response.standup_date || response.created_at.to_date
+    date = response.standup_date
     label = self.class.status_label(response)
     {
       id: response.id,

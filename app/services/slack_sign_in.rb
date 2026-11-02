@@ -59,7 +59,7 @@ class SlackSignIn
       email: info["email"],
       email_verified: ActiveModel::Type::Boolean.new.cast(info["email_verified"]),
       name: info["name"].presence || info["given_name"].presence || slack_id,
-      avatar_url: [ info["https://slack.com/user_image_72"], info["picture"] ].find { |url| SlackAvatar.safe_url?(url) }
+      avatar_url: [ info["https://slack.com/user_image_72"], info["picture"] ].find { |url| AvatarUrl.safe?(url) }
     )
   end
 

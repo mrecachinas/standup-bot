@@ -1,8 +1,6 @@
 # The admin page: installation health, usage, users, recent changes, and
 # failed report deliveries.
 class AdminDashboardSerializer
-  OVERALL_TONES = { "healthy" => "success", "degraded" => "warning", "unhealthy" => "danger" }.freeze
-  CHECK_TONES = { "ok" => "success", "warn" => "warning", "error" => "danger" }.freeze
   CHECK_LABELS = { "ok" => "Operational", "warn" => "Degraded", "error" => "Down" }.freeze
   HEALTH_CARDS = [
     [ :database, "Database", "database" ],
@@ -10,6 +8,7 @@ class AdminDashboardSerializer
     [ :slack_api, "Slack", "hash" ],
     [ :teams_api, "Microsoft Teams", "people" ]
   ].freeze
+  # The response chart shows cancellations as more serious than UiFormat's badges do.
   RESPONSE_TONES = { "completed" => "success", "expired" => "warning", "cancelled" => "danger" }.freeze
 
   def initialize(health:, metrics:, users:, owned_standup_counts:, audit_logs:, failed_reports:, daily_activity:, activity_days:)
@@ -28,7 +27,7 @@ class AdminDashboardSerializer
       health: {
         status: @health[:status],
         status_label: @health[:status].to_s.capitalize,
-        status_tone: OVERALL_TONES[@health[:status].to_s],
+        status_tone: UiFormat.status_tone(@health[:status]),
         checked_at: @health[:timestamp]
       },
       health_checks: HEALTH_CARDS.map { |key, label, icon| health_card(key, label, icon) },
@@ -73,7 +72,7 @@ class AdminDashboardSerializer
       icon: icon,
       status: state,
       status_label: unconfigured ? "Not configured" : CHECK_LABELS.fetch(state, state),
-      status_tone: unconfigured ? nil : CHECK_TONES[state],
+      status_tone: (UiFormat.status_tone(state) unless unconfigured),
       details: health_details(key, check)
     }
   end
@@ -134,7 +133,7 @@ class AdminDashboardSerializer
         status: status.to_s,
         label: status.to_s.titleize,
         count: count,
-        percent: total.positive? ? (count * 100.0 / total).round(1) : 0,
+        percent: Percentage.of(count, total, empty: 0),
         tone: RESPONSE_TONES[status.to_s]
       }
     end
@@ -150,7 +149,7 @@ class AdminDashboardSerializer
       placeholder_email: user.placeholder_email?,
       subtitle: user.placeholder_email? ? identity_labels(user) : user.email,
       identities: user.identities.map { |identity| { platform: identity.platform, platform_user_id: identity.platform_user_id } },
-      avatar_url: (user.avatar_url if SlackAvatar.safe_url?(user.avatar_url)),
+      avatar_url: user.avatar_url,
       admin: user.admin?,
       access_label: user.admin? ? "Admin" : "Member",
       access_tone: user.admin? ? "info" : nil,
@@ -173,7 +172,7 @@ class AdminDashboardSerializer
       action: log.action,
       action_label: log.action.tr("._", "  "),
       actor_name: log.actor&.name || log.actor_label || log.actor_email || "System",
-      actor_avatar_url: (log.actor.avatar_url if log.actor && SlackAvatar.safe_url?(log.actor.avatar_url)),
+      actor_avatar_url: (log.actor.avatar_url if log.actor),
       auditable_type: log.auditable_type,
       auditable_label: "#{log.auditable_type.to_s.titleize} ##{log.auditable_id}",
       auditable_id: log.auditable_id,

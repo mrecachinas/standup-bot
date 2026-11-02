@@ -125,8 +125,7 @@ module ChatPlatform
 
     private
 
-    # Looked up per call so token rotation (SlackClient.rotate_token!) and test
-    # stubs of SlackClient.instance take effect.
+    # Looked up per call so test stubs of SlackClient.instance take effect.
     def client
       SlackClient.instance
     end

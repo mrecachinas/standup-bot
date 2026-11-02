@@ -11,7 +11,7 @@ module Api
       end
 
       def update
-        away_until = parse_date(params[:away_until])
+        away_until = ReportingRange.parse_date(params[:away_until])
         selected = active_participants.select { |participant| selected_standup_ids.include?(participant.standup_id) }
 
         error = availability_error(away_until, selected)
@@ -25,7 +25,7 @@ module Api
           participant.update!(vacation_until: away_until)
           audit!(participant, "standup_participant.away", vacation_until: away_until.iso8601)
         end
-        render json: availability_payload.merge(notice: "You're marked away through #{away_until.strftime("%A, %B %-d")}.")
+        render json: availability_payload.merge(notice: "You're marked away through #{away_until.to_fs(:weekday_month_day)}.")
       end
 
       def clear
@@ -49,12 +49,6 @@ module Api
 
       def selected_standup_ids
         Array(params[:standup_ids]).map(&:to_i)
-      end
-
-      def parse_date(value)
-        Date.iso8601(value.to_s)
-      rescue ArgumentError
-        nil
       end
 
       def availability_error(away_until, selected)

@@ -1,6 +1,12 @@
 require_relative "boot"
 
-require "rails/all"
+require "rails"
+require "active_model/railtie"
+require "active_job/railtie"
+require "active_record/railtie"
+require "action_controller/railtie"
+require "action_view/railtie"
+require "rails/test_unit/railtie"
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
@@ -29,9 +35,8 @@ module Nerdbot
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
-    # The Slack and JSON API endpoints remain API-only, but the manager UI uses
+    # The Slack and JSON API endpoints remain API-only, but the console uses
     # cookie-backed sessions for browser authentication.
-    config.middleware.use Rack::MethodOverride
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::CookieStore, key: "_nerdbot_session", same_site: :lax
     config.middleware.use ActionDispatch::Flash

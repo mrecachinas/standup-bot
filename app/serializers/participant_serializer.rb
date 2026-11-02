@@ -15,7 +15,7 @@ class ParticipantSerializer
       cached_timezone: @participant.cached_timezone,
       created_at: @participant.created_at&.iso8601,
       updated_at: @participant.updated_at&.iso8601,
-      avatar_url: (@participant.avatar_url if SlackAvatar.safe_url?(@participant.avatar_url)),
+      avatar_url: @participant.avatar_url,
       vacation_until: @participant.vacation_until&.iso8601,
       timezone_cache_status: @participant.timezone_cache_status,
       timezone_cache_status_description: @participant.timezone_cache_status_description
