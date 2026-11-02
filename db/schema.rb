@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_060000) do
   create_table "audit_logs", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "action", null: false
     t.string "actor_email"
@@ -74,7 +74,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_050000) do
     t.index ["actor_id"], name: "index_report_generations_on_actor_id"
     t.index ["report_configuration_id"], name: "index_report_generations_on_report_configuration_id"
     t.index ["standup_id", "requested_at"], name: "index_report_generations_on_standup_id_and_requested_at"
-    t.index ["standup_id"], name: "index_report_generations_on_standup_id"
     t.index ["status", "requested_at"], name: "index_report_generations_on_status_and_requested_at"
   end
 
@@ -85,9 +84,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_050000) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["standup_id", "user_id"], name: "index_standup_ownerships_on_standup_id_and_user_id", unique: true
-    t.index ["standup_id"], name: "index_standup_ownerships_on_standup_id"
     t.index ["user_id", "standup_id"], name: "index_standup_ownerships_on_user_id_and_standup_id"
-    t.index ["user_id"], name: "index_standup_ownerships_on_user_id"
   end
 
   create_table "standup_participants", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -102,7 +99,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_050000) do
     t.date "vacation_until"
     t.string "avatar_url"
     t.index ["standup_id", "platform_user_id"], name: "index_standup_participants_on_standup_id_and_platform_user_id", unique: true
-    t.index ["standup_id"], name: "index_standup_participants_on_standup_id"
   end
 
   create_table "standup_responses", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -119,7 +115,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_050000) do
     t.datetime "updated_at", null: false
     t.index ["platform_user_id", "status"], name: "index_standup_responses_on_platform_user_id_and_status"
     t.index ["standup_id", "platform_user_id", "standup_date"], name: "idx_standup_responses_on_standup_user_date", unique: true
-    t.index ["standup_id"], name: "index_standup_responses_on_standup_id"
   end
 
   create_table "standup_schedule_exceptions", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -135,7 +130,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_050000) do
     t.datetime "updated_at", null: false
     t.index ["exception_type", "original_date"], name: "idx_standup_schedule_exceptions_on_type_date"
     t.index ["standup_id", "original_date"], name: "idx_standup_schedule_exceptions_on_standup_date", unique: true
-    t.index ["standup_id"], name: "index_standup_schedule_exceptions_on_standup_id"
   end
 
   create_table "standups", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
