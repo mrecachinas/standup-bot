@@ -37,11 +37,6 @@ class StandupResponseService
     end
   end
 
-  def self.mark_completed(standup_response)
-    complete_standup_response(standup_response)
-    standup_response.save!
-  end
-
   def self.cancel_previous_pending_responses(platform_user_id, standup_id, current_standup_date = nil, timezone = Time.zone)
     zone = Standup.resolve_time_zone(timezone)
     standup_date = current_standup_date.present? ? StandupResponse.normalize_date(current_standup_date) : zone.today

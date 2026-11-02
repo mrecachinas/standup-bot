@@ -1,8 +1,6 @@
 require "test_helper"
 
 class Api::AdminDashboardTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "admin-access-token".freeze
-
   test "requires authentication" do
     get api_admin_dashboard_path, as: :json
 
@@ -53,7 +51,7 @@ class Api::AdminDashboardTest < ActionDispatch::IntegrationTest
   test "unconfigured chat platforms are shown neutrally, not as healthy or failing" do
     HealthCheckService.stubs(:teams_check).returns({ status: "ok", configured: false })
 
-    get api_admin_dashboard_path, headers: { "Authorization" => "Bearer #{ADMIN_TOKEN}" }, as: :json
+    get api_admin_dashboard_path, headers: token_headers, as: :json
 
     teams = response.parsed_body["health_checks"].find { |check| check["key"] == "teams_api" }
     assert_equal "Not configured", teams["status_label"]
@@ -82,15 +80,8 @@ class Api::AdminDashboardTest < ActionDispatch::IntegrationTest
   end
 
   test "an admin's token opens the admin dashboard" do
-    get api_admin_dashboard_path, headers: { "Authorization" => "Bearer #{ADMIN_TOKEN}" }, as: :json
+    get api_admin_dashboard_path, headers: token_headers, as: :json
 
     assert_response :success
-  end
-
-  private
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

@@ -17,9 +17,6 @@ class StandupResponse < ApplicationRecord
 
   scope :pending, -> { where(status: "pending") }
   scope :completed, -> { where(status: "completed") }
-  scope :skipped, -> { where(status: "skipped") }
-  scope :cancelled, -> { where(status: "cancelled") }
-  scope :expired, -> { where(status: "expired") }
   scope :for_standup_date, ->(date, timezone = Time.zone) { for_date_in_timezone(date, timezone) }
   scope :for_date_in_timezone, ->(date, timezone) {
     standup_date = normalize_date(date)
@@ -29,11 +26,6 @@ class StandupResponse < ApplicationRecord
 
     where(standup_date: standup_date).or(where(standup_date: nil, created_at: day_range))
   }
-  scope :for_today_in_timezone, ->(timezone) {
-    zone = Standup.resolve_time_zone(timezone)
-    for_date_in_timezone(zone.today, zone)
-  }
-  scope :for_today, -> { for_today_in_timezone(Time.zone) }
   scope :on_platform, ->(platform) { joins(:standup).where(standups: { platform: platform.to_s }) }
   # Responses belonging to this person in standups they're still part of.
   scope :authorized_for, ->(platform, platform_user_id) {

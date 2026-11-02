@@ -13,9 +13,7 @@ class SlackUserReactivationJobTest < ActiveJob::TestCase
     # Get common platform_user_id from the fixtures
     @platform_user_id = @participant1.platform_user_id
 
-    # Create mock slack client
-    @mock_slack_client = mock("SlackClient")
-    SlackClient.stubs(:instance).returns(@mock_slack_client)
+    @mock_slack_client = stub_slack_client
 
     # Reference the standups from the participants
     @standup1 = @participant1.standup

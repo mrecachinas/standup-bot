@@ -29,11 +29,6 @@ x-app: &app
     QUEUE_DB_USER: nerdbot
     QUEUE_DB_PASSWORD: postgres
     QUEUE_DB_NAME: nerdbot_development_queue
-    CABLE_DB_HOST: postgres
-    CABLE_DB_PORT: 5432
-    CABLE_DB_USER: nerdbot
-    CABLE_DB_PASSWORD: postgres
-    CABLE_DB_NAME: nerdbot_development_cable
   depends_on:
     postgres:
       condition: service_healthy

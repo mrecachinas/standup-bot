@@ -2,8 +2,6 @@ require "test_helper"
 require "csv"
 
 class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "admin-access-token".freeze
-
   setup do
     @manager = users(:manager)
     @admin = users(:admin)
@@ -156,16 +154,5 @@ class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
 
     get api_standup_stats_path(@unowned_standup), as: :json
     assert_response :forbidden
-  end
-
-  private
-
-  def token_headers
-    { "Authorization" => "Bearer #{ADMIN_TOKEN}" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

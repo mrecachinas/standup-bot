@@ -15,14 +15,14 @@ flowchart LR
         Web[web: rails server]
         Worker[worker: bin/jobs]
     end
-    Web --> PG[(PostgreSQL<br/>primary, cache, queue, cable)]
+    Web --> PG[(PostgreSQL<br/>primary, cache, queue)]
     Worker --> PG
     Worker -->|Web API| Slack
 ```
 
 ## What you need
 
-- PostgreSQL (Compose uses version 16). Point `DATABASE_URL` at the main database and `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL`, and `CABLE_DATABASE_URL` at the other three. They can all be on the same server.
+- PostgreSQL (Compose uses version 16). Point `DATABASE_URL` at the main database and `CACHE_DATABASE_URL` and `QUEUE_DATABASE_URL` at the other two. They can all be on the same server.
 - `RAILS_MASTER_KEY` (or `SECRET_KEY_BASE`)
 - `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` for Slack, and/or `TEAMS_APP_ID`, `TEAMS_APP_PASSWORD`, and `TEAMS_TENANT_ID` for [Microsoft Teams](teams-setup.md)
 - `APP_HOSTS` set to your public hostname

@@ -377,7 +377,7 @@ module Api
 
       permitted = params.require(:standup).permit(:participant_handles, participants: PARTICIPANT_ROW_FIELDS)
 
-      ordered_participant_rows(permitted[:participants]).map { |row| sanitize_participant_row(row) } +
+      Array(permitted[:participants]).map { |row| sanitize_participant_row(row) } +
         participant_handle_rows(permitted[:participant_handles])
     end
 
@@ -385,20 +385,6 @@ module Api
     def participant_handle_rows(text)
       text.to_s.split(/[,\n]/).map(&:strip).reject(&:blank?).uniq.map do |handle|
         { id: nil, platform_user_id: normalize_participant_identifier(handle), display_name: "", cached_timezone: nil, active: true, destroy: false }
-      end
-    end
-
-    # Rows arrive as an array, or as a hash keyed by position from form posts.
-    def ordered_participant_rows(raw_rows)
-      case raw_rows
-      when ActionController::Parameters
-        raw_rows.to_h.sort_by { |index, _row| index.to_i }.map(&:last)
-      when Hash
-        raw_rows.sort_by { |index, _row| index.to_i }.map(&:last)
-      when Array
-        raw_rows
-      else
-        []
       end
     end
 

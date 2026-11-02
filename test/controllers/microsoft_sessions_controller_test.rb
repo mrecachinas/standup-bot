@@ -51,7 +51,7 @@ class MicrosoftSessionsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to me_root_path
-    user = User.find_by_identity!(:teams, TEAMS_USER_ID)
+    user = User.find_by_identity(:teams, TEAMS_USER_ID)
     assert_equal "#{TEAMS_USER_ID}@teams-users.invalid", user.email
 
     get api_me_standups_path, as: :json

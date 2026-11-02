@@ -95,10 +95,6 @@ class StandupParticipant < ApplicationRecord
     end
   end
 
-  def holiday_status_on(date = Date.current)
-    standup.holiday_on?(date) ? "Holiday today" : "No holiday today"
-  end
-
   def calculate_send_time
     next_standup_occurrence&.scheduled_at&.in_time_zone(DEFAULT_TIMEZONE)
   end

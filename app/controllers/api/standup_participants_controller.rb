@@ -157,18 +157,12 @@ module Api
       user_id.present? && ChatPlatform.for_standup(@standup).channel_member_ids(channel).include?(user_id)
     end
 
-    # The admin API sends `participant`; the old console form sent
-    # `standup_participant`.
-    def participant_param_key
-      params[:participant].blank? && params[:standup_participant].present? ? :standup_participant : :participant
-    end
-
     def lookup_requested?
-      ActiveModel::Type::Boolean.new.cast(params[:lookup]) || participant_param_key == :standup_participant
+      ActiveModel::Type::Boolean.new.cast(params[:lookup])
     end
 
     def participant_params
-      permitted = params.require(participant_param_key).permit(
+      permitted = params.require(:participant).permit(
         :platform_user_id,
         :display_name,
         :active,

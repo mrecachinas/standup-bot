@@ -38,34 +38,6 @@ class StandupResponseTest < ActiveSupport::TestCase
     assert_not_includes StandupResponse.completed, pending_response
   end
 
-  test "skipped scope should return only skipped responses" do
-    # Create a skipped response
-    skipped_response = StandupResponse.create!(
-      standup: @response.standup,
-      platform_user_id: "U99999",
-      status: "skipped",
-      answers: []
-    )
-
-    pending_response = standup_responses(:pending)
-    completed_response = standup_responses(:completed)
-
-    assert_includes StandupResponse.skipped, skipped_response
-    assert_not_includes StandupResponse.skipped, pending_response
-    assert_not_includes StandupResponse.skipped, completed_response
-  end
-
-  test "for_today scope should return only responses created today" do
-    today_response = standup_responses(:today)
-    yesterday_response = standup_responses(:yesterday)
-
-    # Use Timecop to freeze time at a specific time in UTC
-    Timecop.freeze(Time.new(2025, 4, 6, 12, 0, 0, "+00:00")) do
-      assert_includes StandupResponse.for_today, today_response
-      assert_not_includes StandupResponse.for_today, yesterday_response
-    end
-  end
-
   test "for_date_in_timezone should use timezone local day" do
     response = StandupResponse.create!(
       standup: @standup,
@@ -92,18 +64,6 @@ class StandupResponseTest < ActiveSupport::TestCase
 
     assert_includes StandupResponse.for_standup_date(Date.new(2025, 4, 7), "Australia/Sydney"), response
     assert_not_includes StandupResponse.for_standup_date(Date.new(2025, 4, 7), "UTC"), response
-  end
-
-  test "cancelled scope should return only cancelled responses" do
-    cancelled_response = StandupResponse.create!(
-      standup: @standup,
-      platform_user_id: "UCANCELLED",
-      status: "cancelled",
-      answers: []
-    )
-
-    assert_includes StandupResponse.cancelled, cancelled_response
-    assert_not_includes StandupResponse.cancelled, standup_responses(:pending)
   end
 
   test "should find participant by platform_user_id" do

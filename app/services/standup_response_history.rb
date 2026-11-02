@@ -274,18 +274,4 @@ class StandupResponseHistory
   def scheduled_on?(date)
     standup.scheduled_on_date?(date)
   end
-
-  def schedule_days
-    days = Array(standup.schedule_days).filter_map { |day| Integer(day, exception: false) }
-    days.presence || [ 1 ]
-  end
-
-  def biweekly_week?(date)
-    week_start = date.beginning_of_week(:monday)
-    ((week_start - Standup::BIWEEKLY_REFERENCE_DATE) / 7).to_i.even?
-  end
-
-  def monthly_scheduled_on?(date)
-    date.day == [ schedule_days.first, date.end_of_month.day ].min
-  end
 end

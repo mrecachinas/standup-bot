@@ -13,9 +13,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
     @platform_user_id = @participant.platform_user_id
     StandupResponse.where(platform_user_id: @platform_user_id, standup_id: @standup.id).delete_all
 
-    # Mock the slack client
-    @mock_slack_client = mock("SlackClient")
-    SlackClient.stubs(:instance).returns(@mock_slack_client)
+    @mock_slack_client = stub_slack_client
 
     # Setup test data
     @standup.questions = [ "What did you do yesterday?", "What are you doing today?", "Any blockers?" ]

@@ -14,9 +14,7 @@ class NonResponseHandlingTest < ActiveSupport::TestCase
 
     @platform_user_id = "U12345"
 
-    # Mock the slack client
-    @mock_slack_client = mock("SlackClient")
-    SlackClient.stubs(:instance).returns(@mock_slack_client)
+    @mock_slack_client = stub_slack_client
   end
 
   test "user gets new standup after not completing previous one" do

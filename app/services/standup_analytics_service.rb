@@ -120,13 +120,6 @@ class StandupAnalyticsService
     end
   end
 
-  def frequent_non_responders(limit: 5)
-    participant_stats
-      .select { |stat| stat[:missed].positive? }
-      .sort_by { |stat| [ -stat[:missed], stat[:completion_rate], stat[:display_name].to_s.downcase, stat[:platform_user_id] ] }
-      .first(limit)
-  end
-
   def question_summaries(limit: 3)
     completed_count = completed_responses.count
 
@@ -352,20 +345,6 @@ class StandupAnalyticsService
     return @scheduled_on[date] if @scheduled_on.key?(date)
 
     @scheduled_on[date] = standup.scheduled_on_date?(date)
-  end
-
-  def schedule_days
-    days = Array(standup.schedule_days).filter_map { |day| Integer(day, exception: false) }
-    days.presence || [ 1 ]
-  end
-
-  def biweekly_week?(date)
-    week_start = date.beginning_of_week(:monday)
-    ((week_start - Standup::BIWEEKLY_REFERENCE_DATE) / 7).to_i.even?
-  end
-
-  def monthly_scheduled_on?(date)
-    date.day == [ schedule_days.first, date.end_of_month.day ].min
   end
 
   def average_response_time_minutes(collection)

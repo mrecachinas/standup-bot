@@ -2,8 +2,7 @@ require "test_helper"
 
 class DirectMessageCommandsTest < ActiveSupport::TestCase
   setup do
-    @slack_client = mock("SlackClient")
-    SlackClient.stubs(:instance).returns(@slack_client)
+    @slack_client = stub_slack_client
     @commands = DirectMessageCommands.new(ChatPlatform.for(:slack))
     @platform_user_id = "U12345678"
     @channel = "D87654321"

@@ -5,8 +5,6 @@ class Api::ReportsTest < ActionDispatch::IntegrationTest
   include ActiveJob::TestHelper
   include TeamsTestHelper
 
-  ADMIN_TOKEN = "admin-access-token".freeze
-
   setup do
     @manager = users(:manager)
     @admin = users(:admin)
@@ -216,16 +214,5 @@ class Api::ReportsTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal "weekly-reports", @unowned_standup.reload.report_configuration.delivery_channel
-  end
-
-  private
-
-  def token_headers
-    { "Authorization" => "Bearer #{ADMIN_TOKEN}" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

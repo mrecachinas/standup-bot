@@ -26,8 +26,6 @@ class User < ApplicationRecord
   validates :access_token_digest, presence: true, format: { with: TOKEN_DIGEST_PATTERN }
 
   scope :active, -> { where(active: true) }
-  scope :admins, -> { where(role: "admin") }
-  scope :managers, -> { where(role: "manager") }
 
   def self.authenticate(email, access_token)
     user = active.find_by(email: normalize_email(email))
@@ -49,10 +47,6 @@ class User < ApplicationRecord
     return if platform_user_id.blank?
 
     joins(:identities).find_by(user_identities: { platform: platform.to_s, platform_user_id: platform_user_id })
-  end
-
-  def self.find_by_identity!(platform, platform_user_id)
-    find_by_identity(platform, platform_user_id) || raise(ActiveRecord::RecordNotFound, "No user for #{platform} #{platform_user_id}")
   end
 
   # Find or create the account for someone who signed in with a chat platform.
