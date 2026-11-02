@@ -5,7 +5,7 @@ import { Button, FormControl, Select, TextInput } from "@primer/react";
 import { GraphIcon } from "@primer/octicons-react";
 import type { HistoryDay, HistoryEntry, HistoryFilters, ResponseHistory } from "../../../api/types/roster";
 import { Avatar, DateTile, Meter, Panel, StatusLabel } from "../../../components";
-import { formatPercent } from "../../../lib/format";
+import { formatPercent, pluralize } from "../../../lib/format";
 import layout from "../../../styles/layout.module.css";
 import styles from "./roster.module.css";
 
@@ -102,17 +102,23 @@ export function HistoryFiltersCard({ history, initial, resetPath, insightsPath, 
 }
 
 export function HistoryDaySection({ day }: { day: HistoryDay }) {
+  const notSentYet = day.expected_count === 0 && day.upcoming_count > 0;
+  const counts = notSentYet
+    ? [`Not sent yet · ${pluralize(day.upcoming_count, "person", "people")} expected`]
+    : [`${day.answered_count} answered`, `${day.missed_count} missed`, `${day.expected_count} expected`, day.upcoming_count > 0 ? `${day.upcoming_count} not sent yet` : null];
   return (
     <Panel
       id={`standup-history-${day.date}`}
       headingId={`standup-history-${day.date}-heading`}
       title={day.date_label}
-      description={`${day.answered_count} answered · ${day.missed_count} missed · ${day.expected_count} expected`}
+      description={counts.filter(Boolean).join(" · ")}
       leadingVisual={<DateTile date={day.date} />}
       actions={
-        <Meter className={styles.dayMeter} value={day.answer_rate} tone={day.answer_rate_tone} label={`${formatPercent(day.answer_rate)} answered on ${day.date_label}`}>
-          {formatPercent(day.answer_rate)}
-        </Meter>
+        notSentYet ? undefined : (
+          <Meter className={styles.dayMeter} value={day.answer_rate} tone={day.answer_rate_tone} label={`${formatPercent(day.answer_rate)} answered on ${day.date_label}`}>
+            {formatPercent(day.answer_rate)}
+          </Meter>
+        )
       }
       flush
     >

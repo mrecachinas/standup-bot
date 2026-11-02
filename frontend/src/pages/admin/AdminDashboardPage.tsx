@@ -60,7 +60,7 @@ export function AdminDashboardPage() {
         <StatCard label="Standups" value={stats.standups_total} hint={`${stats.standups_active} active · ${stats.standups_paused} paused`} />
         <StatCard label="People" value={stats.active_people} hint={`${pluralize(stats.active_participants, "active membership")} across standups`} />
         <StatCard label="Responses (24h)" value={stats.responses_last_24h} hint={`${stats.completed_last_24h} completed`} />
-        <StatCard label="Users" value={stats.users_active} hint={`${pluralize(stats.users_admin, "admin")} · ${stats.standup_owners} running standups`} />
+        <StatCard label="Active users" value={stats.users_active} hint={`${pluralize(stats.users_admin, "admin")} · ${stats.standup_owners} own a standup`} />
       </StatGrid>
 
       <div className={layout.mainAside}>

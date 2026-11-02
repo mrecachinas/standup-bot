@@ -48,6 +48,7 @@ class ResponseHistorySerializer
       expected_count: day.expected_count,
       answered_count: day.answered_count,
       missed_count: day.missed_count,
+      upcoming_count: day.entries.count(&:upcoming?),
       answer_rate: rate,
       answer_rate_tone: UiFormat.rate_tone(rate),
       entries: day.entries.map { |entry| serialize_entry(entry) }
@@ -64,6 +65,7 @@ class ResponseHistorySerializer
       expected: entry.expected? || false,
       answered: entry.answered?,
       missed: entry.missed?,
+      upcoming: entry.upcoming?,
       status: entry.response&.status,
       status_label: entry.status_label,
       status_tone: status_tone(entry),
@@ -93,12 +95,14 @@ class ResponseHistorySerializer
 
   def status_tone(entry)
     return "success" if entry.answered?
+    return "info" if entry.pending?
 
-    "warning" if entry.missed?
+    "warning" if entry.missed? || entry.skipped?
   end
 
   def empty_message(entry)
     return if entry.answers.any?
+    return "Not sent yet." if entry.upcoming?
     return "No answer recorded for “#{@history.question}”." if entry.response && @history.question.present?
     return "No submitted answers were recorded for this response." if entry.response
 

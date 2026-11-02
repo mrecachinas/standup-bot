@@ -4,7 +4,7 @@ import { InboxIcon } from "@primer/octicons-react";
 import type { HistoryFilters, ResponsesHistoryPayload } from "../../api/types/roster";
 import { EmptyState, ErrorBanner, StandupHeader, StatCard, StatGrid } from "../../components";
 import { useForwardedQuery } from "../../hooks/useForwardedQuery";
-import { formatPercent } from "../../lib/format";
+import { formatPercent, pluralize } from "../../lib/format";
 import { paths } from "../../paths";
 import { HistoryDaySection, HistoryFiltersCard, type FilterValues } from "./roster/ResponseHistory";
 import { StandupLoadState } from "./standups/StandupLoadState";
@@ -63,15 +63,15 @@ export function StandupResponsesPage() {
 
       <section aria-label="Summary">
         <StatGrid>
-          <StatCard label="Standup dates" value={summary.dates} />
-          <StatCard label="Expected" value={summary.expected} />
+          <StatCard label="Expected" value={summary.expected} hint={`Across ${pluralize(summary.dates, "standup date")}`} />
           <StatCard
             label="Answered"
             value={summary.answered}
             tone={summary.answer_rate_tone}
             hint={summary.answer_rate !== null ? `${formatPercent(summary.answer_rate)} of expected` : "—"}
           />
-          <StatCard label="Missed" value={summary.missed} />
+          <StatCard label="Skipped" value={summary.skipped} hint="Chose to skip" />
+          <StatCard label="Missed" value={summary.missed} hint={summary.pending > 0 ? `${summary.pending} still waiting to answer` : "No answer"} />
         </StatGrid>
       </section>
 

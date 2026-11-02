@@ -100,7 +100,7 @@ export function overviewFixture(overrides: Partial<OverviewPayload> = {}): Overv
       completion_tone: "success",
       completion_sub_label: "6 of 8 expected",
       needs_attention_count: 1,
-      needs_attention_label: "See list below",
+      needs_attention_label: "1 paused · 1 under 60%",
     },
     daily_totals: [
       { date: "2026-10-29", expected: 4, completed: 3, skipped: 0, pending: 0, missed: 1, completion_rate: 75 },

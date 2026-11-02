@@ -1,7 +1,8 @@
 import { Link as RouterLink } from "react-router";
-import { Button, UnderlineNav } from "@primer/react";
+import { Button, IconButton, UnderlineNav } from "@primer/react";
 import { GlobeIcon, HashIcon, PauseIcon, PencilIcon, PeopleIcon, PlayIcon, SyncIcon } from "@primer/octicons-react";
 import type { Standup } from "../api/types";
+import { NARROW_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
 import { usePauseResume } from "../hooks/usePauseResume";
 import { pluralize } from "../lib/format";
 import { paths, standupTabPath, type StandupTab } from "../paths";
@@ -25,6 +26,9 @@ export function StandupHeader({ standup, active, onStandupChange, participantCou
   const platformLabel = standup.platform_label;
   const channel = standup.channel_label.replace(/^#/, "") || "No channel";
   const ChannelIcon = standup.platform === "teams" ? PeopleIcon : HashIcon;
+  // On phones the buttons go icon-only so the title keeps its room.
+  const narrow = useMediaQuery(NARROW_QUERY);
+  const pauseLabel = `${standup.active ? "Pause" : "Resume"} ${standup.name}`;
 
   const tabs: { key: StandupTab; label: string; counter?: number }[] = [
     { key: "overview", label: "Overview" },
@@ -45,21 +49,27 @@ export function StandupHeader({ standup, active, onStandupChange, participantCou
         breadcrumbs={[{ label: "Standups", to: paths.standups }, { label: standup.name }]}
         actions={
           <div className={styles.actions}>
-            {onStandupChange && (
-              <Button
-                leadingVisual={standup.active ? PauseIcon : PlayIcon}
-                onClick={() => void pauseResume.run(standup)}
-                loading={pauseResume.loading}
-                aria-label={`${standup.active ? "Pause" : "Resume"} ${standup.name}`}
-              >
-                {standup.active ? "Pause" : "Resume"}
-              </Button>
-            )}
-            {active !== "settings" && (
-              <Button as={RouterLink} to={standupTabPath(standup.id, "settings")} variant="primary" leadingVisual={PencilIcon}>
-                Edit standup
-              </Button>
-            )}
+            {onStandupChange &&
+              (narrow ? (
+                <IconButton
+                  icon={standup.active ? PauseIcon : PlayIcon}
+                  onClick={() => void pauseResume.run(standup)}
+                  loading={pauseResume.loading}
+                  aria-label={pauseLabel}
+                />
+              ) : (
+                <Button leadingVisual={standup.active ? PauseIcon : PlayIcon} onClick={() => void pauseResume.run(standup)} loading={pauseResume.loading} aria-label={pauseLabel}>
+                  {standup.active ? "Pause" : "Resume"}
+                </Button>
+              ))}
+            {active !== "settings" &&
+              (narrow ? (
+                <IconButton as={RouterLink} to={standupTabPath(standup.id, "settings")} variant="primary" icon={PencilIcon} aria-label="Edit standup" />
+              ) : (
+                <Button as={RouterLink} to={standupTabPath(standup.id, "settings")} variant="primary" leadingVisual={PencilIcon}>
+                  Edit standup
+                </Button>
+              ))}
           </div>
         }
       >

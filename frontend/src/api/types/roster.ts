@@ -194,6 +194,8 @@ export interface HistoryEntry {
   expected: boolean;
   answered: boolean;
   missed: boolean;
+  /** Expected today or later but not sent yet. */
+  upcoming: boolean;
   status: string | null;
   status_label: string;
   status_tone: Tone;
@@ -213,6 +215,7 @@ export interface HistoryDay {
   expected_count: number;
   answered_count: number;
   missed_count: number;
+  upcoming_count: number;
   answer_rate: number;
   answer_rate_tone: Tone;
   entries: HistoryEntry[];
@@ -223,10 +226,13 @@ export interface ResponseHistory {
   range_limited: boolean;
   max_range_days: number;
   default_range_days: number;
+  /** answered + skipped + pending + missed = expected. */
   summary: {
     dates: number;
     expected: number;
     answered: number;
+    skipped: number;
+    pending: number;
     missed: number;
     answer_rate: number | null;
     answer_rate_tone: Tone;

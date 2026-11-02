@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { routes } from "./router";
-import { userBootstrap } from "./test/fixtures";
+import { slackPlatform, teamsPlatform, userBootstrap } from "./test/fixtures";
 import { mockFetch, renderApp } from "./test/render";
 
 const paths = [
@@ -37,5 +37,15 @@ describe("App", () => {
     await waitFor(() => expect(document.title).toMatch(/ · Standup Bot$/));
     await waitFor(() => expect(screen.queryByText(/^Loading/)).not.toBeInTheDocument());
     expect(screen.queryByRole("heading", { name: "Something went wrong" })).not.toBeInTheDocument();
+  });
+
+  it("points someone signed in with a token to their chat sign-in instead of the sign-in page", async () => {
+    mockFetch(userBootstrap({ platforms: [{ ...slackPlatform }, { ...teamsPlatform, sign_in_enabled: false }] }));
+    renderApp("/me");
+
+    expect(await screen.findByRole("heading", { name: "Your check-ins live in your chat account" })).toBeInTheDocument();
+    expect(screen.getByText(/isn't tied to a Slack account/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in with Slack" })).toHaveAttribute("href", "/auth/slack");
+    expect(screen.queryByRole("link", { name: "Sign in with Microsoft" })).toBeNull();
   });
 });

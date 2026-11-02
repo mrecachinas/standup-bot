@@ -72,8 +72,21 @@ class OverviewDashboardSerializer
       completion_tone: (UiFormat.rate_tone(rate) if rate),
       completion_sub_label: "#{completed.to_fs(:delimited)} of #{expected.to_fs(:delimited)} expected",
       needs_attention_count: attention.size,
-      needs_attention_label: attention.any? ? "See list below" : "Everything looks healthy"
+      needs_attention_label: attention.any? ? needs_attention_label : "Everything looks healthy"
     }
+  end
+
+  # e.g. "1 paused · 2 under 60%", so the card makes sense wherever the list is.
+  def needs_attention_label
+    paused = attention.count { |item| !item.standup.active? }
+    empty = attention.count { |item| item.standup.active? && item.participant_count.zero? }
+    low = attention.size - paused - empty
+
+    [
+      ("#{paused} paused" if paused.positive?),
+      ("#{empty} with no one" if empty.positive?),
+      ("#{low} under 60%" if low.positive?)
+    ].compact.join(" · ")
   end
 
   def attention_json(item)

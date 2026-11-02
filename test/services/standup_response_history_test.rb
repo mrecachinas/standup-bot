@@ -97,4 +97,44 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
     assert_empty history.days
     assert_equal 0, history.summary[:expected]
   end
+
+  test "today's run isn't missed before it goes out" do
+    @standup.standup_responses.delete_all
+    history = StandupResponseHistory.new(
+      standup: @standup,
+      params: { start_date: "2025-04-10", end_date: "2025-04-10" },
+      today: Date.new(2025, 4, 10)
+    )
+
+    entries = history.days.first.entries.select(&:expected?)
+    assert entries.any?
+    assert entries.all?(&:upcoming?)
+    assert entries.none?(&:missed?)
+    assert_equal "Upcoming", entries.first.status_label
+    assert_equal 0, history.summary[:expected]
+    assert_equal 0, history.summary[:missed]
+  end
+
+  test "summary counts add up to expected" do
+    participants = @standup.standup_participants.active.order(:platform_user_id).to_a
+    @standup.standup_responses.delete_all
+    date = Date.new(2025, 4, 8)
+    @standup.standup_responses.create!(platform_user_id: participants[0].platform_user_id, status: "completed", standup_date: date, answers: [])
+    @standup.standup_responses.create!(platform_user_id: participants[1].platform_user_id, status: "skipped", standup_date: date, answers: [])
+    @standup.standup_responses.create!(platform_user_id: "UEXPIRED1", status: "expired", standup_date: date, answers: [])
+
+    history = StandupResponseHistory.new(
+      standup: @standup,
+      params: { start_date: "2025-04-08", end_date: "2025-04-08" },
+      today: Date.new(2025, 4, 10)
+    )
+    summary = history.summary
+    expired = history.days.first.entries.find { |entry| entry.platform_user_id == "UEXPIRED1" }
+
+    assert_equal 1, summary[:answered]
+    assert_equal 1, summary[:skipped]
+    assert_equal summary[:expected], summary[:answered] + summary[:skipped] + summary[:pending] + summary[:missed]
+    assert expired.missed?
+    assert_equal "Missed", expired.status_label
+  end
 end

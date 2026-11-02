@@ -28,6 +28,15 @@ async function openRowMenu(user: ReturnType<typeof userEvent.setup>, name: strin
 }
 
 describe("StandupParticipantsPage", () => {
+  it("only tells the last manager they can't step down", async () => {
+    const payload = participantsConsole();
+    setup(undefined, { ...payload, managers: payload.managers.map((manager) => ({ ...manager, current_user: false })) });
+    renderApp(PAGE);
+
+    expect(await screen.findByRole("list", { name: "Managers" })).toBeInTheDocument();
+    expect(screen.queryByText(/before you can step down/)).toBeNull();
+  });
+
   it("shows the roster, managers, platform copy and summary", async () => {
     setup();
     renderApp(PAGE);
