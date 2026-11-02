@@ -17,7 +17,7 @@ describe("StandupPage", () => {
     expect(within(tabs).getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
 
     expect(screen.getByText("Completion · 14 days")).toBeInTheDocument();
-    expect(screen.getByText("↑ 25 pts")).toHaveAttribute("title", "Compared with the previous period");
+    expect(screen.getByText("25 pts")).toHaveAttribute("title", "Compared with the previous period");
     expect(screen.getByText("6 of 8 responses")).toBeInTheDocument();
     expect(screen.getByText("12 minutes")).toBeInTheDocument();
     expect(screen.getByText("1 inactive")).toBeInTheDocument();

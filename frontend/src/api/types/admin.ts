@@ -1,6 +1,5 @@
 // GET /api/admin/dashboard
-import type { PlatformKey, Tone } from "../types";
-import type { RunBreakdown } from "../../components/charts";
+import type { PlatformKey, RunTotals, Tone } from "../types";
 
 export interface HealthDetail {
   label: string;
@@ -34,15 +33,6 @@ export interface AdminStats {
   standup_owners: number;
 }
 
-export interface AdminActivityDay extends RunBreakdown {
-  date: string;
-  expected: number;
-  pending: number;
-  label: string;
-  total: number;
-  title: string;
-}
-
 export interface ResponseStatusTotal {
   status: string;
   label: string;
@@ -61,8 +51,8 @@ export interface AdminUser {
   avatar_url: string | null;
   admin: boolean;
   access_label: string;
-  /** "accent" for admins, null otherwise. */
-  access_tone: "accent" | null;
+  /** "info" for admins, null otherwise. */
+  access_tone: Tone;
   owned_standups_count: number;
   owned_standups_label: string;
   last_signed_in_at: string | null;
@@ -96,7 +86,7 @@ export interface AdminDashboard {
   health_checks: HealthCheck[];
   stats: AdminStats;
   activity_days: number;
-  daily_activity: AdminActivityDay[];
+  daily_activity: RunTotals[];
   daily_activity_has_pending: boolean;
   response_totals: { total: number; statuses: ResponseStatusTotal[] };
   users: AdminUser[];

@@ -104,7 +104,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal 4, body.dig("schedule_preview", "occurrences").size
     assert_nil body.dig("schedule_preview", "error")
     occurrence = body.dig("schedule_preview", "occurrences").first
-    assert_equal %w[date day label local_time month scheduled_at short_date time weekday], occurrence.keys.sort
+    assert_equal %w[date label scheduled_at time weekday], occurrence.keys.sort
   end
 
   test "an admin's token gets a form without a creator row" do

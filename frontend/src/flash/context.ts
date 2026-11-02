@@ -10,14 +10,12 @@ export interface FlashValue {
   /** Show a toast, e.g. `push({ type: "success", message: response.notice })`. */
   push: (message: FlashMessage) => void;
   dismiss: (id: number) => void;
-  clear: () => void;
 }
 
 export const FlashContext = createContext<FlashValue>({
   messages: [],
   push: () => {},
   dismiss: () => {},
-  clear: () => {},
 });
 
 export function useFlash(): FlashValue {

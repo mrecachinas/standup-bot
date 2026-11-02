@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { RateLineChart, RunBreakdownChart, RunLegend, Sparkline, niceMax } from ".";
+import { RateLineChart, RunBreakdownChart, RunLegend, Sparkline } from ".";
+import { niceMax } from "./scale";
 
 describe("niceMax", () => {
   it("matches ChartsHelper#nice_max", () => {
@@ -42,7 +43,7 @@ describe("RunBreakdownChart", () => {
   });
 
   it("mentions pending responses", () => {
-    const { container } = render(<RunBreakdownChart runs={[{ date: "2026-10-03", completed: 1, skipped: 0, pending: 2, missed: 0, completion_rate: 33.3 }]} />);
+    const { container } = render(<RunBreakdownChart runs={[{ date: "2026-10-03", expected: 3, completed: 1, skipped: 0, pending: 2, missed: 0, completion_rate: 33.3 }]} />);
     expect(container.textContent).toContain("Oct 3, 2026: 1 completed, 0 skipped, 0 missed, 2 pending (33%)");
   });
 

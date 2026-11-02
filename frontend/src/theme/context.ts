@@ -3,7 +3,7 @@ import { createContext, useContext } from "react";
 export type ThemePreference = "system" | "light" | "dark";
 export type PrimerColorMode = "auto" | "day" | "night";
 
-export const THEME_STORAGE_KEY = "theme";
+const THEME_STORAGE_KEY = "theme";
 
 export const COLOR_MODES: Record<ThemePreference, PrimerColorMode> = {
   system: "auto",

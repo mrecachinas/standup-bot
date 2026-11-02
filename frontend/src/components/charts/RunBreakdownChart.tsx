@@ -1,12 +1,13 @@
 import { formatShortDate, parseApiDate } from "../../lib/format";
-import { CHART_WIDTH, RUN_SEGMENTS, runSummary, toInt, type RunBreakdown } from "./runs";
+import type { RunTotals } from "../../api/types";
+import { CHART_WIDTH, RUN_SEGMENTS, runSummary } from "./runs";
 import { ChartEmpty } from "./ChartEmpty";
 import { YAxis } from "./YAxis";
 import { niceMax, round2 } from "./scale";
 import styles from "./charts.module.css";
 
 export interface RunBreakdownChartProps {
-  runs: RunBreakdown[];
+  runs: RunTotals[];
   height?: number;
   width?: number;
   label?: string;
@@ -21,7 +22,7 @@ export function RunBreakdownChart({ runs, height = 200, width = CHART_WIDTH, lab
   const top = 8;
   const plotWidth = width - left;
   const plotHeight = height - bottom - top;
-  const max = niceMax(Math.max(...runs.map((run) => RUN_SEGMENTS.reduce((sum, key) => sum + toInt(run[key]), 0))));
+  const max = niceMax(Math.max(...runs.map((run) => RUN_SEGMENTS.reduce((sum, key) => sum + run[key], 0))));
   const band = plotWidth / runs.length;
   const barWidth = Math.min(band * 0.62, 28);
   const labelEvery = Math.min(Math.max(Math.ceil(runs.length / 10), 1), 100);
@@ -35,7 +36,7 @@ export function RunBreakdownChart({ runs, height = 200, width = CHART_WIDTH, lab
         const segments = [];
         let y = top + plotHeight;
         for (const key of RUN_SEGMENTS) {
-          const value = toInt(run[key]);
+          const value = run[key];
           if (value === 0) continue;
           const segmentHeight = (value / max) * plotHeight;
           y -= segmentHeight;
@@ -43,7 +44,7 @@ export function RunBreakdownChart({ runs, height = 200, width = CHART_WIDTH, lab
         }
 
         return (
-          <g key={`${String(run.date)}-${index}`}>
+          <g key={`${run.date}-${index}`}>
             <g className="bar-group">
               <title>{runSummary(run)}</title>
               {segments}

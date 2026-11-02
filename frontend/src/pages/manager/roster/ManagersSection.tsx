@@ -1,7 +1,7 @@
 import type { StandupManager } from "../../../api/types/roster";
-import { Avatar, ConfirmButton } from "../../../components";
-import { Section } from "./Section";
-import styles from "./roster.module.css";
+import { Avatar, ConfirmButton, Panel } from "../../../components";
+import layout from "../../../styles/layout.module.css";
+import { removeManagerCopy } from "./managerCopy";
 
 export interface ManagersSectionProps {
   standupName: string;
@@ -11,51 +11,51 @@ export interface ManagersSectionProps {
 
 export function ManagersSection({ standupName, managers, onRemove }: ManagersSectionProps) {
   return (
-    <Section
+    <Panel
       title="Managers"
-      titleId="standup-managers-heading"
+      headingId="standup-managers-heading"
       id="standup-managers"
-      hint="Managers can change this standup's settings, people, and schedule. It doesn't give them access to any other standup."
+      flush
+      description="Managers can change this standup's settings, people, and schedule. It doesn't give them access to any other standup."
     >
       {managers.length > 0 ? (
         <>
-          <ul className={styles.list} aria-labelledby="standup-managers-heading">
-            {managers.map((manager) => (
-              <li key={manager.id} className={styles.listItem}>
-                <Avatar name={manager.name} src={manager.avatar_url} />
-                <div className={styles.grow}>
-                  <div className={styles.cellTitle}>
-                    {manager.name}
-                    {manager.current_user && <span className={styles.subtle}> (you)</span>}
+          <ul className={layout.list} aria-labelledby="standup-managers-heading">
+            {managers.map((manager) => {
+              const copy = removeManagerCopy(manager.name, standupName, manager.current_user);
+              return (
+                <li key={manager.id}>
+                  <Avatar name={manager.name} src={manager.avatar_url} />
+                  <div className={layout.grow}>
+                    <div className={layout.title}>
+                      {manager.name}
+                      {manager.current_user && <span className={layout.hint}> (you)</span>}
+                    </div>
+                    <div className={layout.hint}>{manager.role_label}</div>
                   </div>
-                  <div className={styles.cellSub}>{manager.role_label}</div>
-                </div>
-                {manager.can_remove && (
-                  <ConfirmButton
-                    size="small"
-                    variant="invisible"
-                    aria-label={manager.current_user ? `Stop managing ${standupName}` : `Remove ${manager.name} as a manager`}
-                    title={manager.current_user ? `Stop managing ${standupName}?` : `Remove ${manager.name}?`}
-                    message={
-                      manager.current_user
-                        ? `Stop managing ${standupName}? You'll lose access to it.`
-                        : `Remove ${manager.name} as a manager of ${standupName}?`
-                    }
-                    confirmLabel="Remove"
-                    danger
-                    onConfirm={() => onRemove(manager)}
-                  >
-                    Remove
-                  </ConfirmButton>
-                )}
-              </li>
-            ))}
+                  {manager.can_remove && (
+                    <ConfirmButton
+                      size="small"
+                      variant="invisible"
+                      aria-label={copy.title.replace(/\?$/, "")}
+                      title={copy.title}
+                      message={copy.message}
+                      confirmLabel={copy.confirm}
+                      danger
+                      onConfirm={() => onRemove(manager)}
+                    >
+                      Remove
+                    </ConfirmButton>
+                  )}
+                </li>
+              );
+            })}
           </ul>
-          {managers.length === 1 && <p className={styles.emptyInline}>Make someone else a manager from the list below before you can step down.</p>}
+          {managers.length === 1 && <p className={layout.empty}>Make someone else a manager from the list below before you can step down.</p>}
         </>
       ) : (
-        <p className={styles.emptyInline}>Only admins manage this standup right now. Make someone a manager from the list below.</p>
+        <p className={layout.empty}>Only admins manage this standup right now. Make someone a manager from the list below.</p>
       )}
-    </Section>
+    </Panel>
   );
 }

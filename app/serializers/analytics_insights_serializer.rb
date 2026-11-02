@@ -3,7 +3,6 @@
 # and per-question completion.
 class AnalyticsInsightsSerializer
   RANGE_PRESETS = [ 7, 30, 90 ].freeze
-  RUN_SEGMENTS = %i[completed skipped pending missed].freeze
 
   def initialize(analytics, previous: nil, today: Date.current)
     @analytics = analytics
@@ -80,16 +79,7 @@ class AnalyticsInsightsSerializer
   end
 
   def runs
-    @runs ||= @analytics.run_breakdown.map do |run|
-      pending = run[:pending].positive? ? ", #{run[:pending]} pending" : ""
-      run.merge(
-        date: run[:date].iso8601,
-        label: run[:date].to_fs(:month_day),
-        total: RUN_SEGMENTS.sum { |key| run[key].to_i },
-        title: "#{run[:date].to_fs(:month_day_year)}: #{run[:completed]} completed, #{run[:skipped]} skipped, " \
-          "#{run[:missed]} missed#{pending} (#{run[:completion_rate].round}%)"
-      )
-    end
+    @runs ||= @analytics.run_breakdown.map { |run| run.merge(date: run[:date].iso8601) }
   end
 
   def completion_series

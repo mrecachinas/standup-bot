@@ -18,6 +18,7 @@
 }
 
 .headerText {
+  flex: 1;
   min-width: 0;
 }
 
@@ -43,18 +44,19 @@
 
 .body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--base-size-12);
+  gap: var(--base-size-16);
   padding: var(--base-size-16);
 }
 
-.flush {
-  display: flex;
-  flex-direction: column;
+.body + .body {
+  border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
 }
 
 .footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--base-size-8);
   padding: var(--base-size-12) var(--base-size-16);

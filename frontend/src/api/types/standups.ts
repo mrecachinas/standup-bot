@@ -2,20 +2,9 @@
 // (app/serializers/overview_dashboard_serializer.rb, standup_overview_serializer.rb,
 // standup_form_serializer.rb, standup_schedule_preview_serializer.rb and
 // Api::PeopleController).
-import type { Platform, PlatformKey, Standup, Tone } from "../types";
+import type { Participant, Platform, PlatformKey, RunTotals, Standup, Tone } from "../types";
 
 export type Visibility = "all" | "active" | "paused";
-
-/** One run in a RunBreakdownChart: a standup date or a day across standups. */
-export interface RunTotals {
-  date: string;
-  expected: number;
-  completed: number;
-  skipped: number;
-  pending: number;
-  missed: number;
-  completion_rate: number;
-}
 
 // --- GET /api/overview ------------------------------------------------------
 
@@ -44,15 +33,7 @@ export interface NeedsAttentionItem {
   tone: Tone;
 }
 
-/** StandupSerializer's console keys the shared Standup type leaves out. */
-export interface ConsoleStandup extends Standup {
-  status_label?: string;
-  status_tone?: Tone;
-  channel_label?: string;
-  timezone_label?: string;
-}
-
-export interface OverviewStandup extends ConsoleStandup {
+export interface OverviewStandup extends Standup {
   standup_id: number;
   participant_count: number;
   participant_label: string;
@@ -97,21 +78,19 @@ export interface StandupMutationResult {
 
 // --- Schedule previews ------------------------------------------------------
 
-export interface ScheduleOccurrence {
+/** A run in a schedule preview, in the preview's time zone. */
+export interface PreviewOccurrence {
   scheduled_at: string;
-  local_time: string;
+  /** Local date, "2026-11-02". */
   date: string;
-  month: string;
-  day: number;
   weekday: string;
-  short_date: string;
   time: string;
   label: string;
 }
 
 /** POST /api/standups/preview, and the editor's/overview's initial preview. */
 export interface SchedulePreview {
-  occurrences: ScheduleOccurrence[];
+  occurrences: PreviewOccurrence[];
   preview_timezone: string;
   error: string | null;
   empty_message: string;
@@ -133,15 +112,7 @@ export interface OverviewResponse {
   answers: { question: string | null; answer: string | null }[];
 }
 
-export interface OverviewParticipant {
-  id: number;
-  standup_id: number;
-  platform_user_id: string;
-  display_name: string;
-  active: boolean;
-  cached_timezone: string | null;
-  avatar_url: string | null;
-  vacation_until: string | null;
+export interface OverviewParticipant extends Participant {
   timezone_label: string | null;
 }
 
@@ -166,7 +137,7 @@ export interface StandupOverview {
     expected: number;
     sub_label: string;
     previous_rate: number | null;
-    delta: { value: number; direction: "up" | "down" | "flat"; label: string; title: string } | null;
+    delta: { value: number; direction: "up" | "down" | "flat" } | null;
   };
   average_response_time: { minutes: number | null; label: string };
   participant_counts: { total: number; active: number; inactive: number };

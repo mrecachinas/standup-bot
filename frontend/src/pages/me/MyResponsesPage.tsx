@@ -1,12 +1,12 @@
 import { useSearchParams } from "react-router";
-import { Banner, SegmentedControl } from "@primer/react";
+import { SegmentedControl } from "@primer/react";
 import { InboxIcon } from "@primer/octicons-react";
 import type { MemberResponse, MemberResponsesPayload } from "../../api/types/member";
-import { EmptyState, ErrorBanner, LoadingState, PageHeader, StatusLabel } from "../../components";
+import { DateTile, EmptyState, ErrorBanner, LoadingState, PageHeader, Panel, StatusLabel } from "../../components";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { DateTile } from "./components/DateTile";
-import shared from "./components/me.module.css";
+import { MemberLoadState } from "./components/MemberLoadState";
+import layout from "../../styles/layout.module.css";
 import styles from "./MyResponsesPage.module.css";
 
 export function MyResponsesPage() {
@@ -16,29 +16,18 @@ export function MyResponsesPage() {
   const path = standupId ? `/api/me/responses?standup_id=${encodeURIComponent(standupId)}` : "/api/me/responses";
   const { data, error, loading, reload } = useApi<MemberResponsesPayload>(path);
 
-  if (!data) {
-    if (error) {
-      return (
-        <ErrorBanner
-          error={error}
-          title={error.status === 403 ? "You can't see these responses" : "Couldn't load your responses"}
-          action={error.status === 403 ? undefined : <Banner.PrimaryAction onClick={reload}>Try again</Banner.PrimaryAction>}
-        />
-      );
-    }
-    return <LoadingState label="Loading your responses" />;
-  }
+  if (!data) return <MemberLoadState error={error} onRetry={reload} what="your responses" />;
 
   const platformLabel = data.member.platform_label;
-  const selectedId = data.standups.find((standup) => String(standup.id) === standupId)?.id ?? null;
-  const selectedName = data.standups.find((standup) => standup.id === selectedId)?.name ?? data.standup?.name;
+  const selected = data.standups.find((standup) => String(standup.id) === standupId) ?? null;
+  const selectedName = selected?.name ?? data.standup?.name;
 
   const selectStandup = (id: number | null) => {
     setSearchParams(id === null ? {} : { standup_id: String(id) });
   };
 
   return (
-    <div className={shared.page}>
+    <div className={layout.page}>
       <PageHeader title="My responses" description={`Your most recent check-ins${selectedName ? ` in ${selectedName}` : ""}.`}>
         {data.standups.length > 1 && (
           <SegmentedControl
@@ -46,9 +35,9 @@ export function MyResponsesPage() {
             variant={{ narrow: "dropdown", regular: "default" }}
             onChange={(index) => selectStandup(index === 0 ? null : data.standups[index - 1].id)}
           >
-            <SegmentedControl.Button selected={selectedId === null}>All</SegmentedControl.Button>
+            <SegmentedControl.Button selected={selected === null}>All</SegmentedControl.Button>
             {data.standups.map((standup) => (
-              <SegmentedControl.Button key={standup.id} selected={selectedId === standup.id}>
+              <SegmentedControl.Button key={standup.id} selected={selected?.id === standup.id}>
                 {standup.name}
               </SegmentedControl.Button>
             ))}
@@ -62,14 +51,14 @@ export function MyResponsesPage() {
         <LoadingState label="Loading your responses" />
       ) : data.responses.length > 0 ? (
         <>
-          <section className={shared.card} aria-label="Check-ins">
-            <ul className={`${shared.list} ${styles.responses}`}>
+          <Panel flush label="Check-ins">
+            <ul className={layout.list}>
               {data.responses.map((response) => (
                 <ResponseItem key={response.id} response={response} platformLabel={platformLabel} />
               ))}
             </ul>
-          </section>
-          {data.limited && <p className={shared.tip}>Showing your {data.limit} most recent check-ins.</p>}
+          </Panel>
+          {data.limited && <p className={layout.hint}>Showing your {data.limit} most recent check-ins.</p>}
         </>
       ) : (
         <EmptyState icon={InboxIcon} title="No check-ins yet" description="Your answers will show up here after your first standup." />
@@ -80,12 +69,12 @@ export function MyResponsesPage() {
 
 function ResponseItem({ response, platformLabel }: { response: MemberResponse; platformLabel: string }) {
   return (
-    <li className={styles.item} id={`response_${response.id}`}>
+    <li className={layout.top} id={`response_${response.id}`}>
       <DateTile date={response.date} />
       <div className={styles.body}>
-        <div className={styles.meta}>
-          <span className={styles.title}>{response.standup_name}</span>
-          <span className={`${shared.small} ${shared.muted}`}>{response.date_label}</span>
+        <div className={layout.row}>
+          <span className={layout.title}>{response.standup_name}</span>
+          <span className={layout.hint}>{response.date_label}</span>
           <StatusLabel tone={response.status_tone}>{response.status_label}</StatusLabel>
         </div>
         {response.answers.length > 0 ? (
@@ -98,9 +87,9 @@ function ResponseItem({ response, platformLabel }: { response: MemberResponse; p
             ))}
           </dl>
         ) : response.status === "pending" ? (
-          <p className={shared.tip}>Waiting for your answers in {platformLabel}.</p>
+          <p className={layout.hint}>Waiting for your answers in {platformLabel}.</p>
         ) : (
-          <p className={shared.tip}>No answers recorded.</p>
+          <p className={layout.hint}>No answers recorded.</p>
         )}
       </div>
     </li>

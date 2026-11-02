@@ -1,22 +1,16 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { Button } from "@primer/react";
-import { del, post } from "../../api/client";
-import type { Standup } from "../../api/types";
-import type {
-  ScheduleExceptionParams,
-  ScheduleExceptionResult,
-  ScheduleExceptionsPayload,
-  ScheduleOccurrence,
-} from "../../api/types/roster";
-import { ErrorBanner, LoadingState, StandupHeader } from "../../components";
-import { useApi } from "../../hooks/useApi";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { del } from "../../api/client";
+import type { ScheduleExceptionParams, ScheduleExceptionResult, ScheduleExceptionsPayload, ScheduleOccurrence } from "../../api/types/roster";
+import { ErrorBanner, StandupHeader } from "../../components";
 import { useMutation } from "../../hooks/useMutation";
 import { MoveNextRunCard, RegularScheduleCard, SkipDateCard } from "./roster/ScheduleCards";
+import { createScheduleException } from "./roster/schedule";
 import { ExceptionsTable, UpcomingRunsSection } from "./roster/ScheduleLists";
-import { StandupLoadError } from "./roster/StandupLoadError";
-import { usePauseResume } from "./roster/usePauseResume";
+import { StandupLoadState } from "./standups/StandupLoadState";
+import { useStandupPage } from "./standups/useStandupPage";
+import layout from "../../styles/layout.module.css";
 import styles from "./roster/roster.module.css";
 
 export function ScheduleExceptionsPage() {
@@ -24,18 +18,14 @@ export function ScheduleExceptionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTimezone = searchParams.get("preview_timezone") ?? "";
   const base = `/api/standups/${id}/schedule_exceptions`;
-  const { data, error, loading, reload, setData } = useApi<ScheduleExceptionsPayload>(
+  const { data, error, loading, reload, setStandup } = useStandupPage<ScheduleExceptionsPayload>(
     requestedTimezone ? `${base}?preview_timezone=${encodeURIComponent(requestedTimezone)}` : base,
+    "Schedule",
   );
-  useDocumentTitle(data ? `Schedule · ${data.standup.name}` : "Schedule");
-
-  const pauseResume = usePauseResume(data?.standup, (standup: Standup) => setData((current) => ({ ...(current as ScheduleExceptionsPayload), standup })));
 
   // Quick actions (skip a row, cancel the next run, remove) report errors at the top.
   const [skipping, setSkipping] = useState<string | null>(null);
-  const create = useMutation((params: ScheduleExceptionParams) => post<ScheduleExceptionResult>(base, { schedule_exception: params }), {
-    onSuccess: () => reload(),
-  });
+  const create = useMutation((params: ScheduleExceptionParams) => createScheduleException(id, params), { onSuccess: () => reload() });
   const [removing, setRemoving] = useState<number | null>(null);
   const remove = useMutation((exceptionId: number) => del<ScheduleExceptionResult>(`${base}/${exceptionId}`), {
     onSuccess: () => reload(),
@@ -72,23 +62,20 @@ export function ScheduleExceptionsPage() {
     );
   };
 
-  if (!data) {
-    if (error) return <StandupLoadError error={error} title="Schedule" onRetry={reload} />;
-    return <LoadingState label="Loading schedule…" />;
-  }
+  if (!data) return <StandupLoadState error={error} onRetry={reload} title="Schedule" />;
 
   const { standup } = data;
 
   return (
-    <div className={styles.page}>
-      <StandupHeader standup={standup} active="schedule" onPauseResume={pauseResume.toggle} pauseResumeBusy={pauseResume.busy} />
+    <div className={layout.page}>
+      <StandupHeader standup={standup} active="schedule" onStandupChange={setStandup} />
 
       {error && !loading && <ErrorBanner error={error} title="Couldn't refresh the schedule" action={<Button onClick={reload}>Try again</Button>} />}
       <ErrorBanner error={create.error} title="Couldn't save the exception" onDismiss={create.reset} />
       <ErrorBanner error={remove.error} title="Couldn't remove the exception" onDismiss={remove.reset} />
 
-      <div className={styles.mainAside}>
-        <div className={styles.stack}>
+      <div className={layout.mainAside}>
+        <div className={layout.stack}>
           <UpcomingRunsSection
             occurrences={data.upcoming_occurrences}
             previewTimezone={data.preview_timezone}
@@ -102,8 +89,8 @@ export function ScheduleExceptionsPage() {
           <ExceptionsTable exceptions={data.schedule_exceptions} removing={removing} onRemove={(exception) => void handleRemove(exception.id)} />
         </div>
 
-        <aside className={styles.stack} aria-label="Schedule changes">
-          <RegularScheduleCard standup={standup} onPauseResume={() => void pauseResume.toggle()} busy={pauseResume.busy} />
+        <aside className={layout.stack} aria-label="Schedule changes">
+          <RegularScheduleCard standup={standup} onStandupChange={setStandup} />
           <SkipDateCard standupId={standup.id} options={data.exception_type_options} onSaved={reload} />
           <MoveNextRunCard
             standupId={standup.id}

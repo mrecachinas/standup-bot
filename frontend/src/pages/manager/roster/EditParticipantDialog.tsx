@@ -2,9 +2,9 @@ import { useId, useState, type FormEvent } from "react";
 import { Checkbox, Dialog, FormControl, TextInput } from "@primer/react";
 import type { ApiError } from "../../../api/client";
 import type { ParticipantParams, RosterParticipant } from "../../../api/types/roster";
-import { baseMessages, fieldMessage } from "./formErrors";
-import { MessagesBanner } from "./MessagesBanner";
-import styles from "./roster.module.css";
+import { baseMessages, fieldMessage } from "../../../lib/fieldErrors";
+import { ErrorBanner } from "../../../components";
+import layout from "../../../styles/layout.module.css";
 
 const FIELDS = ["display_name", "cached_timezone", "vacation_until", "active", "platform_user_id"];
 
@@ -52,7 +52,7 @@ export function EditParticipantDialog({ participant, saving, error, onSave, onCl
   return (
     <Dialog
       title={`Edit ${participant.display_name}`}
-      subtitle={<span className={styles.mono}>{participant.platform_user_id}</span>}
+      subtitle={<span className={layout.mono}>{participant.platform_user_id}</span>}
       onClose={() => {
         if (!saving) onClose();
       }}
@@ -62,8 +62,8 @@ export function EditParticipantDialog({ participant, saving, error, onSave, onCl
         { buttonType: "primary", content: "Save", type: "submit", form: formId, loading: saving },
       ]}
     >
-      <form id={formId} className={styles.stack} onSubmit={handleSubmit} noValidate>
-        <MessagesBanner title="Couldn't save this participant" messages={baseMessages(error, FIELDS)} />
+      <form id={formId} className={layout.stack} onSubmit={handleSubmit} noValidate>
+        <ErrorBanner title="Couldn't save this participant" error={baseMessages(error, FIELDS)} />
         <FormControl required>
           <FormControl.Label>Name</FormControl.Label>
           <TextInput name="display_name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} block />

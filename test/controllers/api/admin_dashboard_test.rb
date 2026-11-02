@@ -76,7 +76,7 @@ class Api::AdminDashboardTest < ActionDispatch::IntegrationTest
 
     today = response.parsed_body["daily_activity"].find { |row| row["date"] == Date.current.iso8601 }
     assert_operator today["completed"], :>=, 1
-    assert today["title"].present?
+    assert_equal %w[completed completion_rate date expected missed pending skipped], today.keys.sort
   end
 
   test "an admin's token opens the admin dashboard" do

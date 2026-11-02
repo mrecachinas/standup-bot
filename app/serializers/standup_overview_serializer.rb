@@ -82,8 +82,7 @@ class StandupOverviewSerializer
 
     diff = (current.to_f - previous.to_f).round
     direction = if diff.zero? then "flat" elsif diff.positive? then "up" else "down" end
-    arrow = if diff.zero? then "" elsif diff.positive? then "↑ " else "↓ " end
-    { value: diff, direction: direction, label: "#{arrow}#{diff.abs} pts", title: "Compared with the previous period" }
+    { value: diff, direction: direction }
   end
 
   def average_response_time_json

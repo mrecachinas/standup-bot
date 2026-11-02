@@ -1,4 +1,4 @@
-/** Rounds to 2 decimal places, like Ruby's Float#round(2). */
+/** Rounds to 2 decimal places to keep SVG coordinates short. */
 export function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -7,7 +7,7 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-/** A "nice", even y-axis maximum at or above `value` (ChartsHelper#nice_max). */
+/** A "nice", even y-axis maximum at or above `value`. */
 export function niceMax(value: number): number {
   const n = Math.trunc(value);
   if (n <= 2) return 2;

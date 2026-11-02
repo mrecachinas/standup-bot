@@ -1,6 +1,6 @@
 import { isRouteErrorResponse, useRouteError } from "react-router";
 import { Button } from "@primer/react";
-import { ErrorBanner } from "../components/ErrorBanner";
+import { ErrorBanner } from "../components";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 /** Last-resort error view for render errors anywhere in the route tree. */

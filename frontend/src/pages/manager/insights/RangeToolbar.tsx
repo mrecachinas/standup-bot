@@ -3,6 +3,7 @@ import { Link as RouterLink } from "react-router";
 import { Button, FormControl, SegmentedControl, Spinner, TextInput } from "@primer/react";
 import { DownloadIcon, HistoryIcon } from "@primer/octicons-react";
 import type { InsightsRange } from "../../../api/types/insights";
+import layout from "../../../styles/layout.module.css";
 import styles from "./insights.module.css";
 
 export interface RangeToolbarProps {
@@ -88,7 +89,7 @@ function CustomRangeForm({
         <FormControl.Label visuallyHidden>Start date</FormControl.Label>
         <TextInput ref={startRef} type="date" name="start_date" value={start} max={end || undefined} onChange={(event) => setStart(event.target.value)} />
       </FormControl>
-      <span className={styles.muted} aria-hidden="true">
+      <span className={layout.muted} aria-hidden="true">
         –
       </span>
       <FormControl>

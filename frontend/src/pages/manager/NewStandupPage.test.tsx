@@ -161,8 +161,8 @@ describe("NewStandupPage", () => {
     expect(await screen.findByText("3 errors prevented saving")).toBeInTheDocument();
     expect(screen.getByText("Participant 1: Couldn't find @nobody")).toBeInTheDocument();
     expect(screen.getByLabelText(/^Name/)).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getAllByText("Can't be blank")).toHaveLength(2);
-    expect(screen.getByRole("textbox", { name: "Question 1" })).toHaveAccessibleDescription("Can't be blank");
+    expect(screen.getAllByText("Name can't be blank")).toHaveLength(2);
+    expect(screen.getByRole("textbox", { name: "Question 1" })).toHaveAccessibleDescription("Questions can't be blank");
   });
 
   it("edits questions: Enter adds a row, rows reorder and remove, suggestions fill empty rows", async () => {

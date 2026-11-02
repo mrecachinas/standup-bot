@@ -122,16 +122,7 @@ class AdminDashboardSerializer
   end
 
   def daily_activity
-    @daily_activity.map do |row|
-      pending = row[:pending].positive? ? ", #{row[:pending]} pending" : ""
-      row.merge(
-        date: row[:date].iso8601,
-        label: row[:date].to_fs(:month_day),
-        total: row[:completed] + row[:skipped] + row[:pending] + row[:missed],
-        title: "#{row[:date].to_fs(:month_day_year)}: #{row[:completed]} completed, #{row[:skipped]} skipped, " \
-          "#{row[:missed]} missed#{pending} (#{row[:completion_rate].round}%)"
-      )
-    end
+    @daily_activity.map { |row| row.merge(date: row[:date].iso8601) }
   end
 
   def response_totals
@@ -161,7 +152,7 @@ class AdminDashboardSerializer
       avatar_url: user.avatar_url,
       admin: user.admin?,
       access_label: user.admin? ? "Admin" : "Member",
-      access_tone: user.admin? ? "accent" : nil,
+      access_tone: user.admin? ? "info" : nil,
       owned_standups_count: owned,
       owned_standups_label: user.admin? ? "All" : owned.to_s,
       last_signed_in_at: user.last_signed_in_at&.iso8601,

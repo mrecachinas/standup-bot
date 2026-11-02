@@ -1,45 +1,26 @@
 // Test payloads shaped like the Rails serializers (overview, standup overview, editor).
 import type { Standup } from "../../../api/types";
 import type { OverviewPayload, OverviewStandup, StandupFormPayload, StandupOverviewPayload } from "../../../api/types/standups";
-import { slackPlatform, teamsPlatform } from "../../../test/fixtures";
+import { participantFixture, standupFixture as baseStandup, slackPlatform, teamsPlatform } from "../../../test/fixtures";
 
 export function standupFixture(overrides: Partial<Standup> = {}): Standup {
-  return {
-    id: 7,
-    name: "Daily standup",
-    platform: "slack",
+  return baseStandup({
     platform_channel: "eng-standup",
-    intro: "Morning!",
-    outro: "Thanks!",
+    platform_channel_name: null,
+    channel_label: "eng-standup",
     questions: ["What did you do yesterday?", "What will you do today?"],
     schedule_type: "weekdays",
     schedule_days: [],
-    default_hour: 9,
-    default_minute: 30,
-    respect_timezone: true,
-    active: true,
     created_at: "2026-10-01T09:00:00Z",
-    updated_at: "2026-10-01T09:00:00Z",
-    participants_count: 3,
     active_participants_count: 2,
     responses_count: 10,
-    platform_label: "Slack",
-    platform_channel_name: null,
-    reminder_enabled: true,
-    reminder_after_minutes: 60,
-    max_reminders: 2,
-    send_time: "9:30 AM",
-    schedule_summary: "Weekdays at 9:30 AM",
-    schedule_sentence: "Weekdays at 9:30 AM, in each person's local time",
-    schedule_picker: { frequency: "weekly", days: [1, 2, 3, 4, 5] },
     ...overrides,
-  };
+  });
 }
 
-export function overviewStandupFixture(overrides: Partial<OverviewStandup> = {}): OverviewStandup {
+function overviewStandupFixture(overrides: Partial<OverviewStandup> = {}): OverviewStandup {
   return {
     ...standupFixture(),
-    channel_label: "eng-standup",
     standup_id: 7,
     participant_count: 2,
     participant_label: "2 active participants",
@@ -146,7 +127,7 @@ export function standupOverviewFixture(overrides: Partial<StandupOverviewPayload
         expected: 8,
         sub_label: "6 of 8 responses",
         previous_rate: 50,
-        delta: { value: 25, direction: "up", label: "↑ 25 pts", title: "Compared with the previous period" },
+        delta: { value: 25, direction: "up" },
       },
       average_response_time: { minutes: 12, label: "12 minutes" },
       participant_counts: { total: 3, active: 2, inactive: 1 },
@@ -187,8 +168,8 @@ export function standupOverviewFixture(overrides: Partial<StandupOverviewPayload
       },
       participants: [],
       sidebar_participants: [
-        { id: 1, standup_id: 7, platform_user_id: "U1", display_name: "Ada Lovelace", active: true, cached_timezone: "Europe/London", avatar_url: null, vacation_until: null, timezone_label: "London" },
-        { id: 2, standup_id: 7, platform_user_id: "U2", display_name: "Grace Hopper", active: true, cached_timezone: "America/New_York", avatar_url: null, vacation_until: null, timezone_label: "New York" },
+        { ...participantFixture({ id: 1, platform_user_id: "U1", display_name: "Ada Lovelace", cached_timezone: "Europe/London" }), timezone_label: "London" },
+        { ...participantFixture({ id: 2, platform_user_id: "U2", display_name: "Grace Hopper", cached_timezone: "America/New_York" }), timezone_label: "New York" },
       ],
       more_participants_count: 0,
       upcoming: {
@@ -210,12 +191,8 @@ export function standupOverviewFixture(overrides: Partial<StandupOverviewPayload
 export function occurrence(date: string, day: number, weekday: string) {
   return {
     scheduled_at: `${date}T09:30:00Z`,
-    local_time: `${date}T09:30:00+00:00`,
     date,
-    month: "Nov",
-    day,
     weekday,
-    short_date: `${weekday.slice(0, 3)}, Nov ${day}`,
     time: "9:30 AM UTC",
     label: `${weekday}, November ${day}, 2026 at 9:30 AM UTC`,
   };

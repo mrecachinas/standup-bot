@@ -1,26 +1,9 @@
 import { Banner, Label, ProgressBar, VisuallyHidden } from "@primer/react";
-import { ArrowDownIcon, ArrowUpIcon } from "@primer/octicons-react";
-import type { InsightsParticipant, InsightsStats, Keyword, QuestionFunnel, QuestionSummary } from "../../../api/types/insights";
-import { Avatar } from "../../../components/Avatar";
+import type { InsightsParticipant, Keyword, QuestionFunnel, QuestionSummary } from "../../../api/types/insights";
+import { Avatar, Meter, Panel, PanelEmptyText, PanelList, PanelListItem } from "../../../components";
 import { formatPercent, pluralize } from "../../../lib/format";
-import { Panel, PanelEmptyText, PanelList, PanelListItem } from "./Panel";
-import { progressBgForTone } from "./tone";
+import layout from "../../../styles/layout.module.css";
 import styles from "./insights.module.css";
-
-/** "↑ 5 pts" against the previous period of the same length. */
-export function CompletionDelta({ stats }: { stats: Pick<InsightsStats, "completion_rate_delta" | "completion_rate_delta_direction"> }) {
-  const { completion_rate_delta: delta, completion_rate_delta_direction: direction } = stats;
-  if (delta === null || delta === undefined || !direction) return null;
-
-  const variant = direction === "up" ? "success" : direction === "down" ? "danger" : "secondary";
-  return (
-    <Label variant={variant} title="Compared with the previous period" className={styles.delta}>
-      {direction === "up" && <ArrowUpIcon size={12} aria-label="Up" />}
-      {direction === "down" && <ArrowDownIcon size={12} aria-label="Down" />}
-      {Math.abs(delta)} pts
-    </Label>
-  );
-}
 
 export function ParticipationPanel({ participants }: { participants: InsightsParticipant[] }) {
   return (
@@ -33,21 +16,20 @@ export function ParticipationPanel({ participants }: { participants: InsightsPar
               leadingVisual={<Avatar name={participant.name} src={participant.avatar_url} size={24} />}
               title={
                 <span className={styles.splitRow}>
-                  <span className={styles.truncate}>{participant.name}</span>
+                  <span className={layout.truncate}>{participant.name}</span>
                   <span className={styles.mutedSmall}>{participant.missed_label}</span>
                 </span>
               }
             >
-              <div className={styles.meter}>
-                <ProgressBar
-                  className={styles.meterBar}
-                  progress={participant.completion_rate}
-                  bg={progressBgForTone(participant.rate_tone)}
-                  aria-label={`${participant.name} completion rate`}
-                  aria-valuetext={participant.has_expected ? formatPercent(participant.completion_rate) : "No expected responses"}
-                />
-                <span className={styles.meterValue}>{participant.has_expected ? formatPercent(participant.completion_rate) : "—"}</span>
-              </div>
+              <Meter
+                className={styles.participantMeter}
+                value={participant.completion_rate}
+                tone={participant.rate_tone}
+                label={`${participant.name} completion rate`}
+                valueText={participant.has_expected ? formatPercent(participant.completion_rate) : "No expected responses"}
+              >
+                {participant.has_expected ? formatPercent(participant.completion_rate) : "—"}
+              </Meter>
             </PanelListItem>
           ))}
         </PanelList>
@@ -58,7 +40,7 @@ export function ParticipationPanel({ participants }: { participants: InsightsPar
   );
 }
 
-export function KeywordLabels({ keywords, tone, label }: { keywords: Keyword[]; tone?: "attention"; label: string }) {
+function KeywordLabels({ keywords, tone, label }: { keywords: Keyword[]; tone?: "attention"; label: string }) {
   return (
     <ul className={styles.chips} aria-label={label}>
       {keywords.map((keyword) => (
@@ -82,7 +64,7 @@ export function BlockersPanel({ keywords }: { keywords: Keyword[] }) {
       {keywords.length > 0 ? (
         <KeywordLabels keywords={keywords} tone="attention" label="Blocker keywords" />
       ) : (
-        <p className={styles.muted}>No recurring blockers in this period.</p>
+        <p className={layout.muted}>No recurring blockers in this period.</p>
       )}
     </Panel>
   );
@@ -112,7 +94,7 @@ export function QuestionFunnelPanel({ funnel }: { funnel: QuestionFunnel }) {
       }
     >
       {funnel.started === 0 ? (
-        <p className={styles.muted}>No check-ins were started in this period.</p>
+        <p className={layout.muted}>No check-ins were started in this period.</p>
       ) : (
         <>
           {funnel.biggest_drop && (
@@ -131,7 +113,7 @@ export function QuestionFunnelPanel({ funnel }: { funnel: QuestionFunnel }) {
                   <span className={styles.index} aria-hidden="true">
                     {row.position}
                   </span>
-                  <span className={styles.truncate} title={row.question}>
+                  <span className={layout.truncate} title={row.question}>
                     {row.question}
                   </span>
                 </div>
@@ -163,7 +145,7 @@ export function QuestionSummaries({ questions }: { questions: QuestionSummary[] 
   if (questions.length === 0) return null;
 
   return (
-    <section className={styles.stack} aria-labelledby="answers-by-question">
+    <section className={layout.stack} aria-labelledby="answers-by-question">
       <h2 id="answers-by-question" className={styles.sectionTitle}>
         Answers by question
       </h2>

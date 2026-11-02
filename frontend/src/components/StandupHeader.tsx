@@ -2,32 +2,28 @@ import { Link as RouterLink } from "react-router";
 import { Button, UnderlineNav } from "@primer/react";
 import { GlobeIcon, HashIcon, PauseIcon, PencilIcon, PeopleIcon, PlayIcon, SyncIcon } from "@primer/octicons-react";
 import type { Standup } from "../api/types";
+import { usePauseResume } from "../hooks/usePauseResume";
 import { pluralize } from "../lib/format";
-import { standupTabPath, type StandupTab } from "../paths";
+import { paths, standupTabPath, type StandupTab } from "../paths";
 import { PageHeader } from "./PageHeader";
 import { StandupStatusLabel } from "./StatusLabel";
 import styles from "./StandupHeader.module.css";
 
-/** The StandupSerializer keys the header uses; pass the API payload as-is. */
-export type StandupHeaderStandup = Pick<Standup, "id" | "name" | "platform" | "platform_channel" | "active" | "respect_timezone"> &
-  Partial<Pick<Standup, "platform_label" | "platform_channel_name" | "schedule_summary" | "participants_count" | "active_participants_count">>;
-
 export interface StandupHeaderProps {
-  standup: StandupHeaderStandup;
+  standup: Standup;
   /** Which tab is current. */
   active: StandupTab;
-  /** Pause when active, resume when paused. Omit to hide the button. */
-  onPauseResume?: () => void | Promise<void>;
-  /** Disables the pause/resume button while its request runs. */
-  pauseResumeBusy?: boolean;
+  /** Shows Pause/Resume; called with the updated standup afterwards. */
+  onStandupChange?: (standup: Standup) => void;
   /** Overrides the participant count (defaults to active_participants_count, then participants_count). */
   participantCount?: number;
 }
 
-export function StandupHeader({ standup, active, onPauseResume, pauseResumeBusy = false, participantCount }: StandupHeaderProps) {
+export function StandupHeader({ standup, active, onStandupChange, participantCount }: StandupHeaderProps) {
+  const pauseResume = usePauseResume(onStandupChange);
   const count = participantCount ?? standup.active_participants_count ?? standup.participants_count;
-  const platformLabel = standup.platform_label ?? (standup.platform === "teams" ? "Microsoft Teams" : "Slack");
-  const channel = (standup.platform_channel_name || standup.platform_channel || "No channel").replace(/^#/, "");
+  const platformLabel = standup.platform_label;
+  const channel = standup.channel_label.replace(/^#/, "") || "No channel";
   const ChannelIcon = standup.platform === "teams" ? PeopleIcon : HashIcon;
 
   const tabs: { key: StandupTab; label: string; counter?: number }[] = [
@@ -46,14 +42,14 @@ export function StandupHeader({ standup, active, onPauseResume, pauseResumeBusy 
       <PageHeader
         title={standup.name}
         trailingVisual={<StandupStatusLabel active={standup.active} />}
-        breadcrumbs={[{ label: "Standups", to: "/manager/standups" }, { label: standup.name }]}
+        breadcrumbs={[{ label: "Standups", to: paths.standups }, { label: standup.name }]}
         actions={
           <div className={styles.actions}>
-            {onPauseResume && (
+            {onStandupChange && (
               <Button
                 leadingVisual={standup.active ? PauseIcon : PlayIcon}
-                onClick={() => void onPauseResume()}
-                loading={pauseResumeBusy}
+                onClick={() => void pauseResume.run(standup)}
+                loading={pauseResume.loading}
                 aria-label={`${standup.active ? "Pause" : "Resume"} ${standup.name}`}
               >
                 {standup.active ? "Pause" : "Resume"}
@@ -86,7 +82,7 @@ export function StandupHeader({ standup, active, onPauseResume, pauseResumeBusy 
           )}
           <span>
             <GlobeIcon size={16} />
-            {standup.respect_timezone ? "Participant timezones" : "UTC"}
+            {standup.timezone_label}
           </span>
         </div>
       </PageHeader>
