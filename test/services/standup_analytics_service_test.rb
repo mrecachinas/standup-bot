@@ -266,4 +266,3 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     end
   end
 end
-
