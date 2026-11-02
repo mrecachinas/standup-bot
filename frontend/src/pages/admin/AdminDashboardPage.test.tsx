@@ -163,7 +163,7 @@ describe("AdminDashboardPage", () => {
     expect(screen.getByText("4 active · 1 paused")).toBeInTheDocument();
     expect(screen.getByText("15 active memberships across standups")).toBeInTheDocument();
     expect(screen.getByText("7 completed")).toBeInTheDocument();
-    expect(screen.getByText("1 admin · 2 running standups")).toBeInTheDocument();
+    expect(screen.getByText("1 admin · 2 own a standup")).toBeInTheDocument();
 
     expect(screen.getByText("Last 14 days, all standups")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Responses per day across the installation" })).toBeInTheDocument();

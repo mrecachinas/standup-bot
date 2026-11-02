@@ -4,7 +4,7 @@ import { Button, FormControl, ProgressBar, Select, TextInput } from "@primer/rea
 import { GraphIcon } from "@primer/octicons-react";
 import type { Tone } from "../../../api/types";
 import type { HistoryDay, HistoryEntry, HistoryFilters, ResponseHistory } from "../../../api/types/roster";
-import { Avatar, formatPercent, StatusLabel } from "../../../components";
+import { Avatar, formatPercent, pluralize, StatusLabel } from "../../../components";
 import { DateTile, SectionBody } from "./Section";
 import styles from "./roster.module.css";
 
@@ -108,6 +108,10 @@ const TONE_COLOURS: Record<NonNullable<Tone>, string> = {
 
 export function HistoryDaySection({ day }: { day: HistoryDay }) {
   const headingId = `standup-history-${day.date}-heading`;
+  const notSentYet = day.expected_count === 0 && day.upcoming_count > 0;
+  const counts = notSentYet
+    ? [`Not sent yet · ${pluralize(day.upcoming_count, "person", "people")} expected`]
+    : [`${day.answered_count} answered`, `${day.missed_count} missed`, `${day.expected_count} expected`, day.upcoming_count > 0 ? `${day.upcoming_count} not sent yet` : null];
   return (
     <section id={`standup-history-${day.date}`} className={styles.section} aria-labelledby={headingId}>
       <div className={styles.sectionHeader}>
@@ -117,19 +121,19 @@ export function HistoryDaySection({ day }: { day: HistoryDay }) {
             <h2 className={styles.sectionTitle} id={headingId}>
               {day.date_label}
             </h2>
-            <p className={styles.hint}>
-              {day.answered_count} answered · {day.missed_count} missed · {day.expected_count} expected
-            </p>
+            <p className={styles.hint}>{counts.filter(Boolean).join(" · ")}</p>
           </div>
         </div>
-        <div className={`${styles.meter} ${styles.hideSmall}`}>
-          <ProgressBar
-            progress={day.answer_rate}
-            bg={day.answer_rate_tone ? TONE_COLOURS[day.answer_rate_tone] : undefined}
-            aria-label={`${formatPercent(day.answer_rate)} answered on ${day.date_label}`}
-          />
-          <span className={styles.meterValue}>{formatPercent(day.answer_rate)}</span>
-        </div>
+        {!notSentYet && (
+          <div className={`${styles.meter} ${styles.hideSmall}`}>
+            <ProgressBar
+              progress={day.answer_rate}
+              bg={day.answer_rate_tone ? TONE_COLOURS[day.answer_rate_tone] : undefined}
+              aria-label={`${formatPercent(day.answer_rate)} answered on ${day.date_label}`}
+            />
+            <span className={styles.meterValue}>{formatPercent(day.answer_rate)}</span>
+          </div>
+        )}
       </div>
 
       <ul className={styles.list}>

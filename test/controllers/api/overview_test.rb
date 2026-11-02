@@ -67,11 +67,12 @@ class Api::OverviewTest < ActionDispatch::IntegrationTest
     assert_equal 2, row["participant_count"]
     assert_equal "2 active participants", row["participant_label"]
     assert_equal [ "Jane Smith", "John Doe" ], row["participant_avatars"].map { |avatar| avatar["name"] }
-    # The completed response counts toward expected so the rate can't exceed 100%.
-    assert_in_delta 20.0, row["completion_rate"]
-    assert_equal "20%", row["completion_rate_label"]
+    # The completed response counts toward expected so the rate can't exceed
+    # 100%. Today's run hasn't reached John or Jane yet, so it isn't held against them.
+    assert_in_delta 33.3, row["completion_rate"]
+    assert_equal "33%", row["completion_rate_label"]
     assert_equal "danger", row["completion_tone"]
-    assert_equal "1 of 5 responses", row["completion_sub_label"]
+    assert_equal "1 of 3 responses", row["completion_sub_label"]
     assert_equal "Pending", row["latest_run_status"]
     assert_equal "info", row["latest_run_status_tone"]
     assert row["latest_run_pending"]
@@ -81,20 +82,21 @@ class Api::OverviewTest < ActionDispatch::IntegrationTest
     assert row.dig("next_run", "scheduled_at").present?
     assert_equal "Active", row["status_label"]
     assert row["needs_attention"]
-    assert_equal "20% completion over 1 days", row["attention_reason"]
+    assert_equal "33% completion over 1 days", row["attention_reason"]
 
     stats = body["stats"]
     assert_equal 1, stats["active_count"]
     assert_equal "None paused", stats["paused_label"]
     assert_equal 2, stats["people_count"]
     assert_equal "Across 1 standup", stats["people_label"]
-    assert_equal "20%", stats["completion_rate_label"]
-    assert_equal "1 of 5 expected", stats["completion_sub_label"]
+    assert_equal "33%", stats["completion_rate_label"]
+    assert_equal "1 of 3 expected", stats["completion_sub_label"]
     assert_equal 1, stats["needs_attention_count"]
+    assert_equal "1 under 60%", stats["needs_attention_label"]
 
     assert body["daily_has_pending"]
     assert_equal "2026-04-27", body["daily_totals"].last["date"]
-    assert_equal({ "standup_id" => @owned_standup.id, "name" => @owned_standup.name, "active" => true, "reason" => "20% completion over 1 days", "tone" => "danger" }, body["needs_attention"].sole)
+    assert_equal({ "standup_id" => @owned_standup.id, "name" => @owned_standup.name, "active" => true, "reason" => "33% completion over 1 days", "tone" => "danger" }, body["needs_attention"].sole)
   end
 
   test "visibility filter can focus active or paused standups" do

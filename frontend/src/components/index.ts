@@ -7,6 +7,7 @@ export { StatCard, StatGrid, type StatCardProps } from "./StatCard";
 export { PageHeader, type PageHeaderProps, type Breadcrumb } from "./PageHeader";
 export { StandupHeader, type StandupHeaderProps, type StandupHeaderStandup } from "./StandupHeader";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
+export { TableEmptyState } from "./TableEmptyState";
 export { RelativeTime, type RelativeTimeProps } from "./RelativeTime";
 export { ConfirmButton, type ConfirmButtonProps } from "./ConfirmButton";
 export { ErrorBanner, type ErrorBannerProps } from "./ErrorBanner";

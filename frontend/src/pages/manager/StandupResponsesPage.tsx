@@ -3,7 +3,7 @@ import { Banner, Button } from "@primer/react";
 import { InboxIcon } from "@primer/octicons-react";
 import type { Standup } from "../../api/types";
 import type { HistoryFilters, ResponsesHistoryPayload } from "../../api/types/roster";
-import { EmptyState, ErrorBanner, formatPercent, LoadingState, StandupHeader, StatCard, StatGrid } from "../../components";
+import { EmptyState, ErrorBanner, formatPercent, LoadingState, pluralize, StandupHeader, StatCard, StatGrid } from "../../components";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { paths } from "../../paths";
@@ -75,15 +75,15 @@ export function StandupResponsesPage() {
 
       <section aria-label="Summary">
         <StatGrid>
-          <StatCard label="Standup dates" value={summary.dates} />
-          <StatCard label="Expected" value={summary.expected} />
+          <StatCard label="Expected" value={summary.expected} hint={`Across ${pluralize(summary.dates, "standup date")}`} />
           <StatCard
             label="Answered"
             value={summary.answered}
             tone={summary.answer_rate_tone}
             hint={summary.answer_rate !== null ? `${formatPercent(summary.answer_rate)} of expected` : "—"}
           />
-          <StatCard label="Missed" value={summary.missed} />
+          <StatCard label="Skipped" value={summary.skipped} hint="Chose to skip" />
+          <StatCard label="Missed" value={summary.missed} hint={summary.pending > 0 ? `${summary.pending} still waiting to answer` : "No answer"} />
         </StatGrid>
       </section>
 

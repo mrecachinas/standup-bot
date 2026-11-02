@@ -2,7 +2,7 @@ import { Button, FormControl, Select, VisuallyHidden } from "@primer/react";
 import { DataTable, Table } from "@primer/react/experimental";
 import { CalendarIcon } from "@primer/octicons-react";
 import type { ScheduleException, ScheduleOccurrence } from "../../../api/types/roster";
-import { EmptyState, StatusLabel } from "../../../components";
+import { StatusLabel, TableEmptyState } from "../../../components";
 import { DateTile, Section } from "./Section";
 import styles from "./roster.module.css";
 
@@ -148,7 +148,7 @@ export function ExceptionsTable({ exceptions, removing, onRemove }: ExceptionsTa
           ]}
         />
       ) : (
-        <EmptyState icon={CalendarIcon} headingLevel="h3" size="small" title="No exceptions" description="No skipped, holiday, or moved dates yet." />
+        <TableEmptyState icon={CalendarIcon} title="No exceptions" description="No skipped, holiday, or moved dates yet." />
       )}
     </Table.Container>
   );

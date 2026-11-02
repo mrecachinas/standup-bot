@@ -23,8 +23,9 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     standup = standups(:weekly)
     standup.update!(schedule_type: "monthly", schedule_days: [ 31 ])
 
-    Timecop.freeze(Time.zone.local(2025, 3, 31, 12, 0, 0)) do
-      summary = StandupAnalyticsService.new(standup, period_days: 31).summary
+    # The day after, so the Mar 31 run has already gone out.
+    Timecop.freeze(Time.zone.local(2025, 4, 1, 12, 0, 0)) do
+      summary = StandupAnalyticsService.new(standup, period_days: 33).summary
 
       assert_equal 2, summary[:expected_responses]
       assert_equal 2, summary[:participant_stats].first[:expected]
@@ -36,8 +37,8 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     standup = standups(:weekly)
     standup.update!(schedule_type: "monthly", schedule_days: [ 31 ])
 
-    Timecop.freeze(Time.zone.local(2025, 3, 31, 12, 0, 0)) do
-      trends = StandupAnalyticsService.new(standup, period_days: 31).response_trends
+    Timecop.freeze(Time.zone.local(2025, 4, 1, 12, 0, 0)) do
+      trends = StandupAnalyticsService.new(standup, period_days: 33).response_trends
       expected_by_date = trends.index_by { |entry| entry[:date] }.transform_values do |entry|
         entry[:expected]
       end
@@ -256,4 +257,28 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     assert_equal [ 0, 1, 1 ], funnel.map { |row| row[:not_reached] }
     assert_equal [ 0, 1, 0 ], funnel.map { |row| row[:drop_off] }
   end
+
+  test "a run that hasn't gone out yet isn't counted as missed" do
+    participants = @standup.standup_participants.active.order(:platform_user_id).to_a
+    @standup.standup_responses.delete_all
+    @standup.standup_responses.create!(platform_user_id: participants[0].platform_user_id, status: "pending", standup_date: Date.new(2025, 4, 10), answers: [])
+
+    Timecop.freeze(Time.zone.local(2025, 4, 10, 8, 0, 0)) do
+      analytics = StandupAnalyticsService.new(@standup, start_date: "2025-04-09", end_date: "2025-04-10")
+      today = analytics.run_breakdown.find { |run| run[:date] == Date.new(2025, 4, 10) }
+
+      assert_equal 1, today[:expected]
+      assert_equal 1, today[:pending]
+      assert_equal 0, today[:missed]
+      assert_equal participants.size + 1, analytics.summary[:expected_responses]
+    end
+
+    @standup.standup_responses.delete_all
+    Timecop.freeze(Time.zone.local(2025, 4, 10, 8, 0, 0)) do
+      runs = StandupAnalyticsService.new(@standup, start_date: "2025-04-09", end_date: "2025-04-10").run_breakdown
+
+      assert_equal [ Date.new(2025, 4, 9) ], runs.map { |run| run[:date] }
+    end
+  end
 end
+

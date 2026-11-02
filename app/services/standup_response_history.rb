@@ -25,7 +25,7 @@ class StandupResponseHistory
     end
   end
 
-  Entry = Struct.new(:date, :participant, :expected, :response, :answers, keyword_init: true) do
+  Entry = Struct.new(:date, :participant, :expected, :upcoming, :response, :answers, keyword_init: true) do
     def platform_user_id
       participant.platform_user_id
     end
@@ -38,15 +38,35 @@ class StandupResponseHistory
       expected
     end
 
+    # Expected today (or later) but not prompted yet, so it isn't missed.
+    def upcoming?
+      upcoming
+    end
+
+    # Counts toward the expected total: an expected run that has gone out, or
+    # anyone who got a prompt.
+    def counted?
+      (expected? && !upcoming?) || response.present?
+    end
+
     def answered?
       response&.status == "completed"
     end
 
+    def skipped?
+      response&.status == "skipped"
+    end
+
+    def pending?
+      response&.status == "pending"
+    end
+
     def missed?
-      response.blank? && expected?
+      counted? && !answered? && !skipped? && !pending?
     end
 
     def status_label
+      return "Upcoming" if upcoming?
       return "Missed" if missed?
       return "Not expected" unless response
       return "Answered" if answered?
@@ -71,7 +91,7 @@ class StandupResponseHistory
 
   Day = Struct.new(:date, :entries, keyword_init: true) do
     def expected_count
-      entries.count(&:expected?)
+      entries.count(&:counted?)
     end
 
     def answered_count
@@ -120,13 +140,16 @@ class StandupResponseHistory
     Array(standup.questions).map(&:to_s)
   end
 
+  # answered + skipped + pending + missed always adds up to expected.
   def summary
-    entries = days.flat_map(&:entries)
+    entries = days.flat_map(&:entries).select(&:counted?)
 
     {
       dates: days.size,
-      expected: entries.count(&:expected?),
+      expected: entries.size,
       answered: entries.count(&:answered?),
+      skipped: entries.count(&:skipped?),
+      pending: entries.count(&:pending?),
       missed: entries.count(&:missed?)
     }
   end
@@ -217,6 +240,7 @@ class StandupResponseHistory
       date: date,
       participant: participant,
       expected: expected,
+      upcoming: expected && response.blank? && date >= @today,
       response: response,
       answers: response ? answers_for(response) : []
     )

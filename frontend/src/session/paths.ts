@@ -1,4 +1,4 @@
-import type { Bootstrap } from "../api/types";
+import type { Bootstrap, Platform } from "../api/types";
 
 export const SIGN_IN_PATH = "/session/new";
 
@@ -28,3 +28,9 @@ export function canAccess(bootstrap: Bootstrap, path: string): boolean {
   if (/^\/me(\/|$|\?)/.test(path)) return Boolean(bootstrap.member);
   return bootstrap.authenticated;
 }
+
+/** Where each chat platform's "Sign in with …" button goes (Rails OAuth routes). */
+export const PLATFORM_SIGN_IN: Record<Platform["key"], { href: string; label: string }> = {
+  slack: { href: "/auth/slack", label: "Sign in with Slack" },
+  teams: { href: "/auth/microsoft", label: "Sign in with Microsoft" },
+};

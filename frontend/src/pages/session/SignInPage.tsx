@@ -3,17 +3,11 @@ import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { Button, FormControl, TextInput } from "@primer/react";
 import { CommentDiscussionIcon, HashIcon, PeopleIcon } from "@primer/octicons-react";
 import { ApiError } from "../../api/client";
-import type { Platform } from "../../api/types";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useSession } from "../../session/context";
-import { canAccess, safeNextPath } from "../../session/paths";
+import { canAccess, PLATFORM_SIGN_IN, safeNextPath } from "../../session/paths";
 import styles from "./SignInPage.module.css";
-
-const SIGN_IN_LINKS: Record<Platform["key"], { href: string; label: string }> = {
-  slack: { href: "/auth/slack", label: "Sign in with Slack" },
-  teams: { href: "/auth/microsoft", label: "Sign in with Microsoft" },
-};
 
 export function SignInPage() {
   useDocumentTitle("Sign in");
@@ -89,7 +83,7 @@ export function SignInPage() {
         {platforms.length > 0 && (
           <div className={styles.buttons}>
             {platforms.map((platform, index) => {
-              const link = SIGN_IN_LINKS[platform.key];
+              const link = PLATFORM_SIGN_IN[platform.key];
               return (
                 <Button
                   key={platform.key}

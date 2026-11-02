@@ -51,7 +51,7 @@ export function ManagersSection({ standupName, managers, onRemove }: ManagersSec
               </li>
             ))}
           </ul>
-          {managers.length === 1 && <p className={styles.emptyInline}>Make someone else a manager from the list below before you can step down.</p>}
+          {managers.length === 1 && managers[0].current_user && <p className={styles.emptyInline}>Make someone else a manager from the list below before you can step down.</p>}
         </>
       ) : (
         <p className={styles.emptyInline}>Only admins manage this standup right now. Make someone a manager from the list below.</p>

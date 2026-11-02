@@ -311,8 +311,20 @@ class StandupAnalyticsService
   # are now inactive or a later vacation covers the date. This keeps rates <= 100%.
   def expected_count_for(date)
     ids = completed_ids_on(date)
-    ids |= active_participants.select { |participant| participant.available_on?(date) }.map(&:platform_user_id) if scheduled_on?(date)
+    ids |= active_participants.select { |participant| expected_on_schedule?(participant, date) }.map(&:platform_user_id)
     ids.size
+  end
+
+  # Today's run (or a later one) only counts for people who've been prompted
+  # already, so a run that hasn't gone out yet doesn't show up as missed.
+  def expected_on_schedule?(participant, date)
+    return false unless scheduled_on?(date) && participant.available_on?(date)
+
+    date < today || responses_by_date.fetch(date, {}).key?(participant.platform_user_id)
+  end
+
+  def today
+    @today ||= now.to_date
   end
 
   def completed_ids_on(date)
@@ -332,7 +344,7 @@ class StandupAnalyticsService
 
   def expected_on?(participant, date)
     responses_by_date.fetch(date, {})[participant.platform_user_id]&.status == "completed" ||
-      (scheduled_on?(date) && participant.available_on?(date))
+      expected_on_schedule?(participant, date)
   end
 
   def period_dates

@@ -225,7 +225,7 @@ export function historyPayload(overrides: Partial<ResponsesHistoryPayload["histo
       range_limited: false,
       max_range_days: 90,
       default_range_days: 14,
-      summary: { dates: 1, expected: 2, answered: 1, missed: 1, answer_rate: 50.0, answer_rate_tone: "warning" },
+      summary: { dates: 1, expected: 2, answered: 1, skipped: 0, pending: 0, missed: 1, answer_rate: 50.0, answer_rate_tone: "warning" },
       participant_options: [
         { platform_user_id: "U123456", display_name: "John Doe", label: "John Doe", active: true },
         { platform_user_id: "U234567", display_name: "Jane Smith", label: "Jane Smith", active: true },
@@ -238,6 +238,7 @@ export function historyPayload(overrides: Partial<ResponsesHistoryPayload["histo
           expected_count: 2,
           answered_count: 1,
           missed_count: 1,
+          upcoming_count: 0,
           answer_rate: 50.0,
           answer_rate_tone: "warning",
           entries: [
@@ -248,6 +249,7 @@ export function historyPayload(overrides: Partial<ResponsesHistoryPayload["histo
               expected: true,
               answered: true,
               missed: false,
+              upcoming: false,
               status: "completed",
               status_label: "Answered",
               status_tone: "success",
@@ -284,6 +286,7 @@ export function historyPayload(overrides: Partial<ResponsesHistoryPayload["histo
               expected: true,
               answered: false,
               missed: true,
+              upcoming: false,
               status: null,
               status_label: "Missed",
               status_tone: "warning",

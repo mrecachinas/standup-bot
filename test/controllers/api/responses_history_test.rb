@@ -38,11 +38,13 @@ class Api::ResponsesHistoryTest < ActionDispatch::IntegrationTest
 
     jane = entries.fetch("Jane Smith")
     assert_equal "Pending", jane["status_label"]
-    assert_nil jane["status_tone"]
+    assert_equal "info", jane["status_tone"]
     assert_equal "No submitted answers were recorded for this response.", jane["empty_message"]
 
     assert_equal day["answered_count"], history.dig("summary", "answered")
     assert_equal history["days"].size, history.dig("summary", "dates")
+    summary = history["summary"]
+    assert_equal summary["expected"], summary.values_at("answered", "skipped", "pending", "missed").sum
   end
 
   test "date filter excludes responses outside selected range" do

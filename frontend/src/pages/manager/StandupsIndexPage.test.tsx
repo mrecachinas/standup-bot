@@ -23,7 +23,7 @@ describe("StandupsIndexPage", () => {
     expect(screen.getByText("1 paused")).toBeInTheDocument();
     expect(screen.getByText("Across 2 standups")).toBeInTheDocument();
     expect(screen.getByText("6 of 8 expected")).toBeInTheDocument();
-    expect(screen.getByText("See list below")).toBeInTheDocument();
+    expect(screen.getByText("1 paused · 1 under 60%")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Responses by day across all standups" })).toBeInTheDocument();
 
     const attention = screen.getByRole("region", { name: "Needs attention" });

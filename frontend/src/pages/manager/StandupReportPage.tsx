@@ -4,7 +4,7 @@ import { DataTable, Table } from "@primer/react/experimental";
 import { PaperAirplaneIcon } from "@primer/octicons-react";
 import { ApiError, patch, post } from "../../api/client";
 import type { ReportConfigurationParams, ReportGeneration, ReportPayload } from "../../api/types/insights";
-import { EmptyState, LoadingState, StandupHeader, StatusLabel, formatPercent } from "../../components";
+import { LoadingState, StandupHeader, StatusLabel, TableEmptyState, formatPercent } from "../../components";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useMutation } from "../../hooks/useMutation";
@@ -99,7 +99,7 @@ function ReportHistory({ generations }: { generations: ReportGeneration[] }) {
         History
       </Table.Title>
       {generations.length === 0 ? (
-        <EmptyState title="No reports have been sent yet." size="small" headingLevel="h3" />
+        <TableEmptyState title="No reports have been sent yet." />
       ) : (
         <DataTable
           aria-labelledby="report-history"

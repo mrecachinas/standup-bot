@@ -30,7 +30,6 @@ describe("StandupResponsesPage", () => {
     expect(screen.getByRole("link", { name: "Responses" })).toHaveAttribute("aria-current", "page");
 
     const summary = screen.getByRole("region", { name: "Summary" });
-    expect(within(summary).getByText("Standup dates").parentElement).toHaveTextContent("1");
     expect(within(summary).getByText("Expected").parentElement).toHaveTextContent("2");
     expect(within(summary).getByText("50% of expected")).toBeInTheDocument();
     expect(within(summary).getByText("Missed").parentElement).toHaveTextContent("1");
@@ -63,7 +62,7 @@ describe("StandupResponsesPage", () => {
 
   it("shows the empty state and the range-limited notice", async () => {
     setup(
-      historyPayload({ days: [], range_limited: true, summary: { dates: 0, expected: 0, answered: 0, missed: 0, answer_rate: null, answer_rate_tone: null } }),
+      historyPayload({ days: [], range_limited: true, summary: { dates: 0, expected: 0, answered: 0, skipped: 0, pending: 0, missed: 0, answer_rate: null, answer_rate_tone: null } }),
     );
     renderApp(PAGE);
 
@@ -71,6 +70,40 @@ describe("StandupResponsesPage", () => {
     expect(screen.getByText("Try a wider date range or clear the filters.")).toBeInTheDocument();
     expect(screen.getByText("Showing the most recent 90 days.")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "Summary" })).getByText("—")).toBeInTheDocument();
+  });
+
+  it("shows today's run as not sent yet instead of missed", async () => {
+    const base = historyPayload();
+    const [day] = base.history.days;
+    const upcoming = {
+      ...day,
+      date: "2026-11-02",
+      date_label: "November 2, 2026",
+      expected_count: 0,
+      answered_count: 0,
+      missed_count: 0,
+      upcoming_count: 2,
+      answer_rate: 0,
+      entries: day.entries.map((entry) => ({
+        ...entry,
+        answered: false,
+        missed: false,
+        upcoming: true,
+        status: null,
+        status_label: "Upcoming",
+        status_tone: null,
+        answers: [],
+        empty_message: "Not sent yet.",
+      })),
+    };
+    setup(historyPayload({ days: [upcoming, day] }));
+    renderApp(PAGE);
+
+    const today = await screen.findByRole("region", { name: "November 2, 2026" });
+    expect(within(today).getByText("Not sent yet · 2 people expected")).toBeInTheDocument();
+    expect(within(today).queryByRole("progressbar")).toBeNull();
+    expect(within(today).queryByText("Missed")).toBeNull();
+    expect(within(today).getAllByText("Upcoming")).toHaveLength(2);
   });
 
   it("puts the filters in the URL and sends them to the API", async () => {

@@ -49,7 +49,12 @@ export function PageHeader({ title, description, actions, breadcrumbs, trailingV
         {trailingVisual && <PrimerPageHeader.TrailingVisual>{trailingVisual}</PrimerPageHeader.TrailingVisual>}
       </PrimerPageHeader.TitleArea>
       {actions && <PrimerPageHeader.Actions>{actions}</PrimerPageHeader.Actions>}
-      {description && <PrimerPageHeader.Description>{description}</PrimerPageHeader.Description>}
+      {/* Description is a flex row, so wrap it to keep inline parts (like <time>) flowing as one sentence. */}
+      {description && (
+        <PrimerPageHeader.Description>
+          <span>{description}</span>
+        </PrimerPageHeader.Description>
+      )}
       {children && <PrimerPageHeader.Navigation as="div">{children}</PrimerPageHeader.Navigation>}
     </PrimerPageHeader>
   );
