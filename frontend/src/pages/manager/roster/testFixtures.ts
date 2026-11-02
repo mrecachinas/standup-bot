@@ -2,7 +2,7 @@
 // shaped like the Rails serializers.
 import type { Standup } from "../../../api/types";
 import type { ParticipantsConsole, ResponsesHistoryPayload, RosterParticipant, ScheduleExceptionsPayload, ScheduleOccurrence } from "../../../api/types/roster";
-import { standupFixture as baseStandup, slackPlatform } from "../../../test/fixtures";
+import { participantFixture, standupFixture as baseStandup, slackPlatform } from "../../../test/fixtures";
 
 export function standupFixture(overrides: Partial<Standup> = {}): Standup {
   return baseStandup({
@@ -17,18 +17,7 @@ export function standupFixture(overrides: Partial<Standup> = {}): Standup {
 
 export function rosterParticipant(overrides: Partial<RosterParticipant> = {}): RosterParticipant {
   return {
-    id: 11,
-    standup_id: 7,
-    platform_user_id: "U123456",
-    display_name: "John Doe",
-    active: true,
-    cached_timezone: "America/New_York",
-    created_at: "2026-09-01T12:00:00Z",
-    updated_at: "2026-10-01T12:00:00Z",
-    avatar_url: null,
-    vacation_until: null,
-    timezone_cache_status: "fresh",
-    timezone_cache_status_description: "Synced October 1, 2026 12:00",
+    ...participantFixture({ timezone_cache_status_description: "Synced October 1, 2026 12:00" }),
     status_label: "Active",
     status_tone: "success",
     manager: false,

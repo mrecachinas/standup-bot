@@ -32,12 +32,8 @@ class StandupSchedulePreviewSerializer
     local = occurrence.in_time_zone(@zone)
     {
       scheduled_at: occurrence.utc.iso8601,
-      local_time: local.iso8601,
       date: local.to_date.iso8601,
-      month: local.strftime("%b"),
-      day: local.day,
       weekday: local.strftime("%A"),
-      short_date: local.strftime("%a, %b %-d"),
       time: local.strftime("%-l:%M %p %Z"),
       label: local.strftime("%A, %B %-d, %Y at %-l:%M %p %Z")
     }

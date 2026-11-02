@@ -77,7 +77,7 @@ function dashboard(overrides: Partial<AdminDashboard> = {}): AdminDashboard {
     },
     activity_days: 14,
     daily_activity: [
-      { date: "2026-10-30", expected: 5, completed: 4, skipped: 0, pending: 1, missed: 0, completion_rate: 80, label: "Oct 30", total: 5, title: "Oct 30, 2026: 4 completed, 0 skipped, 0 missed, 1 pending (80%)" },
+      { date: "2026-10-30", expected: 5, completed: 4, skipped: 0, pending: 1, missed: 0, completion_rate: 80 },
     ],
     daily_activity_has_pending: true,
     response_totals: {

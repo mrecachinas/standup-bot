@@ -1,4 +1,4 @@
-import type { Bootstrap, Platform, Standup } from "../api/types";
+import type { Bootstrap, Participant, Platform, Standup } from "../api/types";
 
 export const slackPlatform: Platform = {
   key: "slack",
@@ -97,6 +97,25 @@ export function standupFixture(overrides: Partial<Standup> = {}): Standup {
     status_tone: "success",
     channel_label: "standup",
     timezone_label: "Participant timezones",
+    ...overrides,
+  };
+}
+
+/** A participant as ParticipantSerializer returns it. */
+export function participantFixture(overrides: Partial<Participant> = {}): Participant {
+  return {
+    id: 11,
+    standup_id: 7,
+    platform_user_id: "U123456",
+    display_name: "John Doe",
+    active: true,
+    cached_timezone: "America/New_York",
+    created_at: "2026-09-01T12:00:00Z",
+    updated_at: "2026-10-01T12:00:00Z",
+    avatar_url: null,
+    vacation_until: null,
+    timezone_cache_status: "fresh",
+    timezone_cache_status_description: "Synced from Slack",
     ...overrides,
   };
 }

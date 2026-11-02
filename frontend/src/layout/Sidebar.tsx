@@ -11,6 +11,7 @@ import {
   SignOutIcon,
 } from "@primer/octicons-react";
 import { Avatar } from "../components/Avatar";
+import { StatusDot } from "../components/StatusDot";
 import { useFlash } from "../flash/context";
 import { useSession } from "../session/context";
 import { ThemeSwitch } from "../theme/ThemeSwitch";
@@ -98,12 +99,7 @@ export function Sidebar() {
                   aria-current={current(currentStandupId === String(standup.id))}
                 >
                   <NavList.LeadingVisual>
-                    <span
-                      className={`${styles.dot} ${standup.active ? styles.dotActive : styles.dotPaused}`}
-                      role="img"
-                      aria-label={standup.active ? "Active" : "Paused"}
-                      title={standup.active ? "Active" : "Paused"}
-                    />
+                    <StatusDot tone={standup.active ? "success" : "warning"} label={standup.active ? "Active" : "Paused"} />
                   </NavList.LeadingVisual>
                   {standup.name}
                 </NavList.Item>

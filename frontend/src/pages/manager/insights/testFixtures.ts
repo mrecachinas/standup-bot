@@ -40,8 +40,8 @@ export function insightsFixture(overrides: Partial<InsightsPayload["insights"]> 
         runs_count: 2,
       },
       runs: [
-        { date: "2026-10-29", expected: 4, completed: 3, skipped: 0, pending: 0, missed: 1, completion_rate: 75, label: "Oct 29", total: 4, title: "Oct 29, 2026: 3 completed, 0 skipped, 1 missed (75%)" },
-        { date: "2026-10-30", expected: 4, completed: 3, skipped: 1, pending: 0, missed: 0, completion_rate: 75, label: "Oct 30", total: 4, title: "Oct 30, 2026: 3 completed, 1 skipped, 0 missed (75%)" },
+        { date: "2026-10-29", expected: 4, completed: 3, skipped: 0, pending: 0, missed: 1, completion_rate: 75 },
+        { date: "2026-10-30", expected: 4, completed: 3, skipped: 1, pending: 0, missed: 0, completion_rate: 75 },
       ],
       runs_have_pending: false,
       completion_series: [

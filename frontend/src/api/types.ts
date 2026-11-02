@@ -106,5 +106,33 @@ export interface Standup {
   timezone_label: string;
 }
 
+/** A participant as app/serializers/participant_serializer.rb returns it. */
+export interface Participant {
+  id: number;
+  standup_id: number;
+  platform_user_id: string;
+  display_name: string;
+  active: boolean;
+  cached_timezone: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  avatar_url: string | null;
+  vacation_until: string | null;
+  timezone_cache_status: "fresh" | "stale" | "invalid" | "missing";
+  timezone_cache_status_description: string;
+}
+
+/** One standup run (or one day across standups) in a RunBreakdownChart. */
+export interface RunTotals {
+  /** "2026-10-02" */
+  date: string;
+  expected: number;
+  completed: number;
+  skipped: number;
+  pending: number;
+  missed: number;
+  completion_rate: number;
+}
+
 /** success, info, warning, danger, or null for a neutral badge (UiFormat.status_tone). */
 export type Tone = "success" | "info" | "warning" | "danger" | null;

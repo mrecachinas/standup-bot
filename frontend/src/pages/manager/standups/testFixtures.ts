@@ -1,7 +1,7 @@
 // Test payloads shaped like the Rails serializers (overview, standup overview, editor).
 import type { Standup } from "../../../api/types";
 import type { OverviewPayload, OverviewStandup, StandupFormPayload, StandupOverviewPayload } from "../../../api/types/standups";
-import { standupFixture as baseStandup, slackPlatform, teamsPlatform } from "../../../test/fixtures";
+import { participantFixture, standupFixture as baseStandup, slackPlatform, teamsPlatform } from "../../../test/fixtures";
 
 export function standupFixture(overrides: Partial<Standup> = {}): Standup {
   return baseStandup({
@@ -168,8 +168,8 @@ export function standupOverviewFixture(overrides: Partial<StandupOverviewPayload
       },
       participants: [],
       sidebar_participants: [
-        { id: 1, standup_id: 7, platform_user_id: "U1", display_name: "Ada Lovelace", active: true, cached_timezone: "Europe/London", avatar_url: null, vacation_until: null, timezone_label: "London" },
-        { id: 2, standup_id: 7, platform_user_id: "U2", display_name: "Grace Hopper", active: true, cached_timezone: "America/New_York", avatar_url: null, vacation_until: null, timezone_label: "New York" },
+        { ...participantFixture({ id: 1, platform_user_id: "U1", display_name: "Ada Lovelace", cached_timezone: "Europe/London" }), timezone_label: "London" },
+        { ...participantFixture({ id: 2, platform_user_id: "U2", display_name: "Grace Hopper", cached_timezone: "America/New_York" }), timezone_label: "New York" },
       ],
       more_participants_count: 0,
       upcoming: {
@@ -191,12 +191,8 @@ export function standupOverviewFixture(overrides: Partial<StandupOverviewPayload
 export function occurrence(date: string, day: number, weekday: string) {
   return {
     scheduled_at: `${date}T09:30:00Z`,
-    local_time: `${date}T09:30:00+00:00`,
     date,
-    month: "Nov",
-    day,
     weekday,
-    short_date: `${weekday.slice(0, 3)}, Nov ${day}`,
     time: "9:30 AM UTC",
     label: `${weekday}, November ${day}, 2026 at 9:30 AM UTC`,
   };

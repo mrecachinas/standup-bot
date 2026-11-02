@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { clsx } from "clsx";
 import { Link as RouterLink } from "react-router";
 import { Button, FormControl, Select, TextInput } from "@primer/react";
 import { GraphIcon } from "@primer/octicons-react";
@@ -141,7 +142,7 @@ function HistoryEntryItem({ date, entry }: { date: string; entry: HistoryEntry }
             {entry.answers.map((answer, index) => (
               <div key={`${answer.question}-${index}`} className={styles.answer}>
                 <span className={styles.answerQuestion}>{answer.question}</span>
-                <span className={answer.text ? styles.answerText : `${styles.answerText} ${layout.muted}`}>{answer.display_text}</span>
+                <span className={clsx(styles.answerText, !answer.text && layout.muted)}>{answer.display_text}</span>
                 {answer.timestamp && answer.answered_at_label && <span className={layout.hint}>Answered at {answer.answered_at_label}</span>}
               </div>
             ))}

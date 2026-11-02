@@ -1,9 +1,9 @@
-import type { ScheduleOccurrence } from "../../../api/types/standups";
+import type { PreviewOccurrence } from "../../../api/types/standups";
 import { DateTile } from "../../../components";
 import layout from "../../../styles/layout.module.css";
 
 /** Upcoming runs as date tiles with the weekday and local time. */
-export function OccurrenceList({ occurrences, label = "Upcoming runs" }: { occurrences: ScheduleOccurrence[]; label?: string }) {
+export function OccurrenceList({ occurrences, label = "Upcoming runs" }: { occurrences: PreviewOccurrence[]; label?: string }) {
   return (
     <ul className={layout.list} aria-label={label}>
       {occurrences.map((occurrence) => (

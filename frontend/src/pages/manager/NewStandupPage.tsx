@@ -5,6 +5,7 @@ import type { StandupFormPayload } from "../../api/types/standups";
 import { ErrorBanner, LoadingState, PageHeader } from "../../components";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { useForwardedQuery } from "../../hooks/useForwardedQuery";
 import { paths } from "../../paths";
 import { StandupForm } from "./standupForm/StandupForm";
 import { TemplatePicker } from "./standupForm/TemplatePicker";
@@ -13,14 +14,8 @@ import layout from "../../styles/layout.module.css";
 /** /manager/standups/new?template=&platform=: pick a template, then fill in the editor. */
 export function NewStandupPage() {
   useDocumentTitle("New standup");
-  const [searchParams, setSearchParams] = useSearchParams();
-  const query = new URLSearchParams();
-  for (const key of ["template", "platform"]) {
-    const value = searchParams.get(key);
-    if (value) query.set(key, value);
-  }
-  const queryString = query.toString();
-  const { data, error, loading, reload } = useApi<StandupFormPayload>(`/api/standups/new${queryString ? `?${queryString}` : ""}`);
+  const [, setSearchParams] = useSearchParams();
+  const { data, error, loading, reload } = useApi<StandupFormPayload>(useForwardedQuery("/api/standups/new", ["template", "platform"]));
 
   const hrefFor = (template: string) => {
     const params = new URLSearchParams({ template });

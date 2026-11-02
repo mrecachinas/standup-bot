@@ -123,16 +123,7 @@ class AdminDashboardSerializer
   end
 
   def daily_activity
-    @daily_activity.map do |row|
-      pending = row[:pending].positive? ? ", #{row[:pending]} pending" : ""
-      row.merge(
-        date: row[:date].iso8601,
-        label: row[:date].strftime("%b %-d"),
-        total: row[:completed] + row[:skipped] + row[:pending] + row[:missed],
-        title: "#{row[:date].strftime("%b %-d, %Y")}: #{row[:completed]} completed, #{row[:skipped]} skipped, " \
-          "#{row[:missed]} missed#{pending} (#{row[:completion_rate].round}%)"
-      )
-    end
+    @daily_activity.map { |row| row.merge(date: row[:date].iso8601) }
   end
 
   def response_totals
