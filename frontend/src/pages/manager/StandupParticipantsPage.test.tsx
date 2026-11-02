@@ -255,7 +255,7 @@ describe("StandupParticipantsPage", () => {
     await user.click(within(managers).getByRole("button", { name: "Stop managing Daily standup" }));
     const dialog = await screen.findByRole("alertdialog", { name: "Stop managing Daily standup?" });
     expect(dialog).toHaveTextContent("You'll lose access to it.");
-    await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+    await user.click(within(dialog).getByRole("button", { name: "Stop managing" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/manager/standups"));
     expect(await screen.findByText("You no longer manage Daily standup.")).toBeInTheDocument();

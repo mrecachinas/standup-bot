@@ -3,7 +3,7 @@ import { Banner } from "@primer/react";
 import { errorMessages } from "../lib/errors";
 
 export interface ErrorBannerProps {
-  /** An ApiError, Error, message, or null/undefined to render nothing. */
+  /** An ApiError, Error, message or list of messages; nothing renders when it's empty. */
   error: unknown;
   title?: string;
   /** e.g. a "Try again" button. */

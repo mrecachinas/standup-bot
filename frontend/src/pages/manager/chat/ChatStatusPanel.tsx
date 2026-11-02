@@ -1,8 +1,7 @@
 import { Banner, Label } from "@primer/react";
 import { CheckCircleIcon, InfoIcon, XCircleIcon } from "@primer/octicons-react";
 import type { ChatStatus } from "../../../api/types/chat";
-import { StatusLabel } from "../../../components";
-import { KeyValueList, Panel, PanelList, PanelListItem } from "../insights/Panel";
+import { KeyValueList, Panel, PanelList, PanelListItem, StatusLabel } from "../../../components";
 import styles from "./chat.module.css";
 
 /** "<Platform> app status": credentials checklist plus the live API check. */

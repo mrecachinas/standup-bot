@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type KeyboardEvent } from "react";
 import { Button, IconButton, TextInput } from "@primer/react";
 import { ChevronDownIcon, ChevronUpIcon, PlusIcon, XIcon } from "@primer/octicons-react";
 import { newKey, type QuestionRow } from "./formState";
+import layout from "../../../styles/layout.module.css";
 import styles from "./StandupForm.module.css";
 
 export interface QuestionEditorProps {
@@ -100,7 +101,7 @@ export function QuestionEditor({ questions, onChange, suggestions, describedBy, 
             </span>
             <TextInput
               ref={register(row.key, "input")}
-              className={styles.grow}
+              className={layout.grow}
               block
               value={row.text}
               placeholder="Ask something…"
@@ -136,7 +137,7 @@ export function QuestionEditor({ questions, onChange, suggestions, describedBy, 
         <Button size="small" leadingVisual={PlusIcon} onClick={() => addRow()}>
           Add question
         </Button>
-        {available.length > 0 && <span className={styles.hint}>or try:</span>}
+        {available.length > 0 && <span className={layout.hint}>or try:</span>}
         {available.map((text) => (
           <Button key={text} size="small" variant="invisible" className={styles.suggestion} onClick={() => applySuggestion(text)}>
             {text}

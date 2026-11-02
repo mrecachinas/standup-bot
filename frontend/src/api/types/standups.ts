@@ -44,15 +44,7 @@ export interface NeedsAttentionItem {
   tone: Tone;
 }
 
-/** StandupSerializer's console keys the shared Standup type leaves out. */
-export interface ConsoleStandup extends Standup {
-  status_label?: string;
-  status_tone?: Tone;
-  channel_label?: string;
-  timezone_label?: string;
-}
-
-export interface OverviewStandup extends ConsoleStandup {
+export interface OverviewStandup extends Standup {
   standup_id: number;
   participant_count: number;
   participant_label: string;
@@ -166,7 +158,7 @@ export interface StandupOverview {
     expected: number;
     sub_label: string;
     previous_rate: number | null;
-    delta: { value: number; direction: "up" | "down" | "flat"; label: string; title: string } | null;
+    delta: { value: number; direction: "up" | "down" | "flat" } | null;
   };
   average_response_time: { minutes: number | null; label: string };
   participant_counts: { total: number; active: number; inactive: number };

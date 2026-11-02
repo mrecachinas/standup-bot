@@ -1,0 +1,119 @@
+/* Page-level layout and text utilities shared by the console's pages. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-24);
+}
+
+.narrow {
+  max-width: 720px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-16);
+  min-width: 0;
+}
+
+/* Main column plus a narrower aside; stacks on small screens. */
+.mainAside {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: var(--base-size-24);
+  align-items: start;
+}
+
+.twoColumns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--base-size-16);
+}
+
+@media (max-width: 1011px) {
+  .mainAside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--base-size-8);
+}
+
+.grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* A divided list of rows inside a flush Panel. */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list > li {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-12);
+  padding: var(--base-size-12) var(--base-size-16);
+}
+
+.list > li + li {
+  border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+
+.list > li.top {
+  align-items: flex-start;
+}
+
+.title {
+  color: var(--fgColor-default);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.muted {
+  margin: 0;
+  color: var(--fgColor-muted);
+}
+
+/* Small muted text: hints, captions and secondary lines. */
+.hint {
+  margin: 0;
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+/* A muted line where a list or chart would be. */
+.empty {
+  margin: 0;
+  padding: var(--base-size-16);
+  color: var(--fgColor-muted);
+}
+
+.small {
+  font-size: var(--text-body-size-small);
+}
+
+.mono {
+  font-family: var(--fontStack-monospace);
+}
+
+.truncate {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.danger {
+  color: var(--fgColor-danger);
+}

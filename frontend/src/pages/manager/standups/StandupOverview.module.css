@@ -1,10 +1,3 @@
-.statValue {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--base-size-8);
-}
-
 .smallValue {
   font-size: var(--text-title-size-small);
 }

@@ -4,14 +4,14 @@ import { Button, Dialog, FormControl, SegmentedControl, Select } from "@primer/r
 import { Table } from "@primer/react/experimental";
 import { CheckIcon, CommentDiscussionIcon, PlusIcon } from "@primer/octicons-react";
 import type { NeedsAttentionItem, OverviewPayload, OverviewStandup, Visibility } from "../../api/types/standups";
-import { EmptyState, ErrorBanner, LoadingState, PageHeader, StatCard, StatGrid } from "../../components";
+import { EmptyState, ErrorBanner, LoadingState, PageHeader, Panel, StatCard, StatGrid, StatusDot } from "../../components";
 import { RunBreakdownChart, RunLegend } from "../../components/charts";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { usePauseResume } from "../../hooks/usePauseResume";
 import { paths } from "../../paths";
-import { Section } from "./standups/Section";
 import { StandupsTable } from "./standups/StandupsTable";
-import { usePauseResume } from "./standups/usePauseResume";
+import layout from "../../styles/layout.module.css";
 import styles from "./standups/standups.module.css";
 
 const VISIBILITIES: Visibility[] = ["all", "active", "paused"];
@@ -45,7 +45,7 @@ export function StandupsIndexPage() {
   const periodOptions = PERIOD_OPTIONS.includes(periodDays) ? PERIOD_OPTIONS : [...PERIOD_OPTIONS, periodDays].sort((a, b) => a - b);
 
   return (
-    <div className={styles.page}>
+    <div className={layout.page}>
       <PageHeader
         title="Overview"
         description={data?.subtitle ?? `How your standups are doing over the last ${periodDays} days.`}
@@ -67,8 +67,6 @@ export function StandupsIndexPage() {
           </div>
         }
       />
-
-      <ErrorBanner error={pauseResume.error} onDismiss={pauseResume.reset} title="Couldn't change the standup" />
 
       {!data && loading && <LoadingState label="Loading standups…" />}
       {!data && error && <ErrorBanner error={error} title="Couldn't load your standups" action={<Button onClick={reload}>Try again</Button>} />}
@@ -102,15 +100,15 @@ export function StandupsIndexPage() {
             <StatCard label="Needs attention" value={data.stats.needs_attention_count} hint={data.stats.needs_attention_label} />
           </StatGrid>
 
-          <div className={`${styles.mainAside} ${styles.matchHeights}`}>
-            <Section title="Responses by day" hint="All standups combined" actions={<RunLegend pending={data.daily_has_pending} />}>
+          <div className={`${layout.mainAside} ${styles.matchHeights}`}>
+            <Panel title="Responses by day" description="All standups combined" actions={<RunLegend pending={data.daily_has_pending} />}>
               <RunBreakdownChart runs={data.daily_totals} height={220} label="Responses by day across all standups" />
-            </Section>
+            </Panel>
             <NeedsAttention
               items={data.needs_attention}
               emptyMessage={data.needs_attention_empty_message}
               busy={pauseResume.loading}
-              onResume={(item) => void pauseResume.run(item.standup_id, false)}
+              onResume={(item) => void pauseResume.run({ id: item.standup_id, active: false })}
             />
           </div>
 
@@ -131,10 +129,10 @@ export function StandupsIndexPage() {
               <StandupsTable
                 standups={data.standups}
                 labelledBy={tableTitleId}
-                onPauseResume={(standup: OverviewStandup) => void pauseResume.run(standup.id, standup.active)}
+                onPauseResume={(standup: OverviewStandup) => void pauseResume.run(standup)}
               />
             ) : (
-              <p className={`${styles.card} ${styles.inlineEmpty} ${styles.tableEmpty}`}>{data.empty_list_message}</p>
+              <p className={`${layout.empty} ${styles.tableEmpty}`}>{data.empty_list_message}</p>
             )}
           </Table.Container>
         </>
@@ -161,7 +159,7 @@ function NeedsAttention({
   const hidden = items.length - ATTENTION_VISIBLE;
 
   return (
-    <Section title="Needs attention" flush className={styles.fillRow}>
+    <Panel title="Needs attention" flush className={styles.fillRow}>
       {items.length > 0 ? (
         <>
           <AttentionList items={items.slice(0, ATTENTION_VISIBLE)} busy={busy} onResume={onResume} />
@@ -181,21 +179,21 @@ function NeedsAttention({
       ) : (
         <EmptyState icon={CheckIcon} title="All clear" description={emptyMessage} border={false} size="small" headingLevel="h3" />
       )}
-    </Section>
+    </Panel>
   );
 }
 
 function AttentionList({ items, busy, onResume }: { items: NeedsAttentionItem[]; busy: boolean; onResume: (item: NeedsAttentionItem) => void }) {
   return (
-    <ul className={styles.list}>
+    <ul className={layout.list}>
       {items.map((item) => (
         <li key={item.standup_id}>
-          <span className={`${styles.dot} ${styles[`dot-${item.tone ?? "warning"}`]}`} aria-hidden="true" />
-          <div className={styles.grow}>
-            <RouterLink to={paths.standup(item.standup_id)} className={styles.title}>
+          <StatusDot tone={item.tone ?? "warning"} />
+          <div className={layout.grow}>
+            <RouterLink to={paths.standup(item.standup_id)} className={layout.title}>
               {item.name}
             </RouterLink>
-            <div className={styles.sub}>{item.reason}</div>
+            <div className={layout.hint}>{item.reason}</div>
           </div>
           {!item.active && (
             <Button size="small" disabled={busy} onClick={() => onResume(item)} aria-label={`Resume ${item.name}`}>

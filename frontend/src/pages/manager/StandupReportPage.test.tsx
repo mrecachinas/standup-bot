@@ -104,9 +104,9 @@ describe("StandupReportPage", () => {
 
     expect(await screen.findByText("Fix the report settings")).toBeInTheDocument();
     expect(screen.getByText("Delivery channel can't be blank")).toBeInTheDocument();
-    expect(screen.getByText("can't be blank")).toBeInTheDocument();
+    expect(screen.getByText("Channel can't be blank")).toBeInTheDocument();
     expect(screen.getByLabelText("Post to channel")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByText("contain invalid Slack channel or user IDs: nope")).toBeInTheDocument();
+    expect(screen.getByLabelText("Also send to")).toHaveAccessibleDescription("Recipients contain invalid Slack channel or user IDs: nope");
   });
 
   it("generates a report now", async () => {

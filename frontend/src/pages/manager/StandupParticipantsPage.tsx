@@ -1,55 +1,45 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Button, ConfirmationDialog } from "@primer/react";
+import { ConfirmationDialog } from "@primer/react";
 import { del, patch, post } from "../../api/client";
-import type { Standup } from "../../api/types";
-import type {
-  AddManagerResult,
-  ParticipantMutationResult,
-  ParticipantParams,
-  ParticipantsConsole,
-  RemoveManagerResult,
-  RosterParticipant,
-} from "../../api/types/roster";
-import { ErrorBanner, LoadingState, StandupHeader } from "../../components";
-import { useApi } from "../../hooks/useApi";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import type { AddManagerResult, ParticipantMutationResult, ParticipantParams, ParticipantsConsole, RemoveManagerResult, RosterParticipant } from "../../api/types/roster";
+import { ErrorBanner, StandupHeader } from "../../components";
 import { useMutation } from "../../hooks/useMutation";
 import { paths } from "../../paths";
 import { useSession } from "../../session/context";
 import { AddPeopleSection } from "./roster/AddPeopleSection";
 import { EditParticipantDialog } from "./roster/EditParticipantDialog";
 import { ManagersSection } from "./roster/ManagersSection";
+import { removeManagerCopy } from "./roster/managerCopy";
 import { PeopleSection, type ParticipantAction } from "./roster/PeopleSection";
-import { StandupLoadError } from "./roster/StandupLoadError";
-import { usePauseResume } from "./roster/usePauseResume";
-import styles from "./roster/roster.module.css";
+import { StandupLoadState } from "./standups/StandupLoadState";
+import { useStandupPage } from "./standups/useStandupPage";
+import layout from "../../styles/layout.module.css";
 
-type Confirmable = Exclude<ParticipantAction, "edit" | "toggle-active">;
+type Outcome = { notice?: string; can_manage?: boolean };
 
-interface ActionOutcome {
-  notice?: string;
-  can_manage?: boolean;
+interface Confirmation {
+  participant: RosterParticipant;
+  title: string;
+  message: string;
+  confirm: string;
+  danger: boolean;
+  request: () => Promise<Outcome>;
 }
 
 export function StandupParticipantsPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const session = useSession();
-  const currentUserId = session.bootstrap.user?.id;
-  const { data, error, loading, reload, setData } = useApi<ParticipantsConsole>(`/api/standups/${id}/participants?view=console`);
-  useDocumentTitle(data ? `Participants · ${data.standup.name}` : "Participants");
-
   const base = `/api/standups/${id}`;
+  const { data, error, loading, reload, setStandup } = useStandupPage<ParticipantsConsole>(`${base}/participants?view=console`, "Participants");
   const [editing, setEditing] = useState<RosterParticipant | null>(null);
-  const [confirming, setConfirming] = useState<{ action: Confirmable; participant: RosterParticipant } | null>(null);
+  const [confirming, setConfirming] = useState<Confirmation | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
-
-  const pauseResume = usePauseResume(data?.standup, (standup: Standup) => setData((current) => ({ ...(current as ParticipantsConsole), standup })));
 
   // Row actions and manager changes share one error banner. Losing your own
   // manager role means losing access, so leave for the standups list.
-  const action = useMutation((call: () => Promise<ActionOutcome>) => call(), {
+  const action = useMutation((request: () => Promise<Outcome>) => request(), {
     onSuccess: async (outcome) => {
       if (outcome.can_manage === false) {
         await session.refresh().catch(() => undefined);
@@ -70,66 +60,67 @@ export function StandupParticipantsPage() {
     },
   );
 
-  const runFor = async (participant: RosterParticipant, call: () => Promise<ActionOutcome>) => {
+  if (!data) return <StandupLoadState error={error} onRetry={reload} title="Participants" />;
+
+  const { standup, platform, managers, summary, participants } = data;
+
+  const runFor = async (participant: RosterParticipant, request: () => Promise<Outcome>) => {
     setBusyId(participant.id);
-    try {
-      await action.run(call);
-    } finally {
-      setBusyId(null);
-    }
+    await action.run(request);
+    setBusyId(null);
   };
 
   const removeManager = (userId: number) => () => del<RemoveManagerResult>(`${base}/managers/${userId}`);
 
   const handleAction = (kind: ParticipantAction, participant: RosterParticipant) => {
-    if (kind === "edit") {
-      save.reset();
-      setEditing(participant);
-    } else if (kind === "toggle-active") {
-      void runFor(participant, () =>
-        patch<ParticipantMutationResult>(`${base}/participants/${participant.id}`, { participant: { active: !participant.active } }),
-      );
-    } else {
-      setConfirming({ action: kind, participant });
+    const name = participant.display_name;
+    switch (kind) {
+      case "edit":
+        save.reset();
+        setEditing(participant);
+        return;
+      case "toggle-active":
+        void runFor(participant, () => patch<ParticipantMutationResult>(`${base}/participants/${participant.id}`, { participant: { active: !participant.active } }));
+        return;
+      case "make-manager":
+        setConfirming({
+          participant,
+          title: `Make ${name} a manager?`,
+          message: `Let ${name} manage ${standup.name}? They'll be able to change its settings, people, and schedule.`,
+          confirm: "Make manager",
+          danger: false,
+          request: () => post<AddManagerResult>(`${base}/managers`, { participant_id: participant.id }),
+        });
+        return;
+      case "remove-manager":
+        if (participant.manager_user_id === null) return;
+        setConfirming({
+          participant,
+          ...removeManagerCopy(name, standup.name, participant.manager_user_id === session.bootstrap.user?.id),
+          danger: true,
+          request: removeManager(participant.manager_user_id),
+        });
+        return;
+      case "remove":
+        setConfirming({
+          participant,
+          title: `Remove ${name}?`,
+          message: `Remove ${name} from ${standup.name}?`,
+          confirm: "Remove",
+          danger: true,
+          request: async () => {
+            await del(`${base}/participants/${participant.id}`);
+            return { notice: `Removed ${name} from ${standup.name}.` };
+          },
+        });
     }
   };
-
-  const handleConfirm = async () => {
-    if (!confirming) return;
-    const { action: kind, participant } = confirming;
-    setConfirming(null);
-    if (kind === "make-manager") {
-      await runFor(participant, () => post<AddManagerResult>(`${base}/managers`, { participant_id: participant.id }));
-    } else if (kind === "remove-manager" && participant.manager_user_id) {
-      await runFor(participant, removeManager(participant.manager_user_id));
-    } else if (kind === "remove") {
-      const standupName = data?.standup.name ?? "this standup";
-      await runFor(participant, async () => {
-        await del(`${base}/participants/${participant.id}`);
-        return { notice: `Removed ${participant.display_name} from ${standupName}.` };
-      });
-    }
-  };
-
-  if (!data) {
-    if (error) return <StandupLoadError error={error} title="Participants" onRetry={reload} />;
-    return <LoadingState label="Loading participants…" />;
-  }
-
-  const { standup, platform, managers, summary, participants } = data;
-  const copy = confirming && confirmCopy(confirming.action, confirming.participant, standup.name, currentUserId);
 
   return (
-    <div className={styles.page}>
-      <StandupHeader
-        standup={standup}
-        active="participants"
-        participantCount={summary.active_count}
-        onPauseResume={pauseResume.toggle}
-        pauseResumeBusy={pauseResume.busy}
-      />
+    <div className={layout.page}>
+      <StandupHeader standup={standup} active="participants" participantCount={summary.active_count} onStandupChange={setStandup} />
 
-      {error && !loading && <ErrorBanner error={error} title="Couldn't refresh participants" action={<Button onClick={reload}>Try again</Button>} />}
+      {error && !loading && <ErrorBanner error={error} title="Couldn't refresh participants" />}
       <ErrorBanner error={action.error} title="That didn't work" onDismiss={action.reset} />
 
       <AddPeopleSection standupId={standup.id} roster={data} onChanged={reload} />
@@ -148,34 +139,19 @@ export function StandupParticipantsPage() {
         />
       )}
 
-      {confirming && copy && (
+      {confirming && (
         <ConfirmationDialog
-          title={copy.title}
-          onClose={(gesture) => (gesture === "confirm" ? void handleConfirm() : setConfirming(null))}
-          confirmButtonContent={copy.confirm}
-          confirmButtonType={confirming.action === "make-manager" ? "primary" : "danger"}
+          title={confirming.title}
+          onClose={(gesture) => {
+            setConfirming(null);
+            if (gesture === "confirm") void runFor(confirming.participant, confirming.request);
+          }}
+          confirmButtonContent={confirming.confirm}
+          confirmButtonType={confirming.danger ? "danger" : "primary"}
         >
-          {copy.message}
+          {confirming.message}
         </ConfirmationDialog>
       )}
     </div>
   );
-}
-
-function confirmCopy(kind: Confirmable, participant: RosterParticipant, standupName: string, currentUserId: number | undefined) {
-  const name = participant.display_name;
-  switch (kind) {
-    case "make-manager":
-      return {
-        title: `Make ${name} a manager?`,
-        message: `Let ${name} manage ${standupName}? They'll be able to change its settings, people, and schedule.`,
-        confirm: "Make manager",
-      };
-    case "remove-manager":
-      return participant.manager_user_id === currentUserId
-        ? { title: `Stop managing ${standupName}?`, message: `Stop managing ${standupName}? You'll lose access to it.`, confirm: "Stop managing" }
-        : { title: `Remove ${name} as a manager?`, message: `Remove ${name} as a manager of ${standupName}?`, confirm: "Remove manager" };
-    case "remove":
-      return { title: `Remove ${name}?`, message: `Remove ${name} from ${standupName}?`, confirm: "Remove" };
-  }
 }

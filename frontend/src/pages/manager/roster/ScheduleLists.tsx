@@ -2,9 +2,9 @@ import { Button, FormControl, Select, VisuallyHidden } from "@primer/react";
 import { DataTable, Table } from "@primer/react/experimental";
 import { CalendarIcon } from "@primer/octicons-react";
 import type { ScheduleException, ScheduleOccurrence } from "../../../api/types/roster";
-import { EmptyState, StatusLabel } from "../../../components";
-import { DateTile, Section } from "./Section";
-import styles from "./roster.module.css";
+import { DateTile, EmptyState, Panel, StatusLabel } from "../../../components";
+import layout from "../../../styles/layout.module.css";
+import { zoneOptions } from "./schedule";
 
 export interface UpcomingRunsSectionProps {
   occurrences: ScheduleOccurrence[];
@@ -29,13 +29,14 @@ export function UpcomingRunsSection({
   removing,
   onUnskip,
 }: UpcomingRunsSectionProps) {
-  const zones = timeZoneOptions.includes(previewTimezone) ? timeZoneOptions : [previewTimezone, ...timeZoneOptions];
+  const zones = zoneOptions(timeZoneOptions, previewTimezone);
 
   return (
-    <Section
+    <Panel
       title="Upcoming runs"
-      titleId="upcoming-runs-heading"
-      hint="Includes skipped and moved dates"
+      headingId="upcoming-runs-heading"
+      description="Includes skipped and moved dates"
+      flush
       actions={
         <FormControl>
           <FormControl.Label visuallyHidden>Show times in</FormControl.Label>
@@ -50,15 +51,15 @@ export function UpcomingRunsSection({
       }
     >
       {occurrences.length > 0 ? (
-        <ul className={styles.list} aria-labelledby="upcoming-runs-heading">
+        <ul className={layout.list} aria-labelledby="upcoming-runs-heading">
           {occurrences.map((occurrence) => (
-            <li key={occurrence.scheduled_at + occurrence.standup_date} className={styles.listItem}>
+            <li key={occurrence.scheduled_at + occurrence.standup_date}>
               <DateTile date={occurrence.local_date} blocked={occurrence.blocked} />
-              <div className={styles.grow}>
-                <div className={occurrence.blocked ? styles.muted : undefined}>
+              <div className={layout.grow}>
+                <div className={occurrence.blocked ? layout.muted : undefined}>
                   <time dateTime={occurrence.scheduled_at}>{occurrence.local_label}</time>
                 </div>
-                {occurrence.note && <div className={styles.cellSub}>{occurrence.note}</div>}
+                {occurrence.note && <div className={layout.hint}>{occurrence.note}</div>}
               </div>
               <StatusLabel tone={occurrence.status_tone}>{occurrence.status_label}</StatusLabel>
               {occurrence.can_skip && (
@@ -86,9 +87,9 @@ export function UpcomingRunsSection({
           ))}
         </ul>
       ) : (
-        <p className={styles.emptyInline}>No upcoming occurrences could be calculated for this schedule.</p>
+        <p className={layout.empty}>No upcoming occurrences could be calculated for this schedule.</p>
       )}
-    </Section>
+    </Panel>
   );
 }
 
@@ -120,13 +121,13 @@ export function ExceptionsTable({ exceptions, removing, onRemove }: ExceptionsTa
               header: "Moved to",
               id: "moved_to",
               width: "auto",
-              renderCell: (row) => row.scheduled_at_label ?? <span className={styles.muted}>—</span>,
+              renderCell: (row) => row.scheduled_at_label ?? <span className={layout.muted}>—</span>,
             },
             {
               header: "Reason",
               id: "reason",
               width: "growCollapse",
-              renderCell: (row) => row.reason || <span className={styles.muted}>—</span>,
+              renderCell: (row) => row.reason || <span className={layout.muted}>—</span>,
             },
             {
               header: () => <VisuallyHidden>Actions</VisuallyHidden>,

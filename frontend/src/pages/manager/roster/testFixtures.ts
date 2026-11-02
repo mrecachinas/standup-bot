@@ -2,36 +2,17 @@
 // shaped like the Rails serializers.
 import type { Standup } from "../../../api/types";
 import type { ParticipantsConsole, ResponsesHistoryPayload, RosterParticipant, ScheduleExceptionsPayload, ScheduleOccurrence } from "../../../api/types/roster";
-import { slackPlatform } from "../../../test/fixtures";
+import { standupFixture as baseStandup, slackPlatform } from "../../../test/fixtures";
 
 export function standupFixture(overrides: Partial<Standup> = {}): Standup {
-  return {
-    id: 7,
-    name: "Daily standup",
-    platform: "slack",
-    platform_channel: "C0123",
-    intro: "Good morning!",
-    outro: "Thanks!",
-    questions: ["What did you do yesterday?", "What will you do today?", "Any blockers?"],
-    schedule_type: "weekly",
-    schedule_days: [1, 2, 3, 4, 5],
-    default_hour: 9,
-    default_minute: 30,
-    respect_timezone: true,
-    active: true,
-    created_at: "2026-09-01T12:00:00Z",
-    updated_at: "2026-10-01T12:00:00Z",
-    platform_label: "Slack",
+  return baseStandup({
     platform_channel_name: "#daily-standup",
-    reminder_enabled: true,
-    reminder_after_minutes: 60,
-    max_reminders: 2,
-    send_time: "09:30",
-    schedule_summary: "Weekdays at 9:30 AM",
-    schedule_sentence: "Every weekday at 9:30 AM",
-    schedule_picker: { frequency: "weekly", days: [1, 2, 3, 4, 5] },
+    channel_label: "daily-standup",
+    participants_count: undefined,
+    active_participants_count: undefined,
+    responses_count: undefined,
     ...overrides,
-  };
+  });
 }
 
 export function rosterParticipant(overrides: Partial<RosterParticipant> = {}): RosterParticipant {

@@ -3,16 +3,15 @@ import { Button, Link, ProgressBar } from "@primer/react";
 import { DataTable, Table } from "@primer/react/experimental";
 import { CheckIcon, SyncIcon } from "@primer/octicons-react";
 import type { AdminDashboard, AdminUser } from "../../api/types/admin";
-import { Avatar, EmptyState, ErrorBanner, LoadingState, PageHeader, RelativeTime, StatCard, StatGrid, StatusLabel } from "../../components";
+import { Avatar, EmptyState, ErrorBanner, LoadingState, PageHeader, Panel, PanelEmptyText, PanelList, PanelListItem, RelativeTime, StatCard, StatGrid, StatusDot, StatusLabel } from "../../components";
 import { pluralize } from "../../lib/format";
 import { progressBgForTone } from "../../lib/tone";
 import { RunBreakdownChart, RunLegend } from "../../components/charts";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { paths } from "../../paths";
-import { Panel, PanelEmptyText, PanelList, PanelListItem } from "../manager/insights/Panel";
 import { HealthCard } from "./components/HealthCard";
-import insightsStyles from "../manager/insights/insights.module.css";
+import layout from "../../styles/layout.module.css";
 import styles from "./components/admin.module.css";
 
 export function AdminDashboardPage() {
@@ -27,7 +26,7 @@ export function AdminDashboardPage() {
 
   if (!data) {
     return (
-      <div className={insightsStyles.page}>
+      <div className={layout.page}>
         <PageHeader title="Admin" description="Installation health, usage, and recent changes." />
         {error ? <ErrorBanner error={error} title="Couldn't load the admin dashboard" action={<Button onClick={reload}>Try again</Button>} /> : <LoadingState label="Checking installation health…" />}
       </div>
@@ -37,7 +36,7 @@ export function AdminDashboardPage() {
   const { health, stats } = data;
 
   return (
-    <div className={insightsStyles.page}>
+    <div className={layout.page}>
       <PageHeader
         title="Admin"
         trailingVisual={<StatusLabel tone={health.status_tone}>{health.status_label}</StatusLabel>}
@@ -64,7 +63,7 @@ export function AdminDashboardPage() {
         <StatCard label="Users" value={stats.users_active} hint={`${pluralize(stats.users_admin, "admin")} · ${stats.standup_owners} running standups`} />
       </StatGrid>
 
-      <div className={styles.mainAside}>
+      <div className={layout.mainAside}>
         <Panel title="Response activity" description={`Last ${data.activity_days} days, all standups`} actions={<RunLegend pending={data.daily_activity_has_pending} />}>
           <RunBreakdownChart runs={data.daily_activity} height={200} label="Responses per day across the installation" />
         </Panel>
@@ -83,14 +82,14 @@ export function AdminDashboardPage() {
               ))}
             </div>
           ) : (
-            <p className={insightsStyles.muted}>No responses yet.</p>
+            <p className={layout.muted}>No responses yet.</p>
           )}
         </Panel>
       </div>
 
       <UsersTable users={data.users} />
 
-      <div className={insightsStyles.twoColumns}>
+      <div className={layout.twoColumns}>
         <Panel title="Recent changes" flush>
           {data.audit_logs.length > 0 ? (
             <PanelList label="Recent changes">
@@ -100,11 +99,11 @@ export function AdminDashboardPage() {
                   leadingVisual={<Avatar name={log.actor_name} src={log.actor_avatar_url} size={24} />}
                   title={
                     <>
-                      {log.actor_name} <span className={styles.muted}>{log.action_label}</span>
+                      {log.actor_name} <span className={styles.action}>{log.action_label}</span>
                     </>
                   }
                   description={log.auditable_label}
-                  trailing={<RelativeTime datetime={log.created_at} className={styles.time} />}
+                  trailing={<RelativeTime datetime={log.created_at} className={`${layout.hint} ${layout.nowrap}`} />}
                 />
               ))}
             </PanelList>
@@ -119,14 +118,14 @@ export function AdminDashboardPage() {
               {data.failed_reports.map((report) => (
                 <PanelListItem
                   key={report.id}
-                  leadingVisual={<span className={styles.dangerDot} role="img" aria-label="Failed" />}
+                  leadingVisual={<StatusDot tone="danger" label="Failed" />}
                   title={
                     <Link as={RouterLink} to={paths.standupReport(report.standup_id)}>
                       {report.standup_name ?? `Standup #${report.standup_id}`}
                     </Link>
                   }
                   description={report.error_message}
-                  trailing={<RelativeTime datetime={report.requested_at} className={styles.time} />}
+                  trailing={<RelativeTime datetime={report.requested_at} className={`${layout.hint} ${layout.nowrap}`} />}
                 />
               ))}
             </PanelList>
@@ -160,9 +159,9 @@ function UsersTable({ users }: { users: AdminUser[] }) {
             renderCell: (user) => (
               <div className={styles.person}>
                 <Avatar name={user.name} src={user.avatar_url} />
-                <div className={insightsStyles.truncate}>
-                  <div className={styles.personName}>{user.name}</div>
-                  <div className={styles.sub}>{user.subtitle}</div>
+                <div className={layout.truncate}>
+                  <div className={layout.title}>{user.name}</div>
+                  <div className={layout.hint}>{user.subtitle}</div>
                 </div>
               </div>
             ),

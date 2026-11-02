@@ -1,13 +1,15 @@
-import type { ApiError } from "../../../api/client";
+import type { ApiError } from "../api/client";
 
 /**
  * A field's 422 message for FormControl.Validation. Rails sends attribute
  * messages without the attribute ("can't be blank"), so prefix the label.
  */
-export function fieldMessage(error: ApiError | null | undefined, field: string, label: string): string | undefined {
-  const message = error?.fieldError(field);
-  if (!message) return undefined;
-  return /^[a-z]/.test(message) ? `${label} ${message}` : message;
+export function fieldMessage(error: ApiError | null | undefined, fields: string | string[], label: string): string | undefined {
+  for (const field of typeof fields === "string" ? [fields] : fields) {
+    const message = error?.fieldError(field);
+    if (message) return /^[a-z]/.test(message) ? `${label} ${message}` : message;
+  }
+  return undefined;
 }
 
 /**

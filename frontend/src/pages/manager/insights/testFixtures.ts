@@ -1,40 +1,11 @@
 // Test fixtures shaped like the Rails serializers, shared by the Insights,
 // Reports, chat setup and integrations page tests.
 import type { Standup } from "../../../api/types";
+import { standupFixture } from "../../../test/fixtures";
 import type { ChatResult, ChatSetupPayload, ChatStatus, IntegrationsPayload } from "../../../api/types/chat";
 import type { InsightsPayload, ReportPayload } from "../../../api/types/insights";
 
-export function standupFixture(overrides: Partial<Standup> = {}): Standup {
-  return {
-    id: 7,
-    name: "Daily standup",
-    platform: "slack",
-    platform_channel: "C0123",
-    intro: "Morning!",
-    outro: "Thanks",
-    questions: ["What did you do yesterday?", "What will you do today?", "Any blockers?"],
-    schedule_type: "weekly",
-    schedule_days: [1, 2, 3, 4, 5],
-    default_hour: 9,
-    default_minute: 30,
-    respect_timezone: true,
-    active: true,
-    created_at: "2026-09-01T09:00:00Z",
-    updated_at: "2026-10-01T09:00:00Z",
-    participants_count: 3,
-    active_participants_count: 3,
-    responses_count: 42,
-    platform_label: "Slack",
-    platform_channel_name: "#standup",
-    reminder_enabled: true,
-    reminder_after_minutes: 60,
-    max_reminders: 2,
-    send_time: "09:30",
-    schedule_summary: "Weekdays at 9:30 AM",
-    schedule_sentence: "Every weekday at 9:30 AM",
-    ...overrides,
-  };
-}
+export { standupFixture };
 
 export function insightsFixture(overrides: Partial<InsightsPayload["insights"]> = {}, standup: Partial<Standup> = {}): InsightsPayload {
   return {
@@ -309,44 +280,10 @@ export function chatSetupFixture(overrides: Partial<ChatSetupPayload> = {}): Cha
     copy: {
       channel_id_placeholder: "Channel ID, like C0123",
       channel_search_placeholder: "Search channels by name or ID",
-      user_search_placeholder: "Search by name, @username, or ID",
-      user_placeholder: "@jane, Jane Doe, or U123ABC",
     },
     integration_status: chatStatusFixture(),
-    participants: [
-      {
-        id: 21,
-        standup_id: 7,
-        platform_user_id: "U1",
-        display_name: "Alex Doe",
-        active: true,
-        cached_timezone: "America/New_York",
-        created_at: "2026-09-01T09:00:00Z",
-        updated_at: "2026-09-01T09:00:00Z",
-        avatar_url: null,
-        vacation_until: null,
-        timezone_cache_status: "fresh",
-        timezone_cache_status_description: "Synced",
-      },
-      {
-        id: 22,
-        standup_id: 7,
-        platform_user_id: "U2",
-        display_name: "Jane Smith",
-        active: false,
-        cached_timezone: null,
-        created_at: "2026-09-01T09:00:00Z",
-        updated_at: "2026-09-01T09:00:00Z",
-        avatar_url: null,
-        vacation_until: null,
-        timezone_cache_status: "missing",
-        timezone_cache_status_description: "Not synced",
-      },
-    ],
     channel_query: null,
-    user_query: null,
     channel_result: null,
-    user_result: null,
     ...overrides,
   };
 }

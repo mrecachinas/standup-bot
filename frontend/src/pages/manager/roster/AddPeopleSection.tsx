@@ -1,13 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Button, Checkbox, FormControl, Textarea, TextInput } from "@primer/react";
-import { SyncIcon, UploadIcon } from "@primer/octicons-react";
+import { ChevronRightIcon, SyncIcon, UploadIcon } from "@primer/octicons-react";
 import { ApiError, post } from "../../../api/client";
 import type { ImportResult, ImportSummary, ParticipantMutationResult, ParticipantsConsole } from "../../../api/types/roster";
+import { ErrorBanner, Panel, PanelBody } from "../../../components";
 import { pluralize } from "../../../lib/format";
 import { useMutation } from "../../../hooks/useMutation";
-import { baseMessages, fieldMessage } from "./formErrors";
-import { MessagesBanner } from "./MessagesBanner";
-import { Disclosure, Section, SectionBody } from "./Section";
+import { baseMessages, fieldMessage } from "../../../lib/fieldErrors";
+import layout from "../../../styles/layout.module.css";
 import styles from "./roster.module.css";
 
 export interface AddPeopleSectionProps {
@@ -74,12 +74,12 @@ export function AddPeopleSection({ standupId, roster, onChanged }: AddPeopleSect
 
   return (
     <>
-      <MessagesBanner messages={addErrors} title={`${pluralize(addErrors.length, "error")} prevented saving this participant`} onDismiss={add.reset} />
-      <MessagesBanner messages={bulkImport.error?.errors ?? []} title="Import needs attention" onDismiss={bulkImport.reset} />
-      <MessagesBanner messages={sync.error?.errors ?? []} title={`${platform.label} sync needs attention`} onDismiss={sync.reset} />
+      <ErrorBanner error={addErrors} title={`${pluralize(addErrors.length, "error")} prevented saving this participant`} onDismiss={add.reset} />
+      <ErrorBanner error={bulkImport.error} title="Import needs attention" onDismiss={bulkImport.reset} />
+      <ErrorBanner error={sync.error} title={`${platform.label} sync needs attention`} onDismiss={sync.reset} />
 
-      <Section title="Add people" hint={copy.user_lookup_hint} titleId="add-people-heading">
-        <SectionBody>
+      <Panel title="Add people" description={copy.user_lookup_hint} headingId="add-people-heading" flush>
+        <PanelBody>
           <form onSubmit={handleAdd} noValidate>
             <div className={styles.inputGroup}>
               <FormControl>
@@ -99,21 +99,21 @@ export function AddPeopleSection({ standupId, roster, onChanged }: AddPeopleSect
               </Button>
             </div>
           </form>
-        </SectionBody>
+        </PanelBody>
 
         <Disclosure
           open={importOpen}
           onToggle={setImportOpen}
           summary={
-            <span className={styles.inlineRow}>
+            <span className={layout.row}>
               <UploadIcon size={16} />
-              <span className={styles.cellTitle}>Import a list</span>
-              <span className={styles.subtle}>One person per line</span>
+              <span className={layout.title}>Import a list</span>
+              <span className={layout.hint}>One person per line</span>
             </span>
           }
         >
-          <SectionBody>
-            <form className={styles.stack} onSubmit={handleImport} noValidate>
+          <PanelBody>
+            <form className={layout.stack} onSubmit={handleImport} noValidate>
               <FormControl>
                 <FormControl.Label>Participants</FormControl.Label>
                 <Textarea
@@ -122,7 +122,7 @@ export function AddPeopleSection({ standupId, roster, onChanged }: AddPeopleSect
                   onChange={(event) => setImportText(event.target.value)}
                   rows={5}
                   placeholder={copy.import_placeholder}
-                  className={styles.mono}
+                  className={layout.mono}
                   block
                 />
                 {copy.import_hint && <FormControl.Caption>{copy.import_hint}</FormControl.Caption>}
@@ -133,22 +133,22 @@ export function AddPeopleSection({ standupId, roster, onChanged }: AddPeopleSect
                 </Button>
               </div>
             </form>
-          </SectionBody>
+          </PanelBody>
         </Disclosure>
 
         <Disclosure
           open={syncOpen}
           onToggle={setSyncOpen}
           summary={
-            <span className={styles.inlineRow}>
+            <span className={layout.row}>
               <SyncIcon size={16} />
-              <span className={styles.cellTitle}>Sync from a {platform.label} channel</span>
-              <span className={styles.subtle}>Adds members and refreshes timezones</span>
+              <span className={layout.title}>Sync from a {platform.label} channel</span>
+              <span className={layout.hint}>Adds members and refreshes timezones</span>
             </span>
           }
         >
-          <SectionBody>
-            <form className={styles.stack} onSubmit={handleSync} noValidate>
+          <PanelBody>
+            <form className={layout.stack} onSubmit={handleSync} noValidate>
               <FormControl className={styles.maxWidth}>
                 <FormControl.Label>Channel ID or name</FormControl.Label>
                 <TextInput
@@ -170,10 +170,23 @@ export function AddPeopleSection({ standupId, roster, onChanged }: AddPeopleSect
                 </Button>
               </div>
             </form>
-          </SectionBody>
+          </PanelBody>
         </Disclosure>
-      </Section>
+      </Panel>
     </>
+  );
+}
+
+/** A <details> row inside the panel. */
+function Disclosure({ summary, open, onToggle, children }: { summary: ReactNode; open: boolean; onToggle: (open: boolean) => void; children: ReactNode }) {
+  return (
+    <details className={styles.disclosure} open={open} onToggle={(event) => onToggle(event.currentTarget.open)}>
+      <summary>
+        <ChevronRightIcon className={styles.chevron} size={16} />
+        {summary}
+      </summary>
+      {children}
+    </details>
   );
 }
 

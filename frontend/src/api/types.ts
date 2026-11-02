@@ -70,38 +70,40 @@ export interface ApiErrorBody {
   field_errors?: Record<string, string[]>;
 }
 
-/**
- * A standup as app/serializers/standup_serializer.rb returns it. Loosely typed
- * (optional console/count fields) so pages can pass partial payloads.
- */
+/** A standup as app/serializers/standup_serializer.rb returns it. */
 export interface Standup {
   id: number;
   name: string;
   platform: PlatformKey;
   platform_channel: string | null;
-  intro?: string | null;
-  outro?: string | null;
-  questions?: string[];
-  schedule_type?: string;
-  schedule_days?: (number | string)[];
-  default_hour?: number | null;
-  default_minute?: number | null;
+  intro: string | null;
+  outro: string | null;
+  questions: string[];
+  schedule_type: string;
+  schedule_days: (number | string)[];
+  default_hour: number | null;
+  default_minute: number | null;
   respect_timezone: boolean;
   active: boolean;
-  created_at?: string | null;
-  updated_at?: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  /** Only with `include_counts`. */
   participants_count?: number;
   active_participants_count?: number;
   responses_count?: number;
-  platform_label?: string;
-  platform_channel_name?: string | null;
-  reminder_enabled?: boolean;
-  reminder_after_minutes?: number | null;
-  max_reminders?: number | null;
-  send_time?: string;
-  schedule_summary?: string;
-  schedule_sentence?: string;
-  schedule_picker?: { frequency: string; days: number[]; monthly_day?: number };
+  platform_label: string;
+  platform_channel_name: string | null;
+  reminder_enabled: boolean;
+  reminder_after_minutes: number | null;
+  max_reminders: number | null;
+  send_time: string;
+  schedule_summary: string;
+  schedule_sentence: string;
+  schedule_picker: { frequency: string; days: number[]; monthly_day?: number };
+  status_label: string;
+  status_tone: Tone;
+  channel_label: string;
+  timezone_label: string;
 }
 
 /** success, info, warning, danger, or null for a neutral badge (UiFormat.status_tone). */

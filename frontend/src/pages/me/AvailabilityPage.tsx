@@ -1,15 +1,16 @@
-import { useState, type FormEvent } from "react";
-import { Banner, Button, Checkbox, CheckboxGroup, FormControl, TextInput } from "@primer/react";
+import { useId, useState, type FormEvent } from "react";
+import { Button, Checkbox, CheckboxGroup, FormControl, TextInput } from "@primer/react";
 import { CalendarIcon, DotFillIcon } from "@primer/octicons-react";
 import { patch } from "../../api/client";
 import type { MemberAvailabilityParams, MemberAvailabilityPayload } from "../../api/types/member";
-import { ErrorBanner, LoadingState, PageHeader } from "../../components";
+import { ErrorBanner, PageHeader, Panel, PanelBody } from "../../components";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useMutation } from "../../hooks/useMutation";
+import { MemberLoadState } from "./components/MemberLoadState";
 import { MemberTip } from "./components/MemberTip";
 import { useClearAway } from "./components/useClearAway";
-import shared from "./components/me.module.css";
+import layout from "../../styles/layout.module.css";
 import styles from "./AvailabilityPage.module.css";
 
 const PATH = "/api/me/availability";
@@ -24,45 +25,34 @@ export function AvailabilityPage() {
     setFormVersion((version) => version + 1);
   });
 
-  if (!data) {
-    if (error) {
-      return (
-        <ErrorBanner
-          error={error}
-          title={error.status === 403 ? "You can't see your availability" : "Couldn't load your availability"}
-          action={error.status === 403 ? undefined : <Banner.PrimaryAction onClick={reload}>Try again</Banner.PrimaryAction>}
-        />
-      );
-    }
-    return <LoadingState label="Loading your availability" />;
-  }
+  if (!data) return <MemberLoadState error={error} onRetry={reload} what="your availability" />;
 
   return (
-    <div className={`${shared.page} ${shared.narrow}`}>
+    <div className={`${layout.page} ${layout.narrow}`}>
       <PageHeader title="Availability" description="Going on vacation or out sick? Pause your check-ins so they don't count as missed." />
 
       {error && <ErrorBanner error={error} title="Couldn't refresh your availability" />}
 
       {data.away.length > 0 && (
-        <section className={shared.card} aria-labelledby="currently-away-heading">
-          <div className={`${shared.cardHeader} ${styles.cardHeaderAction}`}>
-            <h2 id="currently-away-heading" className={shared.cardTitle}>
-              Currently away
-            </h2>
+        <Panel
+          title="Currently away"
+          flush
+          actions={
             <Button size="small" onClick={() => void clearAway.run()} loading={clearAway.loading}>
               I'm back
             </Button>
-          </div>
-          <ul className={shared.list}>
+          }
+        >
+          <ul className={layout.list}>
             {data.away.map((entry) => (
-              <li key={entry.participant_id} className={styles.awayItem}>
+              <li key={entry.participant_id}>
                 <DotFillIcon className={styles.awayDot} aria-hidden="true" />
-                <span className={styles.grow}>{entry.standup_name}</span>
-                <span className={`${shared.small} ${shared.muted}`}>through {entry.vacation_until_label}</span>
+                <span className={layout.grow}>{entry.standup_name}</span>
+                <span className={layout.hint}>through {entry.vacation_until_label}</span>
               </li>
             ))}
           </ul>
-        </section>
+        </Panel>
       )}
 
       <AvailabilityForm
@@ -80,6 +70,7 @@ export function AvailabilityPage() {
 }
 
 function AvailabilityForm({ data, onSaved }: { data: MemberAvailabilityPayload; onSaved: (result: MemberAvailabilityPayload) => void }) {
+  const formId = useId();
   const [awayUntil, setAwayUntil] = useState("");
   const [selected, setSelected] = useState<number[]>(() => data.standups.filter((standup) => standup.selected).map((standup) => standup.standup_id));
   const [submitted, setSubmitted] = useState(false);
@@ -101,18 +92,21 @@ function AvailabilityForm({ data, onSaved }: { data: MemberAvailabilityPayload; 
   };
 
   return (
-    <section className={shared.card} aria-labelledby="set-time-away-heading">
-      <div className={shared.cardHeader}>
-        <div>
-          <h2 id="set-time-away-heading" className={shared.cardTitle}>
-            Set time away
-          </h2>
-          <p className={shared.cardHint}>You won't get check-ins or reminders through this date.</p>
-        </div>
-      </div>
+    <Panel
+      title="Set time away"
+      description="You won't get check-ins or reminders through this date."
+      flush
+      footer={
+        data.standups.length > 0 && (
+          <Button type="submit" form={formId} variant="primary" loading={save.loading}>
+            Save
+          </Button>
+        )
+      }
+    >
       {data.standups.length > 0 ? (
-        <form onSubmit={onSubmit} noValidate>
-          <div className={shared.cardBody}>
+        <form id={formId} onSubmit={onSubmit} noValidate>
+          <PanelBody>
             {save.error && <ErrorBanner error={save.error} title="Couldn't set your time away" onDismiss={save.reset} />}
             <FormControl required>
               <FormControl.Label>Last day away</FormControl.Label>
@@ -142,21 +136,12 @@ function AvailabilityForm({ data, onSaved }: { data: MemberAvailabilityPayload; 
               ))}
               {standupsError && <CheckboxGroup.Validation variant="error">{standupsError}</CheckboxGroup.Validation>}
             </CheckboxGroup>
-          </div>
-          <div className={shared.cardFooter}>
-            <Button type="submit" variant="primary" loading={save.loading}>
-              Save
-            </Button>
-          </div>
+          </PanelBody>
         </form>
       ) : (
-        <div className={shared.cardBody}>
-          <p className={styles.emptyInline}>
-            You aren't active in any standups right now.
-          </p>
-        </div>
+        <p className={layout.empty}>You aren't active in any standups right now.</p>
       )}
-    </section>
+    </Panel>
   );
 }
 

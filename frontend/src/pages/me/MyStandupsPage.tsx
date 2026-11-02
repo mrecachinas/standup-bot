@@ -1,16 +1,16 @@
 import { Link as RouterLink } from "react-router";
-import { Banner, Button, ProgressBar } from "@primer/react";
+import { Banner, Button } from "@primer/react";
 import { CalendarIcon, CheckCircleIcon, ClockIcon, CommentDiscussionIcon, PersonIcon } from "@primer/octicons-react";
 import type { MemberStandupSummary, MemberStandupsPayload } from "../../api/types/member";
-import { AvatarStack, EmptyState, ErrorBanner, LoadingState, PageHeader, StatCard, StatGrid, StatusLabel } from "../../components";
+import { AvatarStack, EmptyState, ErrorBanner, Meter, PageHeader, Panel, StatCard, StatGrid, StatusLabel } from "../../components";
 import { formatPercent, pluralize } from "../../lib/format";
-import { progressBgForTone } from "../../lib/tone";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { paths } from "../../paths";
+import { MemberLoadState } from "./components/MemberLoadState";
 import { MemberTip } from "./components/MemberTip";
 import { useClearAway } from "./components/useClearAway";
-import shared from "./components/me.module.css";
+import layout from "../../styles/layout.module.css";
 import styles from "./MyStandupsPage.module.css";
 
 export function MyStandupsPage() {
@@ -18,24 +18,13 @@ export function MyStandupsPage() {
   const { data, error, reload } = useApi<MemberStandupsPayload>("/api/me/standups");
   const clearAway = useClearAway(() => reload());
 
-  if (!data) {
-    if (error) {
-      return (
-        <ErrorBanner
-          error={error}
-          title={error.status === 403 ? "You can't see these standups" : "Couldn't load your standups"}
-          action={error.status === 403 ? undefined : <Banner.PrimaryAction onClick={reload}>Try again</Banner.PrimaryAction>}
-        />
-      );
-    }
-    return <LoadingState label="Loading your standups" />;
-  }
+  if (!data) return <MemberLoadState error={error} onRetry={reload} what="your standups" />;
 
   const { stats, standups, member } = data;
   const rated = stats.expected > 0;
 
   return (
-    <div className={shared.page}>
+    <div className={layout.page}>
       <PageHeader
         title="My standups"
         description={`Your check-ins across ${pluralize(standups.length, "standup")}. Answer them in your ${member.platform_label} DMs.`}
@@ -110,61 +99,46 @@ function channelLabel(summary: MemberStandupSummary): string | null {
 
 function StandupCard({ summary }: { summary: MemberStandupSummary }) {
   const { standup, today, teammates } = summary;
-  const headingId = `member-standup-${standup.id}`;
-  const channel = channelLabel(summary);
 
   return (
-    <section className={shared.card} aria-labelledby={headingId}>
-      <div className={shared.cardHeader}>
-        <div>
-          <h2 id={headingId} className={shared.cardTitle}>
-            {standup.name}
-          </h2>
-          {channel && <p className={shared.cardHint}>{channel}</p>}
-        </div>
-        <StatusLabel tone={summary.status_tone}>{summary.status_label}</StatusLabel>
-      </div>
-      <div className={shared.cardBody}>
-        <dl className={styles.kv}>
-          <dt>Schedule</dt>
-          <dd>{standup.schedule_summary}</dd>
-          <dt>Next check-in</dt>
-          <dd>{summary.next_check_in_label ?? "—"}</dd>
-          <dt>Today</dt>
-          <dd>{today ? <StatusLabel tone={today.status_tone}>{today.status_label}</StatusLabel> : <span className={shared.muted}>No check-in today</span>}</dd>
-          <dt>Your completion</dt>
-          <dd>
-            {summary.completion_rate !== null ? (
-              <span className={styles.meter}>
-                <ProgressBar
-                  className={styles.meterBar}
-                  progress={Math.min(100, Math.max(0, summary.completion_rate))}
-                  bg={progressBgForTone(summary.completion_rate_tone)}
-                  aria-label={`Your completion in ${standup.name}`}
-                />
-                <span className={styles.meterValue}>{formatPercent(summary.completion_rate)}</span>
-              </span>
-            ) : (
-              <span className={shared.muted}>Not enough history yet</span>
-            )}
-          </dd>
-        </dl>
-        <div className={styles.teammates}>
-          {teammates.length > 0 ? (
-            <>
-              <AvatarStack people={teammates} limit={6} />
-              <span className={`${shared.small} ${shared.muted}`}>with {pluralize(teammates.length, "teammate")}</span>
-            </>
-          ) : (
-            <span className={`${shared.small} ${shared.muted}`}>Just you so far</span>
-          )}
-        </div>
-      </div>
-      <div className={shared.cardFooter}>
+    <Panel
+      title={standup.name}
+      description={channelLabel(summary)}
+      actions={<StatusLabel tone={summary.status_tone}>{summary.status_label}</StatusLabel>}
+      footer={
         <Button as={RouterLink} to={`${paths.myResponses}?standup_id=${standup.id}`} size="small" aria-label={`My answers in ${standup.name}`}>
           My answers
         </Button>
+      }
+    >
+      <dl className={styles.kv}>
+        <dt>Schedule</dt>
+        <dd>{standup.schedule_summary}</dd>
+        <dt>Next check-in</dt>
+        <dd>{summary.next_check_in_label ?? "—"}</dd>
+        <dt>Today</dt>
+        <dd>{today ? <StatusLabel tone={today.status_tone}>{today.status_label}</StatusLabel> : <span className={layout.muted}>No check-in today</span>}</dd>
+        <dt>Your completion</dt>
+        <dd>
+          {summary.completion_rate !== null ? (
+            <Meter className={styles.meter} value={summary.completion_rate} tone={summary.completion_rate_tone} label={`Your completion in ${standup.name}`}>
+              {formatPercent(summary.completion_rate)}
+            </Meter>
+          ) : (
+            <span className={layout.muted}>Not enough history yet</span>
+          )}
+        </dd>
+      </dl>
+      <div className={styles.teammates}>
+        {teammates.length > 0 ? (
+          <>
+            <AvatarStack people={teammates} limit={6} />
+            <span className={layout.hint}>with {pluralize(teammates.length, "teammate")}</span>
+          </>
+        ) : (
+          <span className={layout.hint}>Just you so far</span>
+        )}
       </div>
-    </section>
+    </Panel>
   );
 }

@@ -1,24 +1,9 @@
-.responses > .item {
-  align-items: flex-start;
-}
-
 .body {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: var(--base-size-8);
   min-width: 0;
-}
-
-.meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--base-size-8);
-}
-
-.title {
-  font-weight: var(--base-text-weight-semibold);
 }
 
 .answers {

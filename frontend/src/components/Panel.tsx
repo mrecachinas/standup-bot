@@ -4,40 +4,56 @@ import { Heading } from "@primer/react";
 import styles from "./Panel.module.css";
 
 export interface PanelProps {
-  title: ReactNode;
+  /** Omit (with no actions) for a panel without a header. */
+  title?: ReactNode;
+  /** Accessible name for a panel without a title. */
+  label?: string;
   description?: ReactNode;
+  /** Left of the title, e.g. a DateTile. */
+  leadingVisual?: ReactNode;
   /** Right side of the header (buttons, a legend…). */
   actions?: ReactNode;
   footer?: ReactNode;
-  /** No body padding, for lists and tables that run edge to edge. */
+  /** No body padding, for lists and tables that run edge to edge (use PanelBody for padded parts). */
   flush?: boolean;
   headingLevel?: "h2" | "h3";
   id?: string;
-  /** Id for the heading, e.g. for a table's aria-labelledby. */
+  /** Id for the heading, e.g. for a list's aria-labelledby. */
   headingId?: string;
   className?: string;
   children?: ReactNode;
 }
 
-/** A bordered section with a header. */
-export function Panel({ title, description, actions, footer, flush = false, headingLevel = "h2", id, headingId: headingIdProp, className, children }: PanelProps) {
+/** A bordered section with a header: the console's main content block. */
+export function Panel({ title, label, description, leadingVisual, actions, footer, flush = false, headingLevel = "h2", id, headingId: headingIdProp, className, children }: PanelProps) {
   const generatedId = useId();
   const headingId = headingIdProp ?? generatedId;
+  const hasHeader = Boolean(title || actions);
   return (
-    <section id={id} className={clsx(styles.panel, className)} aria-labelledby={headingId}>
-      <div className={styles.header}>
-        <div className={styles.headerText}>
-          <Heading as={headingLevel} id={headingId} className={styles.title}>
-            {title}
-          </Heading>
-          {description && <p className={styles.description}>{description}</p>}
+    <section id={id} className={clsx(styles.panel, className)} aria-labelledby={title ? headingId : undefined} aria-label={title ? undefined : label}>
+      {hasHeader && (
+        <div className={styles.header}>
+          {leadingVisual}
+          {title && (
+            <div className={styles.headerText}>
+              <Heading as={headingLevel} id={headingId} className={styles.title}>
+                {title}
+              </Heading>
+              {description && <p className={styles.description}>{description}</p>}
+            </div>
+          )}
+          {actions && <div className={styles.actions}>{actions}</div>}
         </div>
-        {actions && <div className={styles.actions}>{actions}</div>}
-      </div>
-      {children !== undefined && children !== null && children !== false && <div className={flush ? styles.flush : styles.body}>{children}</div>}
+      )}
+      {children !== undefined && children !== null && children !== false && (flush ? children : <PanelBody>{children}</PanelBody>)}
       {footer && <div className={styles.footer}>{footer}</div>}
     </section>
   );
+}
+
+/** The padded body of a Panel; use it for the padded parts of a flush Panel. */
+export function PanelBody({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={clsx(styles.body, className)}>{children}</div>;
 }
 
 /** A divided list inside a flush Panel. */

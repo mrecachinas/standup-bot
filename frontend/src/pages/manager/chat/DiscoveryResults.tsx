@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { Banner } from "@primer/react";
 import { HashIcon } from "@primer/octicons-react";
 import type { ChatRecord, ChatResult } from "../../../api/types/chat";
-import { Avatar } from "../../../components";
-import { PanelEmptyText, PanelList, PanelListItem } from "../insights/Panel";
+import { Avatar, PanelEmptyText, PanelList, PanelListItem } from "../../../components";
+import layout from "../../../styles/layout.module.css";
 import styles from "./chat.module.css";
 
 export interface DiscoveryResultsProps {
@@ -46,7 +46,7 @@ export function DiscoveryResults({ result, emptyMessage, label, renderAction }: 
           key={record.id}
           leadingVisual={record.kind === "user" ? <Avatar name={record.label} src={record.avatar_url} size={24} /> : <HashIcon size={16} />}
           title={record.label}
-          description={<span className={styles.mono}>{record.detail}</span>}
+          description={<span className={layout.mono}>{record.detail}</span>}
           trailing={renderAction?.(record)}
         />
       ))}

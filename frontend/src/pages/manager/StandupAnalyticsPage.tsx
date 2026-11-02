@@ -1,46 +1,33 @@
 import { useParams, useSearchParams } from "react-router";
 import { Banner } from "@primer/react";
 import type { InsightsPayload } from "../../api/types/insights";
-import { ErrorBanner, LoadingState, StandupHeader, StatCard, StatGrid } from "../../components";
-import { formatPercent } from "../../lib/format";
+import { CompletionDelta, ErrorBanner, Panel, StandupHeader, StatCard, StatGrid } from "../../components";
 import { RateLineChart, RunBreakdownChart, RunLegend } from "../../components/charts";
-import { useApi } from "../../hooks/useApi";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { useForwardedQuery } from "../../hooks/useForwardedQuery";
+import { formatPercent } from "../../lib/format";
 import { paths } from "../../paths";
-import { BlockersPanel, CompletionDelta, ParticipationPanel, QuestionFunnelPanel, QuestionSummaries } from "./insights/InsightsSections";
-import { PageLoadError } from "./insights/PageLoadError";
-import { Panel } from "./insights/Panel";
+import { BlockersPanel, ParticipationPanel, QuestionFunnelPanel, QuestionSummaries } from "./insights/InsightsSections";
 import { RangeToolbar } from "./insights/RangeToolbar";
-import { useStandupPauseResume } from "./insights/useStandupPauseResume";
+import { StandupLoadState } from "./standups/StandupLoadState";
+import { useStandupPage } from "./standups/useStandupPage";
+import layout from "../../styles/layout.module.css";
 import styles from "./insights/insights.module.css";
-
-const RANGE_PARAMS = ["start_date", "end_date", "period_days"] as const;
 
 export function StandupAnalyticsPage() {
   const { id = "" } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const query = new URLSearchParams({ view: "insights" });
-  for (const key of RANGE_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) query.set(key, value);
-  }
+  const [, setSearchParams] = useSearchParams();
+  const path = useForwardedQuery(`/api/standups/${id}/analytics`, ["start_date", "end_date", "period_days"], { view: "insights" });
+  const { data, error, loading, reload, setStandup } = useStandupPage<InsightsPayload>(path, "Insights");
 
-  const { data, error, loading, reload, setData } = useApi<InsightsPayload>(`/api/standups/${id}/analytics?${query.toString()}`);
-  const pauseResume = useStandupPauseResume(data?.standup, (standup) => setData((current) => ({ ...(current as InsightsPayload), standup })));
-  useDocumentTitle(data ? `Insights · ${data.standup.name}` : "Insights");
-
-  if (!data) {
-    if (error) return <PageLoadError error={error} onRetry={reload} />;
-    return <LoadingState label="Loading insights…" />;
-  }
+  if (!data) return <StandupLoadState error={error} onRetry={reload} title="Insights" />;
 
   const { standup, insights, csv_path: csvPath } = data;
   const { range, stats } = insights;
   const historyPath = `${paths.standupResponses(standup.id)}?${new URLSearchParams({ start_date: range.start_date, end_date: range.end_date }).toString()}`;
 
   return (
-    <div className={styles.page}>
-      <StandupHeader standup={standup} active="insights" onPauseResume={pauseResume.onPauseResume} pauseResumeBusy={pauseResume.busy} />
+    <div className={layout.page}>
+      <StandupHeader standup={standup} active="insights" onStandupChange={setStandup} />
 
       <RangeToolbar
         range={range}
@@ -58,20 +45,20 @@ export function StandupAnalyticsPage() {
         <StatCard
           label="Completion rate"
           value={
-            <span className={styles.statValue}>
+            <>
               {insights.has_data ? formatPercent(stats.completion_rate) : "—"}
-              {insights.has_data && <CompletionDelta stats={stats} />}
-            </span>
+              {insights.has_data && <CompletionDelta value={stats.completion_rate_delta} direction={stats.completion_rate_delta_direction} />}
+            </>
           }
           hint={stats.comparison_label}
         />
         <StatCard
           label="Responses"
           value={
-            <span className={styles.statValue}>
+            <>
               {stats.completed_responses}
               <span className={styles.statOf}>/ {stats.expected_responses}</span>
-            </span>
+            </>
           }
           hint="Completed of expected"
         />
@@ -83,7 +70,7 @@ export function StandupAnalyticsPage() {
         <RateLineChart points={insights.completion_series} height={240} width={1000} label="Completion rate per run" />
       </Panel>
 
-      <div className={styles.twoColumns}>
+      <div className={layout.twoColumns}>
         <Panel title="Responses per run" description="What happened to each prompt" actions={<RunLegend pending={insights.runs_have_pending} />}>
           <RunBreakdownChart runs={insights.runs} height={200} width={480} />
         </Panel>

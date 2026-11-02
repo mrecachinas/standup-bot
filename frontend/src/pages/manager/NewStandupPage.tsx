@@ -8,7 +8,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { paths } from "../../paths";
 import { StandupForm } from "./standupForm/StandupForm";
 import { TemplatePicker } from "./standupForm/TemplatePicker";
-import styles from "./standups/standups.module.css";
+import layout from "../../styles/layout.module.css";
 
 /** /manager/standups/new?template=&platform=: pick a template, then fill in the editor. */
 export function NewStandupPage() {
@@ -35,7 +35,7 @@ export function NewStandupPage() {
   };
 
   return (
-    <div className={styles.page}>
+    <div className={layout.page}>
       <PageHeader
         title="Create a standup"
         description="Start from a template or from scratch. You can change everything later."

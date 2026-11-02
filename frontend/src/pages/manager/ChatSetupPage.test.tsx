@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { jsonResponse, userBootstrap } from "../../test/fixtures";
 import { mockFetch, renderApp } from "../../test/render";
-import { channelResult, chatSetupFixture, chatStatusFixture, connectionResult, standupFixture, userResult } from "./insights/testFixtures";
+import { channelResult, chatSetupFixture, chatStatusFixture, connectionResult, standupFixture } from "./insights/testFixtures";
 
 const BASE = "/api/standups/7/chat_setup";
 
@@ -13,7 +13,7 @@ function requestBody(fetchMock: ReturnType<typeof mockFetch>, method: string, ur
 }
 
 describe("ChatSetupPage", () => {
-  it("renders the channel, people, test message and app status", async () => {
+  it("renders the channel, test message and app status", async () => {
     mockFetch(userBootstrap(), (url, init) => (url === BASE && init.method === "GET" ? jsonResponse(chatSetupFixture()) : undefined));
     renderApp("/manager/standups/7/chat_setup");
 
@@ -24,13 +24,8 @@ describe("ChatSetupPage", () => {
     expect(screen.getByLabelText("Channel ID")).toHaveValue("C0123");
     expect(screen.getByLabelText("Channel ID")).toHaveAttribute("placeholder", "Channel ID, like C0123");
     expect(screen.getByLabelText("Search channels")).toHaveAttribute("placeholder", "Search channels by name or ID");
-    expect(screen.getByRole("heading", { name: "Find people in Slack" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Add a person")).toHaveAttribute("placeholder", "Or add directly: @jane, Jane Doe, or U123ABC");
     expect(screen.getByRole("link", { name: "Manage participants" })).toHaveAttribute("href", "/manager/standups/7/participants");
-
-    const participants = screen.getByRole("list", { name: "Participants" });
-    expect(within(participants).getAllByRole("listitem")).toHaveLength(2);
-    expect(within(participants).getByText("Jane Smith").closest("li")).toHaveTextContent("U2 · inactive");
+    expect(screen.queryByLabelText("Add a person")).toBeNull();
 
     expect(screen.getByRole("heading", { name: "Slack app status" })).toBeInTheDocument();
     expect(screen.getByText("The Slack app is installed.")).toBeInTheDocument();
@@ -50,8 +45,6 @@ describe("ChatSetupPage", () => {
       copy: {
         channel_id_placeholder: "TEAM_ID|19:…@thread.tacv2",
         channel_search_placeholder: "Search by team or channel name",
-        user_search_placeholder: "Search by name or email",
-        user_placeholder: "jane@contoso.com, Jane Doe, or an object ID",
       },
       integration_status: chatStatusFixture({
         platform: "teams",
@@ -66,8 +59,8 @@ describe("ChatSetupPage", () => {
     mockFetch(userBootstrap(), (url) => (url === BASE ? jsonResponse(payload) : undefined));
     renderApp("/manager/standups/7/chat_setup");
 
-    expect(await screen.findByRole("heading", { name: "Find people in Microsoft Teams" })).toBeInTheDocument();
     await waitFor(() => expect(document.title).toBe("Microsoft Teams · Daily standup · Standup Bot"));
+    expect(screen.getByRole("link", { name: "Microsoft Teams" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByLabelText("Channel ID")).toHaveAttribute("placeholder", "TEAM_ID|19:…@thread.tacv2");
     expect(screen.getByText("Needs setup")).toBeInTheDocument();
     expect(screen.getByText("Microsoft Teams isn't configured.")).toBeInTheDocument();
@@ -120,73 +113,6 @@ describe("ChatSetupPage", () => {
     expect(requestBody(fetchMock, "PATCH", `${BASE}/channel`)).toEqual({ channel_id: "" });
   });
 
-  it("adds a person directly and from search results, keeping the results", async () => {
-    const user = userEvent.setup();
-    const added = chatSetupFixture();
-    added.participants = [...added.participants, { ...added.participants[0], id: 23, platform_user_id: "U777", display_name: "Priya Patel" }];
-    const fetchMock = mockFetch(userBootstrap(), (url, init) => {
-      if (url === `${BASE}/participants` && init.method === "POST") return jsonResponse({ ...added, participant: added.participants[2], notice: "Participant added." });
-      if (url === `${BASE}?discover=users`) return jsonResponse(chatSetupFixture({ user_result: userResult() }));
-      if (url === BASE) return jsonResponse(chatSetupFixture());
-      return undefined;
-    });
-    renderApp("/manager/standups/7/chat_setup?discover=users");
-
-    const results = await screen.findByRole("list", { name: "People results" });
-    await user.click(within(results).getByRole("button", { name: "Add Priya Patel" }));
-
-    expect(await screen.findByText("Participant added.")).toBeInTheDocument();
-    expect(requestBody(fetchMock, "POST", `${BASE}/participants`)).toEqual({ platform_user_id: "U777", display_name: "Priya Patel" });
-    expect(screen.getByRole("list", { name: "People results" })).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "Participants" })).getAllByRole("listitem")).toHaveLength(3);
-
-    fetchMock.mockClear();
-    await user.type(screen.getByLabelText("Add a person"), "@priya");
-    await user.click(screen.getByRole("button", { name: "Add user" }));
-    await waitFor(() => expect(requestBody(fetchMock, "POST", `${BASE}/participants`)).toEqual({ user: "@priya" }));
-    await waitFor(() => expect(screen.getByLabelText("Add a person")).toHaveValue(""));
-  });
-
-  it("shows a user field error when the person can't be resolved", async () => {
-    const user = userEvent.setup();
-    mockFetch(userBootstrap(), (url, init) => {
-      if (url === `${BASE}/participants` && init.method === "POST") {
-        return jsonResponse({ error: "Couldn't find @nobody in Slack.", errors: ["Couldn't find @nobody in Slack."], field_errors: { user: ["Couldn't find @nobody in Slack."] } }, 422);
-      }
-      if (url === BASE) return jsonResponse(chatSetupFixture());
-      return undefined;
-    });
-    renderApp("/manager/standups/7/chat_setup");
-
-    await user.type(await screen.findByLabelText("Add a person"), "@nobody");
-    await user.click(screen.getByRole("button", { name: "Add user" }));
-
-    expect(await screen.findByText("Couldn't find @nobody in Slack.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Add a person")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByLabelText("Add a person")).toHaveValue("@nobody");
-  });
-
-  it("removes a participant after confirming", async () => {
-    const user = userEvent.setup();
-    const removed = chatSetupFixture();
-    removed.participants = removed.participants.slice(0, 1);
-    const fetchMock = mockFetch(userBootstrap(), (url, init) => {
-      if (url === `${BASE}/participants/22` && init.method === "DELETE") return jsonResponse({ ...removed, notice: "Participant removed." });
-      if (url === BASE) return jsonResponse(chatSetupFixture());
-      return undefined;
-    });
-    renderApp("/manager/standups/7/chat_setup");
-
-    await user.click(await screen.findByRole("button", { name: "Remove Jane Smith" }));
-    const dialog = await screen.findByRole("alertdialog");
-    expect(dialog).toHaveTextContent("Remove Jane Smith from this standup?");
-    await user.click(within(dialog).getByRole("button", { name: "Remove" }));
-
-    expect(await screen.findByText("Participant removed.")).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([url, init]) => url === `${BASE}/participants/22` && init?.method === "DELETE")).toBe(true);
-    await waitFor(() => expect(within(screen.getByRole("list", { name: "Participants" })).getAllByRole("listitem")).toHaveLength(1));
-  });
-
   it("sends a test message and explains a failure", async () => {
     const user = userEvent.setup();
     let fail = false;
@@ -227,10 +153,10 @@ describe("ChatSetupPage", () => {
   });
 
   it("says when nothing matched", async () => {
-    mockFetch(userBootstrap(), (url) => (url === `${BASE}?user_query=zzz` ? jsonResponse(chatSetupFixture({ user_query: "zzz", user_result: userResult({ records: [] }) })) : undefined));
-    renderApp("/manager/standups/7/chat_setup?user_query=zzz");
+    mockFetch(userBootstrap(), (url) => (url === `${BASE}?channel_query=zzz` ? jsonResponse(chatSetupFixture({ channel_query: "zzz", channel_result: channelResult({ records: [] }) })) : undefined));
+    renderApp("/manager/standups/7/chat_setup?channel_query=zzz");
 
-    expect(await screen.findByText("No users matched.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Search people")).toHaveValue("zzz");
+    expect(await screen.findByText("No channels matched.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search channels")).toHaveValue("zzz");
   });
 });
