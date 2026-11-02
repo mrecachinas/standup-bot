@@ -46,7 +46,7 @@ class MemberStandupSummary
   def status
     return [ "Not active", nil ] unless participant.active?
     return [ "Standup paused", "warning" ] unless standup.active?
-    return [ "Away through #{participant.vacation_until.strftime("%b %-d")}", "warning" ] if away?
+    return [ "Away through #{participant.vacation_until.to_fs(:month_day)}", "warning" ] if away?
 
     [ "Active", "success" ]
   end

@@ -119,7 +119,7 @@ class StandupCommandHandler
 
     lines = responses.map do |response|
       answered = Array(response.answers).count { |answer| answer["answer"].present? && answer["answer"] != StandupResponseService::SKIPPED_ANSWER }
-      "• #{response.created_at.strftime('%b %-d')}: #{response.standup.name} — #{response.status} (#{answered} answer(s))"
+      "• #{response.created_at.to_fs(:month_day)}: #{response.standup.name} — #{response.status} (#{answered} answer(s))"
     end
 
     Reply.text("#{fmt.bold("Recent standups (last #{days} day(s)):")}\n#{lines.join("\n")}")
@@ -172,7 +172,7 @@ class StandupCommandHandler
     # Reactivate exactly these rows, not ones the person paused some other way.
     SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(user_id, participant_ids, platform.to_s)
 
-    Reply.text("You've been marked as away from standups until #{return_date.strftime('%A, %B %d')}. Type #{fmt.code("back")} anytime to return early.")
+    Reply.text("You've been marked as away from standups until #{return_date.to_fs(:weekday_month_day)}. Type #{fmt.code("back")} anytime to return early.")
   end
 
   def back

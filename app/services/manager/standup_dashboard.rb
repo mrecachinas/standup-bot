@@ -112,7 +112,7 @@ module Manager
         counts = latest_run_status_counts
         answered = counts["completed"].to_i
         total = counts.values.sum
-        "#{latest_run_date.strftime("%b %-d")} · #{answered} of #{total} answered"
+        "#{latest_run_date.to_fs(:month_day)} · #{answered} of #{total} answered"
       end
 
       private

@@ -37,8 +37,8 @@ class StandupSchedulePreviewSerializer
       month: local.strftime("%b"),
       day: local.day,
       weekday: local.strftime("%A"),
-      short_date: local.strftime("%a, %b %-d"),
-      time: local.strftime("%-l:%M %p %Z"),
+      short_date: local.to_fs(:short_weekday_month_day),
+      time: local.to_fs(:clock_with_zone),
       label: local.strftime("%A, %B %-d, %Y at %-l:%M %p %Z")
     }
   end

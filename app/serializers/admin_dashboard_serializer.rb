@@ -1,8 +1,6 @@
 # The admin page: installation health, usage, users, recent changes, and
 # failed report deliveries.
 class AdminDashboardSerializer
-  OVERALL_TONES = { "healthy" => "success", "degraded" => "warning", "unhealthy" => "danger" }.freeze
-  CHECK_TONES = { "ok" => "success", "warn" => "warning", "error" => "danger" }.freeze
   CHECK_LABELS = { "ok" => "Operational", "warn" => "Degraded", "error" => "Down" }.freeze
   HEALTH_CARDS = [
     [ :database, "Database", "database" ],
@@ -10,6 +8,7 @@ class AdminDashboardSerializer
     [ :slack_api, "Slack", "hash" ],
     [ :teams_api, "Microsoft Teams", "people" ]
   ].freeze
+  # The response chart shows cancellations as more serious than UiFormat's badges do.
   RESPONSE_TONES = { "completed" => "success", "expired" => "warning", "cancelled" => "danger" }.freeze
 
   def initialize(health:, metrics:, users:, owned_standup_counts:, audit_logs:, failed_reports:, daily_activity:, activity_days:)
@@ -28,7 +27,7 @@ class AdminDashboardSerializer
       health: {
         status: @health[:status],
         status_label: @health[:status].to_s.capitalize,
-        status_tone: OVERALL_TONES[@health[:status].to_s],
+        status_tone: UiFormat.status_tone(@health[:status]),
         checked_at: @health[:timestamp]
       },
       health_checks: HEALTH_CARDS.map { |key, label, icon| health_card(key, label, icon) },
@@ -73,7 +72,7 @@ class AdminDashboardSerializer
       icon: icon,
       status: state,
       status_label: unconfigured ? "Not configured" : CHECK_LABELS.fetch(state, state),
-      status_tone: unconfigured ? nil : CHECK_TONES[state],
+      status_tone: (UiFormat.status_tone(state) unless unconfigured),
       details: health_details(key, check)
     }
   end
@@ -127,9 +126,9 @@ class AdminDashboardSerializer
       pending = row[:pending].positive? ? ", #{row[:pending]} pending" : ""
       row.merge(
         date: row[:date].iso8601,
-        label: row[:date].strftime("%b %-d"),
+        label: row[:date].to_fs(:month_day),
         total: row[:completed] + row[:skipped] + row[:pending] + row[:missed],
-        title: "#{row[:date].strftime("%b %-d, %Y")}: #{row[:completed]} completed, #{row[:skipped]} skipped, " \
+        title: "#{row[:date].to_fs(:month_day_year)}: #{row[:completed]} completed, #{row[:skipped]} skipped, " \
           "#{row[:missed]} missed#{pending} (#{row[:completion_rate].round}%)"
       )
     end

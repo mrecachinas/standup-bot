@@ -10,7 +10,7 @@ class MemberStandupsSerializer
     {
       member: MemberProfileSerializer.new(@member).as_json,
       away_until: away_until&.iso8601,
-      away_until_label: away_until&.strftime("%A, %B %-d"),
+      away_until_label: away_until&.to_fs(:weekday_month_day),
       stats: stats(away_until),
       standups: @summaries.map { |summary| summary_json(summary) }
     }
@@ -35,11 +35,11 @@ class MemberStandupsSerializer
         at: next_at.iso8601,
         standup_id: next_summary.standup.id,
         standup_name: next_summary.standup.name,
-        date_label: next_at.strftime("%a, %b %-d"),
-        time_label: next_at.strftime("%-l:%M %p %Z")
+        date_label: next_at.to_fs(:short_weekday_month_day),
+        time_label: next_at.to_fs(:clock_with_zone)
       },
       status_label: away_until ? "Away" : "Available",
-      status_detail: away_until ? "Back #{(away_until + 1).strftime("%b %-d")}" : "Getting check-ins as scheduled"
+      status_detail: away_until ? "Back #{(away_until + 1).to_fs(:month_day)}" : "Getting check-ins as scheduled"
     }
   end
 
@@ -72,7 +72,7 @@ class MemberStandupsSerializer
       status_tone: status_tone,
       away: summary.away?,
       next_check_in: next_at&.iso8601,
-      next_check_in_label: next_at&.strftime("%a, %b %-d at %-l:%M %p %Z"),
+      next_check_in_label: next_at&.to_fs(:short_weekday_clock),
       today: today && response_status(today),
       completion_rate: rate,
       completion_rate_tone: rate && UiFormat.rate_tone(rate),

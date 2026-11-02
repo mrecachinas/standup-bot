@@ -126,7 +126,7 @@ class StandupOverviewSerializer
       local = occurrence.in_time_zone(preview.zone)
       {
         scheduled_at: occurrence.iso8601,
-        label: local.strftime("%a, %b %-d"),
+        label: local.to_fs(:short_weekday_month_day),
         sub_label: UiFormat.format_clock(@standup.default_hour, @standup.default_minute) +
           (@standup.respect_timezone? ? " in each person's timezone" : " UTC")
       }
