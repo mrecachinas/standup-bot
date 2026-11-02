@@ -27,6 +27,22 @@ class SlackAppManifestTest < ActiveSupport::TestCase
     assert_equal "https://standup.example.com/slack/commands/standup-status", commands.second.fetch("url")
   end
 
+  test "socket mode manifest has no request URLs" do
+    manifest = YAML.safe_load(SlackAppManifest.new(app_url: "https://standup.example.com", socket_mode: true).to_yaml)
+
+    assert_equal true, manifest.dig("settings", "socket_mode_enabled")
+    assert_equal({ "bot_events" => [ "message.im" ] }, manifest.dig("settings", "event_subscriptions"))
+    assert_equal({ "is_enabled" => true }, manifest.dig("settings", "interactivity"))
+    assert manifest.dig("features", "slash_commands").none? { |command| command.key?("url") }
+    assert_equal [ "https://standup.example.com/auth/slack/callback" ], manifest.dig("oauth_config", "redirect_urls")
+  end
+
+  test "socket mode doesn't need an app url, but then leaves out Sign in with Slack" do
+    manifest = SlackAppManifest.new(app_url: nil, socket_mode: true).to_h
+
+    assert_equal({ "scopes" => { "bot" => SlackAppManifest::BOT_SCOPES } }, manifest["oauth_config"])
+  end
+
   test "requires absolute http url" do
     error = assert_raises(ArgumentError) do
       SlackAppManifest.new(app_url: "localhost:3000")

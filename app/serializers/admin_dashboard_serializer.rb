@@ -92,11 +92,21 @@ class AdminDashboardSerializer
         (detail("Error", check[:message]) if check[:message].present?)
       ].compact
     when :slack_api
-      [
-        detail("Bot token", configured_label(check[:bot_token_configured])),
-        detail("Signing secret", configured_label(check[:signing_secret_configured])),
-        time_detail("Last message", check[:last_successful_message_at])
-      ]
+      if check[:connection_mode] == "socket"
+        [
+          detail("Mode", "Socket Mode"),
+          detail("Bot token", configured_label(check[:bot_token_configured])),
+          detail("App-level token", configured_label(check[:app_token_configured])),
+          time_detail("Socket connected", check[:socket_last_connected_at]),
+          time_detail("Last message", check[:last_successful_message_at])
+        ]
+      else
+        [
+          detail("Bot token", configured_label(check[:bot_token_configured])),
+          detail("Signing secret", configured_label(check[:signing_secret_configured])),
+          time_detail("Last message", check[:last_successful_message_at])
+        ]
+      end
     when :teams_api
       [
         detail("App ID", configured_label(check[:app_id_configured])),

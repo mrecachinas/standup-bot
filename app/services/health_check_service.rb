@@ -93,15 +93,20 @@ class HealthCheckService
     def slack_check
       bot_token_configured = slack_config_value(:bot_token).present?
       signing_secret_configured = slack_config_value(:signing_secret).present?
-      configured = bot_token_configured && signing_secret_configured
+      app_token_configured = slack_config_value(:app_token).present?
+      socket_mode = SlackConfig.socket_mode?
+      configured = bot_token_configured && (socket_mode ? app_token_configured : signing_secret_configured)
       # Slack can be left off entirely when Teams is set up instead.
-      disabled = !bot_token_configured && !signing_secret_configured && Microsoft::Config.bot_configured?
+      disabled = !bot_token_configured && !signing_secret_configured && !app_token_configured && Microsoft::Config.bot_configured?
 
       {
         status: configured || disabled ? "ok" : "warn",
         configured: configured,
+        connection_mode: SlackConfig.connection_mode,
         bot_token_configured: bot_token_configured,
         signing_secret_configured: signing_secret_configured,
+        app_token_configured: app_token_configured,
+        socket_last_connected_at: (StandupMetrics.last_seen(SlackSocketMode::Client::CONNECTED_METRIC) if socket_mode),
         last_successful_message_at: StandupMetrics.last_seen("slack.message_sent"),
         last_rate_limited_at: StandupMetrics.last_seen("slack.rate_limited")
       }

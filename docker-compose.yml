@@ -63,6 +63,18 @@ services:
       setup:
         condition: service_completed_successfully
 
+  # Receives Slack traffic over Socket Mode. Only needed with
+  # SLACK_CONNECTION_MODE=socket: docker compose --profile slack-socket-mode up
+  slack-socket-mode:
+    <<: *app
+    command: ./bin/slack-socket-mode
+    profiles: ["slack-socket-mode"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+
   mysql:
     image: mysql:8.0
     profiles: ["dev-deps"]

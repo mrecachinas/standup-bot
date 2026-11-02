@@ -25,6 +25,27 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
     assert_not_includes serialized, @config[:client_secret]
   end
 
+  test "socket mode asks for the app-level token instead of the signing secret" do
+    @config = @config.except(:signing_secret).merge(connection_mode: "socket", app_token: "xapp-1-secret-app-token")
+
+    status = service.configuration_status
+
+    assert_equal "ok", status[:status]
+    assert_equal %i[bot_token app_token client_id client_secret], status[:credentials].keys
+    assert status[:credentials][:app_token][:required]
+    assert_match "Socket Mode", status.dig(:installation, :message)
+    assert_not_includes status.to_json, @config[:app_token]
+  end
+
+  test "socket mode without an app-level token isn't ready" do
+    @config = @config.merge(connection_mode: "socket")
+
+    status = service.configuration_status
+
+    assert_equal "warn", status[:status]
+    assert_not status[:credentials][:app_token][:configured]
+  end
+
   test "connection status validates Slack auth through client" do
     @client.expects(:connection_status).returns({ "team" => "Example", "team_id" => "T123", "user_id" => "U999" })
 

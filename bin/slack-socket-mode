@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+# Receives Slack events, slash commands, and interactions over Socket Mode.
+# Only needed when SLACK_CONNECTION_MODE=socket (and SLACK_SOCKET_MODE_IN_PUMA
+# isn't set). Stop it with INT or TERM.
+
+require_relative "../config/environment"
+
+abort "SLACK_CONNECTION_MODE is not \"socket\"; Slack uses HTTP request URLs, so this process isn't needed." unless SlackConfig.socket_mode?
+
+$stdout.sync = true
+Rails.logger.broadcast_to(ActiveSupport::Logger.new($stdout)) if Rails.env.development?
+
+client = SlackSocketMode::Client.new
+%w[INT TERM].each { |signal| trap(signal) { client.stop } }
+client.run

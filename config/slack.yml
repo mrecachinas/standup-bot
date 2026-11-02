@@ -1,6 +1,10 @@
 default: &default
   bot_token: <%= ENV.fetch('SLACK_BOT_TOKEN', nil) %>
   signing_secret: <%= ENV.fetch('SLACK_SIGNING_SECRET', nil) %>
+  # "http" (default) receives Slack traffic on public request URLs; "socket"
+  # uses Socket Mode with an app-level token instead. See docs/slack-setup.md.
+  connection_mode: <%= ENV.fetch('SLACK_CONNECTION_MODE', 'http') %>
+  app_token: <%= ENV.fetch('SLACK_APP_TOKEN', nil) %>
   client_id: <%= ENV.fetch('SLACK_CLIENT_ID', nil) %>
   client_secret: <%= ENV.fetch('SLACK_CLIENT_SECRET', nil) %>
   team_id: <%= ENV.fetch('SLACK_TEAM_ID', nil) %>
