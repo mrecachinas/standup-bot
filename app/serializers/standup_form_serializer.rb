@@ -218,9 +218,7 @@ class StandupFormSerializer
   end
 
   def participants_hint
-    hint = "Names and timezones come from #{@standup.chat_platform.label}."
-    hint += " Set time away and more on the Participants tab." if @standup.persisted?
-    hint
+    "Names and timezones come from #{@standup.chat_platform.label}."
   end
 
   def message_preview

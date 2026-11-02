@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link as RouterLink, useBlocker, useNavigate } from "react-router";
 import {
   Button,
@@ -37,12 +37,14 @@ export interface StandupFormProps {
   payload: StandupFormPayload;
   /** New standups only: switch the chat platform (reloads the form). */
   onPlatformChange?: (platform: PlatformKey) => void;
+  /** Extra panels under the previews, e.g. Settings' test message. */
+  aside?: ReactNode;
 }
 
 const ADVANCED_FIELDS = ["schedule_type", "respect_timezone", "reminder_enabled", "reminder_after_minutes", "max_reminders", "intro", "outro"];
 
 /** The standup editor (create and settings): basics, schedule, questions, people, advanced, and live previews. */
-export function StandupForm({ payload, onPlatformChange }: StandupFormProps) {
+export function StandupForm({ payload, onPlatformChange, aside }: StandupFormProps) {
   const navigate = useNavigate();
   const ids = useIds();
   const [state, setState] = useState<FormState>(() => initialFormState(payload));
@@ -259,19 +261,22 @@ export function StandupForm({ payload, onPlatformChange }: StandupFormProps) {
             <FieldError id={ids.questions} message={questionsError} />
           </Panel>
 
-          <Panel id="participants" title="People" description={<ParticipantsHint hint={payload.participants_hint} standupId={isNew ? null : standupId} />}>
-            <PeoplePicker
-              platform={platform.key}
-              people={state.people}
-              onChange={(people) => update({ people })}
-              query={handleText}
-              onQueryChange={(text) => {
-                setHandleText(text);
-                if (text) markDirty();
-              }}
-              placeholder={`Add people: ${platform.copy.user_placeholder ?? platform.user_id_hint}, then press Enter`}
-            />
-          </Panel>
+          {/* Once a standup exists, people are managed on its People tab. */}
+          {isNew && (
+            <Panel id="participants" title="People" description={payload.participants_hint}>
+              <PeoplePicker
+                platform={platform.key}
+                people={state.people}
+                onChange={(people) => update({ people })}
+                query={handleText}
+                onQueryChange={(text) => {
+                  setHandleText(text);
+                  if (text) markDirty();
+                }}
+                placeholder={`Add people: ${platform.copy.user_placeholder ?? platform.user_id_hint}, then press Enter`}
+              />
+            </Panel>
+          )}
 
           <details
             id="advanced"
@@ -406,6 +411,7 @@ export function StandupForm({ payload, onPlatformChange }: StandupFormProps) {
             onTimezoneChange={preview.setTimezone}
             onRefresh={preview.refresh}
           />
+          {aside}
         </aside>
       </div>
 
@@ -472,20 +478,6 @@ function ChannelField({
       {channel.hint && <FormControl.Caption>{channel.hint}</FormControl.Caption>}
       {error && <FormControl.Validation variant="error">{error}</FormControl.Validation>}
     </FormControl>
-  );
-}
-
-/** "… Set time away and more on the Participants tab." with the tab as a link when editing. */
-function ParticipantsHint({ hint, standupId }: { hint: string; standupId: number | null }) {
-  const marker = "Participants tab";
-  const index = hint.indexOf(marker);
-  if (standupId === null || index < 0) return <>{hint}</>;
-  return (
-    <>
-      {hint.slice(0, index)}
-      <RouterLink to={paths.standupParticipants(standupId)}>Participants</RouterLink>
-      {hint.slice(index + "Participants".length)}
-    </>
   );
 }
 

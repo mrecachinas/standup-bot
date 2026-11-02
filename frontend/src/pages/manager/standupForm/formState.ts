@@ -215,6 +215,13 @@ export function formParams(state: FormState, payload: StandupFormPayload, handle
     days: schedule.days,
     monthly_day: state.monthlyDay,
     question_rows: state.questions.map((row) => row.text),
+    // Editing leaves people alone: the People tab manages them.
+    ...(payload.mode === "new" ? newParticipantParams(state, handleText) : {}),
+  };
+}
+
+function newParticipantParams(state: FormState, handleText: string): Pick<StandupFormParams, "participants" | "participant_handles"> {
+  return {
     participants: state.people
       .filter((chip) => chip.fromServer || !chip.destroy)
       .map((chip) => ({

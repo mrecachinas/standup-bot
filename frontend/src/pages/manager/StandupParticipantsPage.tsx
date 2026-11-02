@@ -32,7 +32,7 @@ export function StandupParticipantsPage() {
   const navigate = useNavigate();
   const session = useSession();
   const base = `/api/standups/${id}`;
-  const { data, error, loading, reload, setStandup } = useStandupPage<ParticipantsConsole>(`${base}/participants?view=console`, "Participants");
+  const { data, error, loading, reload, setStandup } = useStandupPage<ParticipantsConsole>(`${base}/participants?view=console`, "People");
   const [editing, setEditing] = useState<RosterParticipant | null>(null);
   const [confirming, setConfirming] = useState<Confirmation | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -60,7 +60,7 @@ export function StandupParticipantsPage() {
     },
   );
 
-  if (!data) return <StandupLoadState error={error} onRetry={reload} title="Participants" />;
+  if (!data) return <StandupLoadState error={error} onRetry={reload} title="People" />;
 
   const { standup, platform, managers, summary, participants } = data;
 

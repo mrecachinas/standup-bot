@@ -61,7 +61,7 @@ SLACK_BOT_TOKEN=xoxb-...
 SLACK_SIGNING_SECRET=...
 ```
 
-The **Integrations** page in the web console shows whether these are configured. Each Slack standup also has a **Slack** tab where you can pick its channel and send a test message to it. Add people by `@username` on its **Participants** tab.
+The **Integrations** page in the web console shows whether these are configured. In each standup, **Settings > General** sets its channel and has a **Send test message** button, and the **People** tab adds people by `@username`.
 
 ### Sign in with Slack (optional)
 

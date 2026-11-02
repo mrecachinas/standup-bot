@@ -1,5 +1,8 @@
 /** Console URLs. They match the Rails routes, so bookmarks and chat links keep working. */
-export type StandupTab = "overview" | "insights" | "responses" | "participants" | "schedule" | "reports" | "chat" | "settings";
+export type StandupTab = "overview" | "insights" | "responses" | "participants" | "settings";
+
+/** The pages listed in a standup's Settings side nav. */
+export type SettingsSection = "general" | "schedule" | "reports";
 
 type Id = number | string;
 
@@ -19,7 +22,6 @@ export const paths = {
   standupParticipants: (id: Id) => `/manager/standups/${id}/participants`,
   standupScheduleExceptions: (id: Id) => `/manager/standups/${id}/schedule_exceptions`,
   standupReport: (id: Id) => `/manager/standups/${id}/report`,
-  standupChatSetup: (id: Id) => `/manager/standups/${id}/chat_setup`,
 } as const;
 
 export function standupTabPath(id: Id, tab: StandupTab): string {
@@ -32,13 +34,18 @@ export function standupTabPath(id: Id, tab: StandupTab): string {
       return paths.standupResponses(id);
     case "participants":
       return paths.standupParticipants(id);
+    case "settings":
+      return paths.editStandup(id);
+  }
+}
+
+export function settingsPath(id: Id, section: SettingsSection): string {
+  switch (section) {
+    case "general":
+      return paths.editStandup(id);
     case "schedule":
       return paths.standupScheduleExceptions(id);
     case "reports":
       return paths.standupReport(id);
-    case "chat":
-      return paths.standupChatSetup(id);
-    case "settings":
-      return paths.editStandup(id);
   }
 }

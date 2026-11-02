@@ -35,7 +35,7 @@ describe("IntegrationsPage", () => {
     expect(rows[0]).toHaveTextContent("Slack · #standup (C0123)");
     expect(within(rows[0]).getByRole("img", { name: "Active" })).toBeInTheDocument();
     expect(within(rows[1]).getByRole("img", { name: "Paused" })).toBeInTheDocument();
-    expect(within(rows[0]).getByRole("link", { name: "Configure Daily standup" })).toHaveAttribute("href", "/manager/standups/7/chat_setup");
+    expect(within(rows[0]).getByRole("link", { name: "Configure Daily standup" })).toHaveAttribute("href", "/manager/standups/7/edit");
   });
 
   it("switches platform through the URL", async () => {

@@ -39,10 +39,13 @@ describe("EditStandupPage", () => {
 
     expect(screen.getByLabelText(/Post summaries to/)).toHaveValue("eng-standup");
     expect(screen.getAllByRole("textbox", { name: /^Question \d$/ })).toHaveLength(3);
-    const chips = screen.getByRole("list", { name: "People in this standup" });
-    expect(within(chips).getByText("Ada Lovelace")).toBeInTheDocument();
-    expect(within(chips).getByText("inactive")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Participants" })).toHaveAttribute("href", "/manager/standups/7/participants");
+    // People live on the People tab once a standup exists.
+    expect(screen.queryByRole("list", { name: "People in this standup" })).toBeNull();
+    const settingsNav = screen.getByRole("navigation", { name: "Settings" });
+    expect(within(settingsNav).getByRole("link", { name: "General" })).toHaveAttribute("aria-current", "page");
+    expect(within(settingsNav).getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/manager/standups/7/schedule_exceptions");
+    expect(within(settingsNav).getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/manager/standups/7/report");
+    expect(screen.getByRole("button", { name: "Send test message" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/manager/standups/7");
 
     await userEvent.setup().click(screen.getByText("Advanced settings"));
@@ -54,7 +57,7 @@ describe("EditStandupPage", () => {
     expect(screen.getByRole("radio", { name: "Every week" })).toBeChecked();
   });
 
-  it("saves changes, removing a person, then opens the standup", async () => {
+  it("saves changes without touching people, then opens the standup", async () => {
     const user = userEvent.setup();
     const fetchMock = setup((url, init) =>
       url === "/api/standups/7" && init.method === "PATCH" ? jsonResponse({ standup: standupFixture({ name: "Team daily" }), notice: "Team daily was updated." }) : undefined,
@@ -64,7 +67,6 @@ describe("EditStandupPage", () => {
     const name = await screen.findByLabelText(/^Name/);
     await user.clear(name);
     await user.type(name, "Team daily");
-    await user.click(within(screen.getByRole("list", { name: "People in this standup" })).getByRole("button", { name: "Remove Ada Lovelace" }));
     await user.click(screen.getByText("Advanced settings"));
     await user.clear(screen.getByRole("spinbutton", { name: "Maximum reminders" }));
     await user.type(screen.getByRole("spinbutton", { name: "Maximum reminders" }), "3");
@@ -80,12 +82,9 @@ describe("EditStandupPage", () => {
       platform_channel: "eng-standup",
       max_reminders: "3",
       question_rows: ["What did you do yesterday?", "What will you do today?", ""],
-      participant_handles: "",
     });
-    expect(body.standup.participants).toEqual([
-      { id: 1, platform_user_id: "U1", original_platform_user_id: "U1", display_name: "Ada Lovelace", cached_timezone: "Europe/London", active: true, _destroy: true },
-      { id: 2, platform_user_id: "U2", original_platform_user_id: "U2", display_name: "Grace Hopper", cached_timezone: "", active: false, _destroy: false },
-    ]);
+    expect(body.standup).not.toHaveProperty("participants");
+    expect(body.standup).not.toHaveProperty("participant_handles");
   });
 
   it("picks a Teams channel and keeps its name", async () => {
@@ -149,6 +148,34 @@ describe("EditStandupPage", () => {
     expect(await screen.findByText("Daily standup was paused.")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Resume Daily standup" })).toBeInTheDocument();
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH").map(([url]) => url)).toEqual(["/api/standups/7/pause"]);
+  });
+
+  it("sends a test message and explains a failure", async () => {
+    const user = userEvent.setup();
+    let fail = false;
+    setup((url, init) => {
+      if (url !== "/api/standups/7/chat_setup/test_message" || init.method !== "POST") return undefined;
+      if (fail) {
+        return jsonResponse(
+          {
+            error: "not_in_channel",
+            errors: ["not_in_channel"],
+            test_message: { status: "error", success: false, message: "The bot isn't in #standup.", action: "Invite the bot to the channel.", error_code: null, metadata: null, records: null },
+          },
+          422,
+        );
+      }
+      return jsonResponse({ notice: "Test standup message sent." });
+    });
+    renderApp("/manager/standups/7/edit");
+
+    await user.click(await screen.findByRole("button", { name: "Send test message" }));
+    expect(await screen.findByText("Test standup message sent.")).toBeInTheDocument();
+
+    fail = true;
+    await user.click(screen.getByRole("button", { name: "Send test message" }));
+    expect(await screen.findByText("The bot isn't in #standup.")).toBeInTheDocument();
+    expect(screen.getByText("Next step: Invite the bot to the channel.")).toBeInTheDocument();
   });
 
   it("says when the standup can't be edited", async () => {

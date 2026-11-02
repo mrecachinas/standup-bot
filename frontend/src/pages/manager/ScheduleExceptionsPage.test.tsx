@@ -32,7 +32,8 @@ describe("ScheduleExceptionsPage", () => {
 
     const upcoming = await screen.findByRole("list", { name: "Upcoming runs" });
     await waitFor(() => expect(document.title).toBe("Schedule · Daily standup · Standup Bot"));
-    expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("aria-current", "page");
+    expect(within(screen.getByRole("navigation", { name: "Settings" })).getByRole("link", { name: "Schedule" })).toHaveAttribute("aria-current", "page");
+    expect(within(screen.getByRole("navigation", { name: "Daily standup sections" })).getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("Includes skipped and moved dates")).toBeInTheDocument();
     expect(screen.getByLabelText("Show times in")).toHaveValue("UTC");
 
@@ -237,7 +238,7 @@ describe("ScheduleExceptionsPage", () => {
     expect(callsTo(fetchMock, "DELETE", `${API}/31`)).toHaveLength(2);
   });
 
-  it("pauses from the regular schedule card", async () => {
+  it("pauses from the header, and the schedule card explains what pausing does", async () => {
     const user = userEvent.setup();
     const fetchMock = setup((url, init) =>
       url === "/api/standups/7/pause" && init.method === "PATCH"
@@ -246,9 +247,12 @@ describe("ScheduleExceptionsPage", () => {
     );
     renderApp(PAGE);
 
-    await user.click(await screen.findByRole("button", { name: "Pause standup" }));
+    expect(await screen.findByText("Pausing the standup stops every run until you resume.", { exact: false })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pause standup" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Pause Daily standup" }));
     expect(await screen.findByText("Paused Daily standup.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Resume standup" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Resume Daily standup" })).toBeInTheDocument();
+    expect(screen.getByText("Paused: no runs go out until you resume.", { exact: false })).toBeInTheDocument();
     expect(callsTo(fetchMock, "PATCH", "/api/standups/7/pause")).toHaveLength(1);
   });
 

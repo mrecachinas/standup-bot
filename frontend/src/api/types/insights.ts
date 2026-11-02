@@ -182,7 +182,7 @@ export interface ReportPayload {
     expected_responses: number;
   };
   notice?: string;
-  /** A failed "Generate report now" (422) still returns the payload with its error. */
+  /** A failed "Send report now" (422) still returns the payload with its error. */
   error?: string;
 }
 

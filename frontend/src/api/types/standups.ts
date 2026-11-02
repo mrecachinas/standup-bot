@@ -243,7 +243,8 @@ export interface StandupFormParams {
   days: number[];
   monthly_day: string;
   question_rows: string[];
-  participants: {
+  /** New standups only; editing leaves people to the People tab. */
+  participants?: {
     id: number | null;
     platform_user_id: string;
     original_platform_user_id: string;
@@ -252,7 +253,7 @@ export interface StandupFormParams {
     active: boolean;
     _destroy: boolean;
   }[];
-  participant_handles: string;
+  participant_handles?: string;
 }
 
 // --- GET /api/people --------------------------------------------------------

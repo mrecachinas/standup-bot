@@ -1,6 +1,6 @@
 import { Link as RouterLink } from "react-router";
 import { Button, IconButton, UnderlineNav } from "@primer/react";
-import { GlobeIcon, HashIcon, PauseIcon, PencilIcon, PeopleIcon, PlayIcon, SyncIcon } from "@primer/octicons-react";
+import { GlobeIcon, HashIcon, PauseIcon, PeopleIcon, PlayIcon, SyncIcon } from "@primer/octicons-react";
 import type { Standup } from "../api/types";
 import { NARROW_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
 import { usePauseResume } from "../hooks/usePauseResume";
@@ -26,7 +26,7 @@ export function StandupHeader({ standup, active, onStandupChange, participantCou
   const platformLabel = standup.platform_label;
   const channel = standup.channel_label.replace(/^#/, "") || "No channel";
   const ChannelIcon = standup.platform === "teams" ? PeopleIcon : HashIcon;
-  // On phones the buttons go icon-only so the title keeps its room.
+  // On phones the button goes icon-only so the title keeps its room.
   const narrow = useMediaQuery(NARROW_QUERY);
   const pauseLabel = `${standup.active ? "Pause" : "Resume"} ${standup.name}`;
 
@@ -34,10 +34,7 @@ export function StandupHeader({ standup, active, onStandupChange, participantCou
     { key: "overview", label: "Overview" },
     { key: "insights", label: "Insights" },
     { key: "responses", label: "Responses" },
-    { key: "participants", label: "Participants", counter: count },
-    { key: "schedule", label: "Schedule" },
-    { key: "reports", label: "Reports" },
-    { key: "chat", label: platformLabel },
+    { key: "participants", label: "People", counter: count },
     { key: "settings", label: "Settings" },
   ];
 
@@ -48,29 +45,14 @@ export function StandupHeader({ standup, active, onStandupChange, participantCou
         trailingVisual={<StandupStatusLabel active={standup.active} />}
         breadcrumbs={[{ label: "Standups", to: paths.standups }, { label: standup.name }]}
         actions={
-          <div className={styles.actions}>
-            {onStandupChange &&
-              (narrow ? (
-                <IconButton
-                  icon={standup.active ? PauseIcon : PlayIcon}
-                  onClick={() => void pauseResume.run(standup)}
-                  loading={pauseResume.loading}
-                  aria-label={pauseLabel}
-                />
-              ) : (
-                <Button leadingVisual={standup.active ? PauseIcon : PlayIcon} onClick={() => void pauseResume.run(standup)} loading={pauseResume.loading} aria-label={pauseLabel}>
-                  {standup.active ? "Pause" : "Resume"}
-                </Button>
-              ))}
-            {active !== "settings" &&
-              (narrow ? (
-                <IconButton as={RouterLink} to={standupTabPath(standup.id, "settings")} variant="primary" icon={PencilIcon} aria-label="Edit standup" />
-              ) : (
-                <Button as={RouterLink} to={standupTabPath(standup.id, "settings")} variant="primary" leadingVisual={PencilIcon}>
-                  Edit standup
-                </Button>
-              ))}
-          </div>
+          onStandupChange &&
+          (narrow ? (
+            <IconButton icon={standup.active ? PauseIcon : PlayIcon} onClick={() => void pauseResume.run(standup)} loading={pauseResume.loading} aria-label={pauseLabel} />
+          ) : (
+            <Button leadingVisual={standup.active ? PauseIcon : PlayIcon} onClick={() => void pauseResume.run(standup)} loading={pauseResume.loading} aria-label={pauseLabel}>
+              {standup.active ? "Pause" : "Resume"}
+            </Button>
+          ))
         }
       >
         <div className={styles.meta}>
@@ -87,7 +69,7 @@ export function StandupHeader({ standup, active, onStandupChange, participantCou
           {count !== undefined && (
             <span>
               <PeopleIcon size={16} />
-              {pluralize(count, "participant")}
+              {pluralize(count, "person", "people")}
             </span>
           )}
           <span>

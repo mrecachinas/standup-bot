@@ -128,5 +128,5 @@ The same email and access token work as a bearer token for the [API](api.md), so
 
 There are two roles:
 
-- `manager` is the standard role. Whoever manages a standup can also make other people in it managers of that standup from the Participants tab. People with it can create standups and manage the ones they own. Any standup someone creates is theirs automatically.
+- `manager` is the standard role. Whoever manages a standup can also make other people in it managers of that standup from the People tab. People with it can create standups and manage the ones they own. Any standup someone creates is theirs automatically.
 - `admin` can manage every standup and can open the **Admin** page to check installation health and see every user. See [Architecture](architecture.md#web-console-personas-and-permissions) for more.

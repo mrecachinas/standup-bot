@@ -162,7 +162,7 @@ The web console uses cookie-backed sessions and serves three kinds of people:
 2. If there isn't one, it links an existing account by a Slack-verified email.
 3. Otherwise it creates a standard account.
 
-Anyone who manages a standup can make other people in it managers, or remove them, from the Participants tab (`Api::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their user ID on the standup's platform, and they're matched to it when they first sign in. A standup always keeps at least one manager.
+Anyone who manages a standup can make other people in it managers, or remove them, from the People tab (`Api::StandupManagersController`). This creates or removes a `StandupOwnership` for that standup only. Someone who has never signed in gets an account tied to their user ID on the standup's platform, and they're matched to it when they first sign in. A standup always keeps at least one manager.
 
 ### One API, two ways in
 
@@ -219,6 +219,7 @@ sequenceDiagram
     R-->>B: { standup, notice }
 ```
 
+- Each standup has five tabs: Overview, Insights, Responses, People (`/participants`), and Settings. Settings has a side nav, like a GitHub repo's settings, with General (`/edit`), Schedule (`/schedule_exceptions`), and Reports (`/report`). Old `/chat_setup` and `/slack_setup` links redirect to General.
 - Console URLs are the same as before (`/manager/standups/:id/participants`, `/me/responses`, `/admin`, and so on). `SpaController` serves the app for any browser navigation that isn't `/api`, `/slack`, `/teams`, `/auth`, or a health check, and React Router takes it from there.
 - "Sign in with Slack" and "Sign in with Microsoft" are still server-side redirects under `/auth`. When they finish, they send people to a console URL. Any error shows up as a flash, which `GET /api/session` hands to the app once.
 - Serializers in `app/serializers/` shape the JSON. They also compute display values such as schedule summaries, status labels and tones, and per-platform wording (`UiFormat`, `PlatformSerializer`), so the browser doesn't reimplement scheduling rules.

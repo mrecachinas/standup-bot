@@ -9,6 +9,7 @@ import { EmptyState, KeyValueList, Panel, StandupHeader, StatusLabel } from "../
 import { formatPercent, formatShortDateTime } from "../../lib/format";
 import { useMutation } from "../../hooks/useMutation";
 import { ReportSettingsForm } from "./insights/ReportSettingsForm";
+import { SettingsLayout } from "./settings/SettingsLayout";
 import { StandupLoadState } from "./standups/StandupLoadState";
 import { useStandupPage } from "./standups/useStandupPage";
 import layout from "../../styles/layout.module.css";
@@ -41,46 +42,50 @@ export function StandupReportPage() {
 
   return (
     <div className={layout.page}>
-      <StandupHeader standup={standup} active="reports" onStandupChange={setStandup} />
+      <StandupHeader standup={standup} active="settings" onStandupChange={setStandup} />
 
-      {generate.error && (
-        <Banner variant="warning" title="Couldn't generate the report" description={generate.error.message} onDismiss={generate.reset} />
-      )}
+      <SettingsLayout standupId={standup.id} section="reports">
+        <div className={layout.page}>
+          {generate.error && (
+            <Banner variant="warning" title="Couldn't generate the report" description={generate.error.message} onDismiss={generate.reset} />
+          )}
 
-      <div className={layout.mainAside}>
-        <div className={layout.stack}>
-          <ReportSettingsForm key={config.updated_at ?? "new"} payload={data} saving={save.loading} error={save.error} onSubmit={(params) => void save.run(params)} />
-          <ReportHistory generations={data.report_generations} />
+          <div className={layout.mainAside}>
+            <div className={layout.stack}>
+              <ReportSettingsForm key={config.updated_at ?? "new"} payload={data} saving={save.loading} error={save.error} onSubmit={(params) => void save.run(params)} />
+              <ReportHistory generations={data.report_generations} />
+            </div>
+
+            <aside className={layout.stack} aria-label="Report actions">
+              <Panel title="Send a report now">
+                <p className={layout.hint}>
+                  Builds a report from today&apos;s responses using the saved settings.
+                </p>
+                <KeyValueList
+                  items={[
+                    { label: "Channel", value: config.delivery_channel || "—", mono: true },
+                    { label: "Also to", value: config.recipients_label },
+                    { label: "Detail", value: config.detail_level_label ?? config.detail_level },
+                  ]}
+                />
+                <Button leadingVisual={PaperAirplaneIcon} onClick={() => void generate.run()} loading={generate.loading} block>
+                  Send report now
+                </Button>
+              </Panel>
+
+              <Panel title={`Last ${summary.period_days} days`}>
+                <KeyValueList
+                  items={[
+                    { label: "Completion rate", value: formatPercent(summary.completion_rate), strong: true },
+                    { label: "Completed", value: summary.completed_responses },
+                    { label: "Expected", value: summary.expected_responses },
+                  ]}
+                />
+              </Panel>
+            </aside>
+          </div>
         </div>
-
-        <aside className={layout.stack} aria-label="Report actions">
-          <Panel title="Send a report now">
-            <p className={layout.hint}>
-              Builds a report from today&apos;s responses using the saved settings.
-            </p>
-            <KeyValueList
-              items={[
-                { label: "Channel", value: config.delivery_channel || "—", mono: true },
-                { label: "Also to", value: config.recipients_label },
-                { label: "Detail", value: config.detail_level_label ?? config.detail_level },
-              ]}
-            />
-            <Button leadingVisual={PaperAirplaneIcon} onClick={() => void generate.run()} loading={generate.loading} block>
-              Generate report now
-            </Button>
-          </Panel>
-
-          <Panel title={`Last ${summary.period_days} days`}>
-            <KeyValueList
-              items={[
-                { label: "Completion rate", value: formatPercent(summary.completion_rate), strong: true },
-                { label: "Completed", value: summary.completed_responses },
-                { label: "Expected", value: summary.expected_responses },
-              ]}
-            />
-          </Panel>
-        </aside>
-      </div>
+      </SettingsLayout>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 module Api
-  # The per-standup Slack / Microsoft Teams tab: pick the summary channel and
-  # send a test message. Channel discovery runs when the request asks for it
-  # with `channel_query` or `discover=channels`. People are managed on the
-  # Participants tab (StandupParticipantsController).
+  # Per-standup chat endpoints: the summary channel and the test message that
+  # Settings > General sends. Channel discovery runs when the request asks for
+  # it with `channel_query` or `discover=channels`. People are managed on the
+  # People tab (StandupParticipantsController).
   class StandupChatIntegrationsController < BaseController
     before_action :require_manager!
     before_action :set_standup
