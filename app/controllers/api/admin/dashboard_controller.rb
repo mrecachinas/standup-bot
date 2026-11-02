@@ -37,7 +37,7 @@ module Api
             skipped: by_status["skipped"].to_i,
             pending: by_status["pending"].to_i,
             missed: by_status["expired"].to_i + by_status["cancelled"].to_i,
-            completion_rate: (completed * 100.0 / total).round(1)
+            completion_rate: Percentage.of(completed, total)
           }
         end
       end

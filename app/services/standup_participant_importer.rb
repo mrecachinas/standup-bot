@@ -229,9 +229,9 @@ class StandupParticipantImporter
   end
 
   def deactivate_missing_participants(rows, result)
-    incoming_slack_ids = rows.map { |row| row[:platform_user_id] }.to_set
+    incoming_ids = rows.map { |row| row[:platform_user_id] }.to_set
 
-    standup.standup_participants.where(active: true).where.not(platform_user_id: incoming_slack_ids).find_each do |participant|
+    standup.standup_participants.where(active: true).where.not(platform_user_id: incoming_ids).find_each do |participant|
       before = audited_participant_attributes(participant)
       participant.update!(active: false)
       result.deactivated << participant

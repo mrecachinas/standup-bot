@@ -30,7 +30,7 @@ class MemberStandupsSerializer
       period_days: MemberStandupSummary::PERIOD_DAYS,
       expected: expected,
       completed: completed,
-      completion_rate: expected.positive? ? (completed * 100.0 / expected) : nil,
+      completion_rate: Percentage.of(completed, expected, empty: nil),
       next_check_in: next_at && {
         at: next_at.iso8601,
         standup_id: next_summary.standup.id,

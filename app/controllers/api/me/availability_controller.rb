@@ -11,7 +11,7 @@ module Api
       end
 
       def update
-        away_until = parse_date(params[:away_until])
+        away_until = ReportingRange.parse_date(params[:away_until])
         selected = active_participants.select { |participant| selected_standup_ids.include?(participant.standup_id) }
 
         error = availability_error(away_until, selected)
@@ -49,12 +49,6 @@ module Api
 
       def selected_standup_ids
         Array(params[:standup_ids]).map(&:to_i)
-      end
-
-      def parse_date(value)
-        Date.iso8601(value.to_s)
-      rescue ArgumentError
-        nil
       end
 
       def availability_error(away_until, selected)

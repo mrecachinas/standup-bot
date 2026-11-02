@@ -55,7 +55,7 @@ class OverviewDashboardSerializer
     paused_count = items.size - active_count
     expected = items.sum(&:expected_responses)
     completed = items.sum(&:completed_responses)
-    rate = expected.positive? ? (completed * 100.0 / expected) : nil
+    rate = Percentage.of(completed, expected, empty: nil)
     people_count = @dashboard.people_count
 
     {

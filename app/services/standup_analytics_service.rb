@@ -6,7 +6,7 @@ class StandupAnalyticsService
   CSV_HEADERS = [
     "Date",
     "Standup",
-    "Slack ID",
+    "User ID",
     "Participant",
     "Expected",
     "Status",
@@ -30,9 +30,15 @@ class StandupAnalyticsService
     @period_days = period_days.to_i.clamp(1, MAX_RANGE_DAYS)
     @now = now
     @explicit_date_range = start_date.present? || end_date.present?
-    @end_date = parse_date(end_date) || now.to_date
-    @start_date = parse_date(start_date) || default_start_date
-    @start_date, @end_date = normalize_range(@start_date, @end_date)
+    @range = ReportingRange.from_params(
+      start_date: start_date,
+      end_date: end_date,
+      default_end: now.to_date,
+      default_start: ->(_end_date) { @period_days.days.ago(now).to_date },
+      max_days: MAX_RANGE_DAYS
+    )
+    @start_date = @range.start_date
+    @end_date = @range.end_date
   end
 
   def summary
@@ -55,13 +61,12 @@ class StandupAnalyticsService
   end
 
   def completion_rate
-    percentage(completed_response_count, expected_responses)
+    Percentage.of(completed_response_count, expected_responses)
   end
 
   def participant_stats
     @participant_stats ||= active_participants.map do |participant|
-      participant_responses = responses.select { |response| response.platform_user_id == participant.platform_user_id }
-      participant_completed = participant_responses.select { |response| response.status == "completed" }
+      participant_completed = completed_responses_by_person.fetch(participant.platform_user_id, [])
       expected = expected_dates_for(participant).count
       completed = participant_completed.count
 
@@ -72,7 +77,7 @@ class StandupAnalyticsService
         completed: completed,
         expected: expected,
         missed: [ expected - completed, 0 ].max,
-        completion_rate: percentage(completed, expected),
+        completion_rate: Percentage.of(completed, expected),
         average_response_time_minutes: average_response_time_minutes(participant_completed),
         last_response_at: participant_completed.filter_map(&:updated_at).max&.iso8601
       }
@@ -94,7 +99,7 @@ class StandupAnalyticsService
         expected: expected_count,
         total: day_responses.count,
         completed: completed_count,
-        completion_rate: percentage(completed_count, expected_count),
+        completion_rate: Percentage.of(completed_count, expected_count),
         statuses: tally_statuses(day_responses)
       }
     end
@@ -102,7 +107,7 @@ class StandupAnalyticsService
 
   # Scheduled runs only, with each status broken out for charting.
   def run_breakdown
-    response_trends.filter_map do |trend|
+    @run_breakdown ||= response_trends.filter_map do |trend|
       next if trend[:expected].zero? && trend[:total].zero?
 
       completed = trend[:completed]
@@ -132,7 +137,7 @@ class StandupAnalyticsService
         responses: answers.count,
         answered: answered_answers.count,
         skipped: answers.count - answered_answers.count,
-        answer_rate: percentage(answered_answers.count, completed_count),
+        answer_rate: Percentage.of(answered_answers.count, completed_count),
         common_keywords: keywords_for(answered_answers.map { |entry| entry[:answer] }, limit: 5),
         latest_answers: latest_answers(answered_answers, limit: limit)
       }
@@ -167,7 +172,7 @@ class StandupAnalyticsService
         skipped: skipped,
         not_reached: not_reached,
         drop_off: drop_off,
-        answer_rate: percentage(answered, started.size)
+        answer_rate: Percentage.of(answered, started.size)
       }
     end
   end
@@ -196,7 +201,7 @@ class StandupAnalyticsService
   end
 
   def range_limited?
-    @range_limited || false
+    @range.limited?
   end
 
   private
@@ -212,30 +217,6 @@ class StandupAnalyticsService
   end
 
   attr_reader :now
-
-  def parse_date(value)
-    return if value.blank?
-    return value.to_date if value.respond_to?(:to_date)
-
-    Date.iso8601(value.to_s)
-  rescue ArgumentError, TypeError
-    nil
-  end
-
-  def default_start_date
-    period_days.days.ago(now).to_date
-  end
-
-  def normalize_range(start_date, end_date)
-    start_date, end_date = end_date, start_date if start_date > end_date
-
-    if (end_date - start_date).to_i >= MAX_RANGE_DAYS
-      @range_limited = true
-      start_date = end_date - (MAX_RANGE_DAYS - 1)
-    end
-
-    [ start_date, end_date ]
-  end
 
   def period_start
     explicit_date_range? ? start_date.beginning_of_day : period_days.days.ago(now)
@@ -256,12 +237,9 @@ class StandupAnalyticsService
       .to_a
   end
 
+  # { date => { platform_user_id => response } }; there's at most one per person per day.
   def responses_by_date
-    @responses_by_date ||= responses.group_by(&:standup_date).transform_values do |date_responses|
-      date_responses.group_by(&:platform_user_id).transform_values do |participant_responses|
-        participant_responses.max_by { |response| [ response.updated_at || response.created_at, response.created_at ] }
-      end
-    end
+    @responses_by_date ||= responses.group_by(&:standup_date).transform_values { |date_responses| date_responses.index_by(&:platform_user_id) }
   end
 
   def completed_responses
@@ -276,12 +254,12 @@ class StandupAnalyticsService
     @all_participants ||= standup.standup_participants.order(:display_name, :platform_user_id).to_a
   end
 
-  def participants_by_slack_id
-    @participants_by_slack_id ||= all_participants.index_by(&:platform_user_id)
+  def participants_by_id
+    @participants_by_id ||= all_participants.index_by(&:platform_user_id)
   end
 
   def participant_for(platform_user_id)
-    record = participants_by_slack_id[platform_user_id]
+    record = participants_by_id[platform_user_id]
 
     Participant.new(platform_user_id: platform_user_id, display_name: record&.display_name, record: record)
   end
@@ -302,11 +280,12 @@ class StandupAnalyticsService
     responses_by_date.fetch(date, {}).filter_map { |platform_user_id, response| platform_user_id if response.status == "completed" }
   end
 
-  # De-duplicated per person per day so it lines up with expected_count_for.
+  def completed_responses_by_person
+    @completed_responses_by_person ||= completed_responses.group_by(&:platform_user_id)
+  end
+
   def completed_response_count
-    @completed_response_count ||= responses_by_date.sum do |date, by_participant|
-      (start_date..end_date).cover?(date) ? by_participant.values.count { |response| response.status == "completed" } : 0
-    end
+    completed_responses.size
   end
 
   def expected_dates_for(participant)
@@ -350,12 +329,6 @@ class StandupAnalyticsService
 
     duration = response.updated_at - response.created_at
     duration.positive? ? (duration / 60.0).round(1) : nil
-  end
-
-  def percentage(numerator, denominator)
-    return 0.0 if denominator.zero?
-
-    ((numerator.to_f / denominator) * 100).round(1)
   end
 
   def questions
@@ -457,8 +430,8 @@ class StandupAnalyticsService
 
   def export_participants_for(date, responses_for_date)
     expected_participants = active_participants.select { |participant| expected_on?(participant, date) }
-    response_participants = responses_for_date.keys.map { |platform_user_id| participants_by_slack_id[platform_user_id] }.compact
-    unknown_participants = responses_for_date.keys.reject { |platform_user_id| participants_by_slack_id.key?(platform_user_id) }
+    response_participants = responses_for_date.keys.map { |platform_user_id| participants_by_id[platform_user_id] }.compact
+    unknown_participants = responses_for_date.keys.reject { |platform_user_id| participants_by_id.key?(platform_user_id) }
 
     ((expected_participants + response_participants).uniq.sort_by { |participant| [ participant.display_name.to_s.downcase, participant.platform_user_id ] }.map do |participant|
       Participant.new(platform_user_id: participant.platform_user_id, display_name: participant.display_name, record: participant)
@@ -473,7 +446,7 @@ class StandupAnalyticsService
       {
         "Date" => date.iso8601,
         "Standup" => standup.name,
-        "Slack ID" => participant.platform_user_id,
+        "User ID" => participant.platform_user_id,
         "Participant" => participant.label,
         "Expected" => expected_for_export?(date, participant) ? "yes" : "no",
         "Status" => export_status(date, participant, response),

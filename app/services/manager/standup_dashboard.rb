@@ -12,9 +12,9 @@ module Manager
       @items ||= standups.map { |standup| Item.new(standup, period_days: period_days, now: now) }
     end
 
-    # People can belong to several standups, so count each Slack user once.
+    # People can belong to several standups, so count each person once.
     def people_count
-      items.flat_map(&:participant_slack_ids).uniq.size
+      items.flat_map(&:participant_ids).uniq.size
     end
 
     # Team-wide totals per calendar date across every standup on the dashboard.
@@ -26,7 +26,7 @@ module Manager
         end
       end
       totals.values.sort_by { |row| row[:date] }.map do |row|
-        row.merge(completion_rate: row[:expected].zero? ? 0.0 : (row[:completed] * 100.0 / row[:expected]).round(1))
+        row.merge(completion_rate: Percentage.of(row[:completed], row[:expected]))
       end
     end
 
@@ -47,7 +47,7 @@ module Manager
         active_participant_rows.map { |name, platform_user_id, _url| name.presence || platform_user_id }
       end
 
-      def participant_slack_ids
+      def participant_ids
         active_participant_rows.map(&:second)
       end
 

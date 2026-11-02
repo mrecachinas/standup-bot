@@ -143,7 +143,7 @@ class AdminDashboardSerializer
         status: status.to_s,
         label: status.to_s.titleize,
         count: count,
-        percent: total.positive? ? (count * 100.0 / total).round(1) : 0,
+        percent: Percentage.of(count, total, empty: 0),
         tone: RESPONSE_TONES[status.to_s]
       }
     end
