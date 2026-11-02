@@ -103,7 +103,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
 
     # Expect the cancel method to be called
     StandupResponseService.expects(:cancel_previous_pending_responses)
-      .with(@platform_user_id, @standup.id, standup_date, @participant.standup_time_zone)
+      .with(@platform_user_id, @standup.id, standup_date)
       .once
 
     # Expect the message to be sent to Slack
@@ -128,25 +128,6 @@ class StandupMessageJobTest < ActiveJob::TestCase
 
     assert_no_difference "StandupResponse.count" do
       StandupMessageJob.perform_now(@platform_user_id, @standup.id, "2025-04-07")
-    end
-  end
-
-  test "does not send duplicate when existing same-day response has nil standup date" do
-    Timecop.freeze(Time.zone.local(2025, 4, 7, 12, 0, 0)) do
-      response = StandupResponse.create!(
-        platform_user_id: @platform_user_id,
-        standup_id: @standup.id,
-        status: "pending",
-        answers: [],
-        created_at: Time.current
-      )
-      response.update_column(:standup_date, nil)
-
-      @mock_slack_client.expects(:send_message).never
-
-      assert_no_difference "StandupResponse.count" do
-        StandupMessageJob.perform_now(@platform_user_id, @standup.id, "2025-04-07")
-      end
     end
   end
 

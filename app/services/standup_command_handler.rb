@@ -178,7 +178,7 @@ class StandupCommandHandler
   def today_response_for(participant)
     StandupResponse
       .where(platform_user_id: user_id, standup_id: participant.standup_id)
-      .for_standup_date(current_standup_date(participant), participant.standup_time_zone)
+      .for_standup_date(current_standup_date(participant))
       .order(created_at: :desc)
       .first
   end
@@ -187,7 +187,7 @@ class StandupCommandHandler
     StandupResponse
       .pending
       .where(platform_user_id: user_id, standup_id: participant.standup_id)
-      .for_standup_date(current_standup_date(participant), participant.standup_time_zone)
+      .for_standup_date(current_standup_date(participant))
   end
 
   def standup_collection_args(participant)

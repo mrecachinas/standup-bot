@@ -4,7 +4,8 @@ one:
   platform_user_id: U123456
   status: pending
   answers: []
-  created_at: 2025-04-06 10:00:00
+  standup_date: 2025-04-03
+  created_at: 2025-04-03 10:00:00
 
 # Pending response for scopes testing
 pending:
@@ -12,6 +13,7 @@ pending:
   platform_user_id: U234567
   status: pending
   answers: []
+  standup_date: 2025-04-06
   created_at: 2025-04-06 11:00:00
 
 # Completed response for scopes testing
@@ -29,6 +31,7 @@ completed:
     - question: Any blockers?
       answer: None
       timestamp: 2025-04-06 09:10:00
+  standup_date: 2025-04-06
   created_at: 2025-04-06 10:30:00
 
 # Response created today for scopes testing
@@ -40,6 +43,7 @@ today:
     - question: Goals for this week?
       answer: Complete project X
       timestamp: 2025-04-06 08:00:00
+  standup_date: 2025-04-06
   created_at: 2025-04-06 03:00:00
 
 # Response created yesterday for scopes testing
@@ -51,6 +55,7 @@ yesterday:
     - question: Wins from last week?
       answer: Launched feature Y
       timestamp: 2025-04-05 08:00:00
+  standup_date: 2025-04-05
   created_at: 2025-04-05 10:00:00
 
 # Skipped response
@@ -59,4 +64,5 @@ skipped:
   platform_user_id: U456789
   status: skipped
   answers: []
+  standup_date: 2025-04-06
   created_at: 2025-04-06 07:00:00

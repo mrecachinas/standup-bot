@@ -136,7 +136,7 @@ module Manager
       end
 
       def latest_run_date
-        latest_run_response.standup_date || latest_run_response.created_at.to_date
+        latest_run_response.standup_date
       end
 
       def latest_run_status_counts
@@ -144,13 +144,7 @@ module Manager
       end
 
       def latest_run_responses
-        dated_responses = standup.standup_responses.where(standup_date: latest_run_date)
-        legacy_responses = standup.standup_responses.where(
-          standup_date: nil,
-          created_at: latest_run_date.beginning_of_day..latest_run_date.end_of_day
-        )
-
-        dated_responses.or(legacy_responses)
+        standup.standup_responses.where(standup_date: latest_run_date)
       end
     end
 

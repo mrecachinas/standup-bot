@@ -17,15 +17,7 @@ class StandupResponse < ApplicationRecord
 
   scope :pending, -> { where(status: "pending") }
   scope :completed, -> { where(status: "completed") }
-  scope :for_standup_date, ->(date, timezone = Time.zone) { for_date_in_timezone(date, timezone) }
-  scope :for_date_in_timezone, ->(date, timezone) {
-    standup_date = normalize_date(date)
-    zone = Standup.resolve_time_zone(timezone)
-    day_start = zone.local(standup_date.year, standup_date.month, standup_date.day)
-    day_range = day_start...(day_start + 1.day)
-
-    where(standup_date: standup_date).or(where(standup_date: nil, created_at: day_range))
-  }
+  scope :for_standup_date, ->(date) { where(standup_date: normalize_date(date)) }
   scope :on_platform, ->(platform) { joins(:standup).where(standups: { platform: platform.to_s }) }
   # Responses belonging to this person in standups they're still part of.
   scope :authorized_for, ->(platform, platform_user_id) {

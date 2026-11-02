@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_040000) do
   create_table "audit_logs", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "action", null: false
     t.string "actor_email"
@@ -113,7 +113,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_030000) do
     t.string "dm_channel"
     t.string "platform_user_id", null: false
     t.string "platform_message_id"
-    t.date "standup_date"
+    t.date "standup_date", null: false
     t.bigint "standup_id", null: false
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false

@@ -184,7 +184,7 @@ class StandupResponseHistory
   end
 
   def response_dates
-    responses_in_range.map { |response| response_date(response) }
+    responses_in_range.map(&:standup_date)
   end
 
   def entries_for(date)
@@ -223,7 +223,7 @@ class StandupResponseHistory
   end
 
   def responses_by_date
-    @responses_by_date ||= responses_in_range.group_by { |response| response_date(response) }.transform_values do |responses|
+    @responses_by_date ||= responses_in_range.group_by(&:standup_date).transform_values do |responses|
       responses.group_by(&:platform_user_id).transform_values do |participant_responses|
         participant_responses.max_by { |response| [ response.updated_at || response.created_at, response.created_at ] }
       end
@@ -232,20 +232,10 @@ class StandupResponseHistory
 
   def responses_in_range
     @responses_in_range ||= begin
-      relation = standup.standup_responses.where(
-        "(standup_date BETWEEN :start_date AND :end_date) OR (standup_date IS NULL AND created_at BETWEEN :start_time AND :end_time)",
-        start_date: start_date,
-        end_date: end_date,
-        start_time: start_date.beginning_of_day,
-        end_time: end_date.end_of_day
-      )
+      relation = standup.standup_responses.where(standup_date: start_date..end_date)
       relation = relation.where(platform_user_id: participant_slack_id) if participant_slack_id.present?
       relation.order(created_at: :desc).to_a
     end
-  end
-
-  def response_date(response)
-    response.standup_date || response.created_at.in_time_zone.to_date
   end
 
   def answers_for(response)

@@ -37,18 +37,12 @@ class StandupResponseService
     end
   end
 
-  def self.cancel_previous_pending_responses(platform_user_id, standup_id, current_standup_date = nil, timezone = Time.zone)
-    zone = Standup.resolve_time_zone(timezone)
-    standup_date = current_standup_date.present? ? StandupResponse.normalize_date(current_standup_date) : zone.today
-    day_start = zone.local(standup_date.year, standup_date.month, standup_date.day)
+  def self.cancel_previous_pending_responses(platform_user_id, standup_id, standup_date = Time.zone.today)
+    standup_date = StandupResponse.normalize_date(standup_date)
 
     previous_pending = StandupResponse
       .where(platform_user_id: platform_user_id, standup_id: standup_id, status: "pending")
-      .where(
-        "standup_date < :standup_date OR (standup_date IS NULL AND created_at < :day_start)",
-        standup_date: standup_date,
-        day_start: day_start
-      )
+      .where(standup_date: ...standup_date)
 
     previous_pending.each { |response| response.update!(status: "skipped") }
   end

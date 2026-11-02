@@ -251,27 +251,17 @@ class StandupAnalyticsService
 
   def responses
     @responses ||= standup.standup_responses
-      .where(
-        "(standup_date BETWEEN :start_date AND :end_date) OR (standup_date IS NULL AND created_at BETWEEN :start_time AND :end_time)",
-        start_date: start_date,
-        end_date: end_date,
-        start_time: period_start,
-        end_time: period_end
-      )
+      .where(standup_date: start_date..end_date)
       .order(:created_at)
       .to_a
   end
 
   def responses_by_date
-    @responses_by_date ||= responses.group_by { |response| response_date(response) }.transform_values do |date_responses|
+    @responses_by_date ||= responses.group_by(&:standup_date).transform_values do |date_responses|
       date_responses.group_by(&:platform_user_id).transform_values do |participant_responses|
         participant_responses.max_by { |response| [ response.updated_at || response.created_at, response.created_at ] }
       end
     end
-  end
-
-  def response_date(response)
-    response.standup_date || response.created_at.in_time_zone.to_date
   end
 
   def completed_responses

@@ -88,7 +88,7 @@ class StandupConversationHandler
     active_participants_for(user_id).filter_map do |participant|
       StandupResponse
         .where(platform_user_id: user_id, standup_id: participant.standup_id, status: "completed")
-        .for_standup_date(participant.standup_date_for(Time.current), participant.standup_time_zone)
+        .for_standup_date(participant.standup_date_for(Time.current))
         .order(created_at: :desc)
         .first
     end.max_by(&:created_at)

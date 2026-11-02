@@ -24,7 +24,7 @@ class StandupMessageJob < ApplicationJob
         return
       end
 
-      if existing_response?(platform_user_id, standup_id, resolved_standup_date, participant)
+      if existing_response?(platform_user_id, standup_id, resolved_standup_date)
         Rails.logger.info "User #{platform_user_id} already has a response for standup #{standup_id} on #{resolved_standup_date}, skipping"
         StandupMetrics.track("standup.skipped_existing_response", standup_id: standup_id, platform_user_id: platform_user_id)
         return
@@ -33,8 +33,7 @@ class StandupMessageJob < ApplicationJob
       StandupResponseService.cancel_previous_pending_responses(
         platform_user_id,
         standup_id,
-        resolved_standup_date,
-        response_time_zone_for(participant)
+        resolved_standup_date
       )
 
       chat = chat_for(standup)
@@ -60,10 +59,10 @@ class StandupMessageJob < ApplicationJob
 
   private
 
-  def existing_response?(platform_user_id, standup_id, standup_date, participant)
+  def existing_response?(platform_user_id, standup_id, standup_date)
     StandupResponse
       .where(platform_user_id: platform_user_id, standup_id: standup_id)
-      .for_standup_date(standup_date, response_time_zone_for(participant))
+      .for_standup_date(standup_date)
       .exists?
   end
 

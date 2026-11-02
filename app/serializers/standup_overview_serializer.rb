@@ -149,7 +149,7 @@ class StandupOverviewSerializer
 
   def latest_run_responses
     @latest_run_responses ||= begin
-      latest_date = @standup.standup_responses.where.not(standup_date: nil).maximum(:standup_date)
+      latest_date = @standup.standup_responses.maximum(:standup_date)
       latest_date ? @standup.standup_responses.where(standup_date: latest_date).to_a : []
     end
   end
