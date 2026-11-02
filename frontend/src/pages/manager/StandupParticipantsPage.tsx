@@ -16,7 +16,7 @@ import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useMutation } from "../../hooks/useMutation";
 import { paths } from "../../paths";
-import { useRefreshSidebar, useSession } from "../../session/context";
+import { useSession } from "../../session/context";
 import { AddPeopleSection } from "./roster/AddPeopleSection";
 import { EditParticipantDialog } from "./roster/EditParticipantDialog";
 import { ManagersSection } from "./roster/ManagersSection";
@@ -35,8 +35,8 @@ interface ActionOutcome {
 export function StandupParticipantsPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const refreshSidebar = useRefreshSidebar();
-  const currentUserId = useSession().bootstrap.user?.id;
+  const session = useSession();
+  const currentUserId = session.bootstrap.user?.id;
   const { data, error, loading, reload, setData } = useApi<ParticipantsConsole>(`/api/standups/${id}/participants?view=console`);
   useDocumentTitle(data ? `Participants · ${data.standup.name}` : "Participants");
 
@@ -52,7 +52,7 @@ export function StandupParticipantsPage() {
   const action = useMutation((call: () => Promise<ActionOutcome>) => call(), {
     onSuccess: async (outcome) => {
       if (outcome.can_manage === false) {
-        await refreshSidebar().catch(() => undefined);
+        await session.refresh().catch(() => undefined);
         navigate(paths.standups);
         return;
       }

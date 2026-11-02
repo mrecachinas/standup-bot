@@ -38,7 +38,6 @@ export function standupFixture(overrides: Partial<Standup> = {}): Standup {
 
 export function insightsFixture(overrides: Partial<InsightsPayload["insights"]> = {}, standup: Partial<Standup> = {}): InsightsPayload {
   return {
-    analytics: {},
     standup: standupFixture(standup),
     csv_path: "/api/standups/7/analytics.csv?end_date=2026-10-31&start_date=2026-10-02",
     insights: {

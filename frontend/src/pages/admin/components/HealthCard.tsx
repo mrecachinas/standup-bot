@@ -1,7 +1,6 @@
 import { DatabaseIcon, HashIcon, PeopleIcon, ServerIcon, StackIcon, type Icon } from "@primer/octicons-react";
 import type { HealthCheck } from "../../../api/types/admin";
-import { RelativeTime } from "../../../components/RelativeTime";
-import { StatusLabel } from "../../../components/StatusLabel";
+import { RelativeTime, StatusLabel } from "../../../components";
 import { KeyValueList } from "../../manager/insights/Panel";
 import styles from "./admin.module.css";
 

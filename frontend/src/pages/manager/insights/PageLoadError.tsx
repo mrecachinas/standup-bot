@@ -2,8 +2,7 @@ import { Link as RouterLink } from "react-router";
 import { Button } from "@primer/react";
 import { LockIcon, QuestionIcon, SyncIcon } from "@primer/octicons-react";
 import type { ApiError } from "../../../api/client";
-import { EmptyState } from "../../../components/EmptyState";
-import { ErrorBanner } from "../../../components/ErrorBanner";
+import { EmptyState, ErrorBanner } from "../../../components";
 import { paths } from "../../../paths";
 
 export interface PageLoadErrorProps {

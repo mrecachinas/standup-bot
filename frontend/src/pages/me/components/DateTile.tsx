@@ -1,4 +1,4 @@
-import { formatShortDate, parseApiDate } from "../../../components";
+import { formatShortDate, parseApiDate } from "../../../lib/format";
 import styles from "./me.module.css";
 
 /** A small calendar tile: "OCT" over "2". Decorative; the full date is shown next to it. */

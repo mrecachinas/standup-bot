@@ -21,15 +21,3 @@ export function useSession(): SessionValue {
   if (!value) throw new Error("useSession must be used inside <SessionProvider>");
   return value;
 }
-
-export function useOptionalSession(): SessionValue | null {
-  return useContext(SessionContext);
-}
-
-/** Call after a standup is created, renamed, paused, resumed or deleted so the sidebar list updates. */
-export function useRefreshSidebar(): () => Promise<void> {
-  const session = useContext(SessionContext);
-  return async () => {
-    if (session) await session.refresh();
-  };
-}

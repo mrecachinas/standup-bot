@@ -1,7 +1,8 @@
 import { useParams, useSearchParams } from "react-router";
 import { Banner } from "@primer/react";
 import type { InsightsPayload } from "../../api/types/insights";
-import { ErrorBanner, LoadingState, StandupHeader, StatCard, StatGrid, formatPercent } from "../../components";
+import { ErrorBanner, LoadingState, StandupHeader, StatCard, StatGrid } from "../../components";
+import { formatPercent } from "../../lib/format";
 import { RateLineChart, RunBreakdownChart, RunLegend } from "../../components/charts";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";

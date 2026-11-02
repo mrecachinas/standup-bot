@@ -1,7 +1,7 @@
 import { Banner, Label } from "@primer/react";
 import { CheckCircleIcon, InfoIcon, XCircleIcon } from "@primer/octicons-react";
 import type { ChatStatus } from "../../../api/types/chat";
-import { StatusLabel } from "../../../components/StatusLabel";
+import { StatusLabel } from "../../../components";
 import { KeyValueList, Panel, PanelList, PanelListItem } from "../insights/Panel";
 import styles from "./chat.module.css";
 

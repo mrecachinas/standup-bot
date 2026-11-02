@@ -3,7 +3,7 @@ import { Button, UnderlineNav } from "@primer/react";
 import { GlobeIcon, HashIcon, PauseIcon, PencilIcon, PeopleIcon, PlayIcon, SyncIcon } from "@primer/octicons-react";
 import type { Standup } from "../api/types";
 import { pluralize } from "../lib/format";
-import { standupTabPath, type StandupTab } from "../paths";
+import { paths, standupTabPath, type StandupTab } from "../paths";
 import { PageHeader } from "./PageHeader";
 import { StandupStatusLabel } from "./StatusLabel";
 import styles from "./StandupHeader.module.css";
@@ -46,7 +46,7 @@ export function StandupHeader({ standup, active, onPauseResume, pauseResumeBusy 
       <PageHeader
         title={standup.name}
         trailingVisual={<StandupStatusLabel active={standup.active} />}
-        breadcrumbs={[{ label: "Standups", to: "/manager/standups" }, { label: standup.name }]}
+        breadcrumbs={[{ label: "Standups", to: paths.standups }, { label: standup.name }]}
         actions={
           <div className={styles.actions}>
             {onPauseResume && (

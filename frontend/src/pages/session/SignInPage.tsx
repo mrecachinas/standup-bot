@@ -4,7 +4,7 @@ import { Button, FormControl, TextInput } from "@primer/react";
 import { CommentDiscussionIcon, HashIcon, PeopleIcon } from "@primer/octicons-react";
 import { ApiError } from "../../api/client";
 import type { Platform } from "../../api/types";
-import { ErrorBanner } from "../../components/ErrorBanner";
+import { ErrorBanner } from "../../components";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useSession } from "../../session/context";
 import { canAccess, safeNextPath } from "../../session/paths";

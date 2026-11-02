@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { clsx } from "clsx";
 import { ChevronRightIcon } from "@primer/octicons-react";
-import { parseApiDate } from "../../../components";
+import { parseApiDate } from "../../../lib/format";
 import styles from "./roster.module.css";
 
 export interface SectionProps {

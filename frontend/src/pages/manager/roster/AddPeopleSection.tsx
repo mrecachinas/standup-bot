@@ -3,7 +3,7 @@ import { Button, Checkbox, FormControl, Textarea, TextInput } from "@primer/reac
 import { SyncIcon, UploadIcon } from "@primer/octicons-react";
 import { ApiError, post } from "../../../api/client";
 import type { ImportResult, ImportSummary, ParticipantMutationResult, ParticipantsConsole } from "../../../api/types/roster";
-import { pluralize } from "../../../components";
+import { pluralize } from "../../../lib/format";
 import { useMutation } from "../../../hooks/useMutation";
 import { baseMessages, fieldMessage } from "./formErrors";
 import { MessagesBanner } from "./MessagesBanner";

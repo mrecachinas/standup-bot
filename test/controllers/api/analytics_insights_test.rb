@@ -48,10 +48,7 @@ class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
     assert_equal @owned_standup.questions, insights.dig("question_funnel", "rows").map { |row| row["question"] }
     assert insights.dig("question_funnel", "started_label").start_with?("Out of ")
     assert_includes body["csv_path"], api_standup_analytics_path(@owned_standup, format: :csv)
-
-    # The admin API's analytics payload rides along for the same range.
-    assert body["analytics"].key?("response_trends")
-    assert body["analytics"].key?("blocker_keywords")
+    assert_not body.key?("analytics")
   end
 
   test "compares completion with the previous period" do

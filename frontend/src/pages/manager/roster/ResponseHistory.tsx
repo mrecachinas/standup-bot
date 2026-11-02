@@ -4,7 +4,8 @@ import { Button, FormControl, ProgressBar, Select, TextInput } from "@primer/rea
 import { GraphIcon } from "@primer/octicons-react";
 import type { Tone } from "../../../api/types";
 import type { HistoryDay, HistoryEntry, HistoryFilters, ResponseHistory } from "../../../api/types/roster";
-import { Avatar, formatPercent, StatusLabel } from "../../../components";
+import { Avatar, StatusLabel } from "../../../components";
+import { formatPercent } from "../../../lib/format";
 import { DateTile, SectionBody } from "./Section";
 import styles from "./roster.module.css";
 

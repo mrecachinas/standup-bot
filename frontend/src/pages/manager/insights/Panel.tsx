@@ -19,7 +19,7 @@ export interface PanelProps {
   children?: ReactNode;
 }
 
-/** A bordered section with a header, like the old console's `.card`. */
+/** A bordered section with a header. */
 export function Panel({ title, description, actions, footer, flush = false, headingLevel = "h2", id, headingId: headingIdProp, className, children }: PanelProps) {
   const generatedId = useId();
   const headingId = headingIdProp ?? generatedId;

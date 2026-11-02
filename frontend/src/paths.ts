@@ -4,7 +4,6 @@ export type StandupTab = "overview" | "insights" | "responses" | "participants" 
 type Id = number | string;
 
 export const paths = {
-  home: "/",
   signIn: "/session/new",
   me: "/me",
   myResponses: "/me/responses",

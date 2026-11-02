@@ -2,7 +2,8 @@ import { ActionList, ActionMenu, Button, IconButton, VisuallyHidden } from "@pri
 import { DataTable, Table } from "@primer/react/experimental";
 import { KebabHorizontalIcon, PencilIcon, PeopleIcon } from "@primer/octicons-react";
 import type { RosterParticipant } from "../../../api/types/roster";
-import { Avatar, EmptyState, pluralize, StatusLabel } from "../../../components";
+import { Avatar, EmptyState, StatusLabel } from "../../../components";
+import { pluralize } from "../../../lib/format";
 import styles from "./roster.module.css";
 
 export type ParticipantAction = "edit" | "toggle-active" | "make-manager" | "remove-manager" | "remove";

@@ -29,7 +29,7 @@ export interface Mutation<TArgs extends unknown[], TResult> {
 
 /**
  * Wraps a write, e.g.
- * `useMutation((body) => api.patch(`/api/standups/${id}/pause`, body), { refreshSidebar: true })`.
+ * `useMutation((body) => patch(`/api/standups/${id}`, body), { refreshSidebar: true })`.
  */
 export function useMutation<TArgs extends unknown[], TResult>(
   fn: (...args: TArgs) => Promise<TResult>,

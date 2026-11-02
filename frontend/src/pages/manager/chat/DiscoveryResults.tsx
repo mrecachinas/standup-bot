@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Banner } from "@primer/react";
 import { HashIcon } from "@primer/octicons-react";
 import type { ChatRecord, ChatResult } from "../../../api/types/chat";
-import { Avatar } from "../../../components/Avatar";
+import { Avatar } from "../../../components";
 import { PanelEmptyText, PanelList, PanelListItem } from "../insights/Panel";
 import styles from "./chat.module.css";
 

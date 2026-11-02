@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { RateLineChart, RunBreakdownChart, RunLegend, Sparkline, niceMax } from ".";
+import { RateLineChart, RunBreakdownChart, RunLegend, Sparkline } from ".";
+import { niceMax } from "./scale";
 
 describe("niceMax", () => {
   it("matches ChartsHelper#nice_max", () => {

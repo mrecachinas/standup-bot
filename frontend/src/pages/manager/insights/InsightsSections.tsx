@@ -1,7 +1,7 @@
 import { Banner, Label, ProgressBar, VisuallyHidden } from "@primer/react";
 import { ArrowDownIcon, ArrowUpIcon } from "@primer/octicons-react";
 import type { InsightsParticipant, InsightsStats, Keyword, QuestionFunnel, QuestionSummary } from "../../../api/types/insights";
-import { Avatar } from "../../../components/Avatar";
+import { Avatar } from "../../../components";
 import { formatPercent, pluralize } from "../../../lib/format";
 import { Panel, PanelEmptyText, PanelList, PanelListItem } from "./Panel";
 import { progressBgForTone } from "./tone";
@@ -58,7 +58,7 @@ export function ParticipationPanel({ participants }: { participants: InsightsPar
   );
 }
 
-export function KeywordLabels({ keywords, tone, label }: { keywords: Keyword[]; tone?: "attention"; label: string }) {
+function KeywordLabels({ keywords, tone, label }: { keywords: Keyword[]; tone?: "attention"; label: string }) {
   return (
     <ul className={styles.chips} aria-label={label}>
       {keywords.map((keyword) => (

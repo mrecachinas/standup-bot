@@ -129,8 +129,6 @@ export interface Insights {
 
 /** GET /api/standups/:id/analytics?view=insights */
 export interface InsightsPayload {
-  /** The admin API's analytics summary for the same range (unused by the console). */
-  analytics: Record<string, unknown>;
   standup: Standup;
   insights: Insights;
   csv_path: string;
