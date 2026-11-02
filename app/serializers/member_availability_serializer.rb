@@ -25,7 +25,7 @@ class MemberAvailabilitySerializer
           standup_id: participant.standup_id,
           standup_name: participant.standup.name,
           vacation_until: participant.vacation_until.iso8601,
-          vacation_until_label: participant.vacation_until.strftime("%A, %B %-d")
+          vacation_until_label: participant.vacation_until.to_fs(:weekday_month_day)
         }
       end,
       standups: active.map do |participant|

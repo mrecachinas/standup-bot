@@ -1,8 +1,8 @@
 module Api
   # The standup's analytics. Without options this is the admin API's
   # `{ analytics: ... }` payload for the last `period_days`. `?view=insights`
-  # adds what the console's Insights tab draws, for a start_date/end_date
-  # range, and `.csv` downloads the per-person export.
+  # returns what the console's Insights tab draws instead, for a
+  # start_date/end_date range, and `.csv` downloads the per-person export.
   class StandupAnalyticsController < BaseController
     before_action :require_manager!
     before_action :set_standup
@@ -28,7 +28,6 @@ module Api
     def render_insights
       analytics = StandupAnalyticsService.new(@standup, **analytics_options)
       render json: {
-        analytics: analytics_payload(analytics),
         standup: StandupSerializer.new(@standup, include_counts: true).as_json,
         insights: AnalyticsInsightsSerializer.new(analytics, previous: previous_period_analytics(analytics)).as_json,
         csv_path: api_standup_analytics_path(@standup, format: :csv, start_date: analytics.start_date.iso8601, end_date: analytics.end_date.iso8601)

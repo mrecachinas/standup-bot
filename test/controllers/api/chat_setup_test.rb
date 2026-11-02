@@ -4,14 +4,11 @@ require_relative "../../support/teams_test_helper"
 class Api::ChatSetupTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
-  ADMIN_TOKEN = "admin-access-token".freeze
-
   setup do
     @manager = users(:manager)
     @admin = users(:admin)
     @owned_standup = standups(:daily)
     @unowned_standup = standups(:weekly)
-    @participant = standup_participants(:one)
     stub_slack_status
   end
 
@@ -32,7 +29,6 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
     assert_equal "daily-standup", body.dig("channel", "platform_channel")
     assert_equal @owned_standup.channel_reference, body.dig("channel", "channel_reference")
     assert_equal PlatformSerializer.copy_for(:slack, :channel_id_placeholder), body.dig("copy", "channel_id_placeholder")
-    assert_equal PlatformSerializer.copy_for(:slack, :user_placeholder), body.dig("copy", "user_placeholder")
 
     status = body["integration_status"]
     assert_equal "Slack app status", status["title"]
@@ -41,9 +37,8 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
     assert_equal "Slack API authentication succeeded.", status.dig("connection", "message")
     assert_equal [ { "key" => "team", "label" => "Team", "value" => "Example" } ], status.dig("connection", "metadata")
 
-    assert_includes body["participants"].map { |participant| participant["platform_user_id"] }, @participant.platform_user_id
     assert_nil body["channel_result"]
-    assert_nil body["user_result"]
+    assert_not body.key?("participants")
   end
 
   test "manager can't view the setup for a standup they don't own" do
@@ -94,27 +89,14 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "user discovery returns people" do
-    SlackIntegrationService.any_instance.expects(:discover_users).with(query: "jane")
-      .returns(SlackIntegrationService::Result.new(status: "ok", records: [ { "id" => "UJANE", "name" => "jane", "label" => "Jane", "tz" => "Europe/London", "avatar_url" => "javascript:alert(1)" } ]))
-    sign_in(@manager, "manager-access-token")
-
-    get api_standup_chat_setup_path(@owned_standup, user_query: "jane"), as: :json
-
-    record = response.parsed_body.dig("user_result", "records").sole
-    assert_equal "user", record["kind"]
-    assert_equal "UJANE · @jane · Europe/London", record["detail"]
-    assert_nil record["avatar_url"]
-  end
-
   test "discovery failures come back with the next step" do
-    SlackIntegrationService.any_instance.expects(:discover_users)
+    SlackIntegrationService.any_instance.expects(:discover_channels)
       .returns(SlackIntegrationService::Result.new(status: "error", message: "Slack bot token is not configured.", action: "Set SLACK_BOT_TOKEN and restart the app.", error_code: "missing_bot_token"))
     sign_in(@manager, "manager-access-token")
 
-    get api_standup_chat_setup_path(@owned_standup, discover: "users"), as: :json
+    get api_standup_chat_setup_path(@owned_standup, discover: "channels"), as: :json
 
-    result = response.parsed_body["user_result"]
+    result = response.parsed_body["channel_result"]
     assert_not result["success"]
     assert_equal "Set SLACK_BOT_TOKEN and restart the app.", result["action"]
     assert_nil result["records"]
@@ -147,62 +129,6 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_equal [ "Select a Slack channel or enter a channel ID." ], response.parsed_body["errors"]
     assert_equal [ "Select a Slack channel or enter a channel ID." ], response.parsed_body.dig("field_errors", "channel_id")
-  end
-
-  test "manager adds a discovered Slack user and writes an audit log" do
-    sign_in(@manager, "manager-access-token")
-
-    assert_difference "StandupParticipant.count", 1 do
-      assert_difference "AuditLog.where(action: 'slack.participant.add').count", 1 do
-        post participants_api_standup_chat_setup_path(@owned_standup), params: { platform_user_id: "UDISC1", display_name: "Discovered User" }, as: :json
-      end
-    end
-
-    assert_response :success
-    assert_equal "Participant added.", response.parsed_body["notice"]
-    assert_equal "UDISC1", response.parsed_body.dig("participant", "platform_user_id")
-    assert_equal "Discovered User", @owned_standup.standup_participants.find_by!(platform_user_id: "UDISC1").display_name
-  end
-
-  test "manager adds a Slack user by username" do
-    ChatUserResolver.any_instance.expects(:resolve)
-      .with("@discovered", fallback_name: nil)
-      .returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "UDISC2", display_name: "Discovered By Username", cached_timezone: "UTC"))
-    sign_in(@manager, "manager-access-token")
-
-    assert_difference "StandupParticipant.count", 1 do
-      post participants_api_standup_chat_setup_path(@owned_standup), params: { slack_user: "@discovered" }, as: :json
-    end
-
-    assert_response :success
-    assert_equal "Discovered By Username", @owned_standup.standup_participants.find_by!(platform_user_id: "UDISC2").display_name
-  end
-
-  test "a user that can't be resolved is a 422" do
-    ChatUserResolver.any_instance.expects(:resolve).raises(ChatUserResolver::ResolutionError, "No Slack user matched \"ghost\".")
-    sign_in(@manager, "manager-access-token")
-
-    assert_no_difference "StandupParticipant.count" do
-      post participants_api_standup_chat_setup_path(@owned_standup), params: { user: "ghost" }, as: :json
-    end
-
-    assert_response :unprocessable_entity
-    assert_equal "No Slack user matched \"ghost\".", response.parsed_body["error"]
-  end
-
-  test "manager removes a participant and writes an audit log" do
-    sign_in(@manager, "manager-access-token")
-
-    assert_difference "StandupParticipant.count", -1 do
-      assert_difference "AuditLog.where(action: 'slack.participant.remove').count", 1 do
-        delete participant_api_standup_chat_setup_path(@owned_standup, participant_id: @participant.id), as: :json
-      end
-    end
-
-    assert_response :success
-    assert_equal "Participant removed.", response.parsed_body["notice"]
-    audit_log = AuditLog.where(action: "slack.participant.remove").order(:created_at).last
-    assert_equal @participant.platform_user_id, audit_log.metadata["platform_user_id"]
   end
 
   test "manager sends a test message and writes an audit log" do
@@ -248,17 +174,11 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
   test "manager can't change a standup they don't own" do
     sign_in(@manager, "manager-access-token")
 
-    assert_no_difference [ "AuditLog.count", "StandupParticipant.count" ] do
+    assert_no_difference "AuditLog.count" do
       post test_message_api_standup_chat_setup_path(@unowned_standup), as: :json
       assert_response :forbidden
 
       patch channel_api_standup_chat_setup_path(@unowned_standup), params: { channel_id: "CNOPE" }, as: :json
-      assert_response :forbidden
-
-      post participants_api_standup_chat_setup_path(@unowned_standup), params: { platform_user_id: "UNOPE" }, as: :json
-      assert_response :forbidden
-
-      delete participant_api_standup_chat_setup_path(@unowned_standup, participant_id: standup_participants(:three).id), as: :json
       assert_response :forbidden
     end
   end
@@ -312,38 +232,5 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
     patch channel_api_standup_chat_setup_path(standup), params: { channel_id: "not a channel" }, as: :json
     assert_response :unprocessable_entity
     assert response.parsed_body["field_errors"].key?("platform_channel")
-  end
-
-  private
-
-  def stub_slack_status
-    SlackIntegrationService.any_instance.stubs(:configuration_status).returns(slack_status)
-    SlackIntegrationService.any_instance.stubs(:connection_status).returns(
-      SlackIntegrationService::Result.new(status: "ok", message: "Slack API authentication succeeded.", metadata: { "team" => "Example" })
-    )
-    SlackIntegrationService.any_instance.stubs(:discover_channels).returns(SlackIntegrationService::Result.new(status: "ok", records: []))
-    SlackIntegrationService.any_instance.stubs(:discover_users).returns(SlackIntegrationService::Result.new(status: "ok", records: []))
-  end
-
-  def slack_status
-    {
-      configured: true,
-      installation: { message: "Slack app bot token is configured." },
-      credentials: {
-        bot_token: { label: "Bot token", configured: true, required: true, message: "Bot token is configured." },
-        signing_secret: { label: "Signing secret", configured: true, required: true, message: "Signing secret is configured." },
-        client_id: { label: "Client ID", configured: false, required: false, message: "Client ID is optional." },
-        client_secret: { label: "Client secret", configured: false, required: false, message: "Client secret is optional." }
-      }
-    }
-  end
-
-  def token_headers
-    { "Authorization" => "Bearer #{ADMIN_TOKEN}" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

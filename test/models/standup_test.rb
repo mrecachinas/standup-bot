@@ -26,7 +26,7 @@ class StandupTest < ActiveSupport::TestCase
       @daily_standup.default_minute = 0
 
       expected_time = Time.new(2025, 4, 6, 9, 0, 0, "+00:00")
-      assert_equal expected_time, @daily_standup.next_occurrence_in_timezone(timezone)
+      assert_equal expected_time, @daily_standup.next_occurrence_detail_in_timezone(timezone).scheduled_at
     end
 
     # Use Timecop to freeze time at 10am (after scheduled time)
@@ -37,7 +37,7 @@ class StandupTest < ActiveSupport::TestCase
       @daily_standup.default_minute = 0
 
       expected_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
-      assert_equal expected_time, @daily_standup.next_occurrence_in_timezone(timezone)
+      assert_equal expected_time, @daily_standup.next_occurrence_detail_in_timezone(timezone).scheduled_at
     end
   end
 
@@ -51,7 +51,7 @@ class StandupTest < ActiveSupport::TestCase
 
       # Since it's after scheduled time on Friday, next occurrence should be Monday
       expected_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
-      assert_equal expected_time, @weekdays_standup.next_occurrence_in_timezone(timezone)
+      assert_equal expected_time, @weekdays_standup.next_occurrence_detail_in_timezone(timezone).scheduled_at
     end
 
     # Use Timecop to freeze time on Saturday
@@ -62,7 +62,7 @@ class StandupTest < ActiveSupport::TestCase
       @weekdays_standup.default_minute = 0
 
       expected_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
-      assert_equal expected_time, @weekdays_standup.next_occurrence_in_timezone(timezone)
+      assert_equal expected_time, @weekdays_standup.next_occurrence_detail_in_timezone(timezone).scheduled_at
     end
   end
 
@@ -77,7 +77,7 @@ class StandupTest < ActiveSupport::TestCase
 
       # Next occurrence should be Monday, April 7th
       expected_time = Time.new(2025, 4, 7, 9, 0, 0, "+00:00")
-      assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
+      assert_equal expected_time, @weekly_standup.next_occurrence_detail_in_timezone(timezone).scheduled_at
     end
   end
 
@@ -87,7 +87,7 @@ class StandupTest < ActiveSupport::TestCase
       @weekly_standup.update!(schedule_type: "biweekly", schedule_days: [ 1 ], default_hour: 9, default_minute: 0)
 
       expected_time = Time.new(2024, 1, 15, 9, 0, 0, "+00:00")
-      assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
+      assert_equal expected_time, @weekly_standup.next_occurrence_detail_in_timezone(timezone).scheduled_at
     end
   end
 
@@ -97,7 +97,7 @@ class StandupTest < ActiveSupport::TestCase
       @weekly_standup.update!(schedule_type: "monthly", schedule_days: [ 31 ], default_hour: 9, default_minute: 0)
 
       expected_time = Time.new(2025, 2, 28, 9, 0, 0, "+00:00")
-      assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
+      assert_equal expected_time, @weekly_standup.next_occurrence_detail_in_timezone(timezone).scheduled_at
     end
   end
 
@@ -107,7 +107,7 @@ class StandupTest < ActiveSupport::TestCase
       @weekly_standup.update!(schedule_type: "custom", schedule_days: [ 2, 4 ], default_hour: 9, default_minute: 0)
 
       expected_time = Time.new(2025, 4, 8, 9, 0, 0, "+00:00")
-      assert_equal expected_time, @weekly_standup.next_occurrence_in_timezone(timezone)
+      assert_equal expected_time, @weekly_standup.next_occurrence_detail_in_timezone(timezone).scheduled_at
     end
   end
 

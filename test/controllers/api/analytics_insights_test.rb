@@ -2,8 +2,6 @@ require "test_helper"
 require "csv"
 
 class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "admin-access-token".freeze
-
   setup do
     @manager = users(:manager)
     @admin = users(:admin)
@@ -48,10 +46,7 @@ class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
     assert_equal @owned_standup.questions, insights.dig("question_funnel", "rows").map { |row| row["question"] }
     assert insights.dig("question_funnel", "started_label").start_with?("Out of ")
     assert_includes body["csv_path"], api_standup_analytics_path(@owned_standup, format: :csv)
-
-    # The admin API's analytics payload rides along for the same range.
-    assert body["analytics"].key?("response_trends")
-    assert body["analytics"].key?("blocker_keywords")
+    assert_not body.key?("analytics")
   end
 
   test "compares completion with the previous period" do
@@ -156,16 +151,5 @@ class Api::AnalyticsInsightsTest < ActionDispatch::IntegrationTest
 
     get api_standup_stats_path(@unowned_standup), as: :json
     assert_response :forbidden
-  end
-
-  private
-
-  def token_headers
-    { "Authorization" => "Bearer #{ADMIN_TOKEN}" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

@@ -2,7 +2,9 @@ import { ActionList, ActionMenu, Button, IconButton, VisuallyHidden } from "@pri
 import { DataTable, Table } from "@primer/react/experimental";
 import { KebabHorizontalIcon, PencilIcon, PeopleIcon } from "@primer/octicons-react";
 import type { RosterParticipant } from "../../../api/types/roster";
-import { Avatar, EmptyState, pluralize, StatusLabel } from "../../../components";
+import { Avatar, EmptyState, StatusLabel } from "../../../components";
+import { pluralize } from "../../../lib/format";
+import layout from "../../../styles/layout.module.css";
 import styles from "./roster.module.css";
 
 export type ParticipantAction = "edit" | "toggle-active" | "make-manager" | "remove-manager" | "remove";
@@ -53,9 +55,9 @@ export function PeopleSection({ participants, summary, platformLabel, busyId, on
               renderCell: (row) => (
                 <div className={styles.person}>
                   <Avatar name={row.display_name || row.platform_user_id} src={row.avatar_url} />
-                  <div className={styles.grow}>
-                    <div className={styles.cellTitle}>{row.display_name}</div>
-                    <div className={`${styles.cellSub} ${styles.mono}`}>{row.platform_user_id}</div>
+                  <div className={layout.grow}>
+                    <div className={layout.title}>{row.display_name}</div>
+                    <div className={`${layout.hint} ${layout.mono}`}>{row.platform_user_id}</div>
                   </div>
                 </div>
               ),
@@ -78,7 +80,7 @@ export function PeopleSection({ participants, summary, platformLabel, busyId, on
               renderCell: (row) => (
                 <div>
                   <div>{row.timezone_label}</div>
-                  <div className={styles.cellSub} title={row.timezone_cache_status_description}>
+                  <div className={layout.hint} title={row.timezone_cache_status_description}>
                     {row.timezone_synced ? "Synced" : <StatusLabel tone="warning">Needs sync</StatusLabel>}
                   </div>
                 </div>
@@ -91,7 +93,7 @@ export function PeopleSection({ participants, summary, platformLabel, busyId, on
               renderCell: (row) => (
                 <div>
                   <div>{row.vacation_status}</div>
-                  {row.holiday_status && <div className={styles.cellSub}>{row.holiday_status}</div>}
+                  {row.holiday_status && <div className={layout.hint}>{row.holiday_status}</div>}
                 </div>
               ),
             },
@@ -105,12 +107,14 @@ export function PeopleSection({ participants, summary, platformLabel, busyId, on
           ]}
         />
       ) : (
-        <EmptyState
-          icon={PeopleIcon}
-          headingLevel="h3"
-          title="No participants yet"
-          description={`Add people above, or sync everyone from a ${platformLabel} channel.`}
-        />
+        <div className={layout.tableArea}>
+          <EmptyState
+            icon={PeopleIcon}
+            headingLevel="h3"
+            title="No participants yet"
+            description={`Add people above, or sync everyone from a ${platformLabel} channel.`}
+          />
+        </div>
       )}
     </Table.Container>
   );
@@ -119,7 +123,7 @@ export function PeopleSection({ participants, summary, platformLabel, busyId, on
 function RowActions({ participant, busy, onAction }: { participant: RosterParticipant; busy: boolean; onAction: PeopleSectionProps["onAction"] }) {
   const name = participant.display_name;
   return (
-    <div className={styles.inlineRow}>
+    <div className={layout.row}>
       <Button size="small" variant="invisible" leadingVisual={PencilIcon} aria-label={`Edit ${name}`} onClick={() => onAction("edit", participant)}>
         Edit
       </Button>

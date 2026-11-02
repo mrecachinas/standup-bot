@@ -1,16 +1,15 @@
 import { useParams, useSearchParams } from "react-router";
 import { Banner, Button } from "@primer/react";
 import { InboxIcon } from "@primer/octicons-react";
-import type { Standup } from "../../api/types";
 import type { HistoryFilters, ResponsesHistoryPayload } from "../../api/types/roster";
-import { EmptyState, ErrorBanner, formatPercent, LoadingState, pluralize, StandupHeader, StatCard, StatGrid } from "../../components";
-import { useApi } from "../../hooks/useApi";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { EmptyState, ErrorBanner, StandupHeader, StatCard, StatGrid } from "../../components";
+import { useForwardedQuery } from "../../hooks/useForwardedQuery";
+import { formatPercent, pluralize } from "../../lib/format";
 import { paths } from "../../paths";
 import { HistoryDaySection, HistoryFiltersCard, type FilterValues } from "./roster/ResponseHistory";
-import { StandupLoadError } from "./roster/StandupLoadError";
-import { usePauseResume } from "./roster/usePauseResume";
-import styles from "./roster/roster.module.css";
+import { StandupLoadState } from "./standups/StandupLoadState";
+import { useStandupPage } from "./standups/useStandupPage";
+import layout from "../../styles/layout.module.css";
 
 const FILTER_KEYS = ["start_date", "end_date", "participant", "question"] as const;
 
@@ -18,16 +17,8 @@ export function StandupResponsesPage() {
   const { id = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Only the filter params go to the API, in a stable order.
-  const query = new URLSearchParams({ view: "history" });
-  for (const key of FILTER_KEYS) {
-    const value = searchParams.get(key);
-    if (value) query.set(key, value);
-  }
-  const { data, error, loading, reload, setData } = useApi<ResponsesHistoryPayload>(`/api/standups/${id}/responses?${query.toString()}`);
-  useDocumentTitle(data ? `Responses · ${data.standup.name}` : "Responses");
-
-  const pauseResume = usePauseResume(data?.standup, (standup: Standup) => setData((current) => ({ ...(current as ResponsesHistoryPayload), standup })));
+  const path = useForwardedQuery(`/api/standups/${id}/responses`, FILTER_KEYS, { view: "history" });
+  const { data, error, loading, reload, setStandup } = useStandupPage<ResponsesHistoryPayload>(path, "Responses");
 
   const handleApply = (values: FilterValues) => {
     const next = new URLSearchParams();
@@ -38,10 +29,7 @@ export function StandupResponsesPage() {
     setSearchParams(next);
   };
 
-  if (!data) {
-    if (error) return <StandupLoadError error={error} title="Responses" onRetry={reload} />;
-    return <LoadingState label="Loading responses…" />;
-  }
+  if (!data) return <StandupLoadState error={error} onRetry={reload} title="Responses" />;
 
   const { standup, history } = data;
   const { summary } = history;
@@ -58,8 +46,8 @@ export function StandupResponsesPage() {
   }).toString()}`;
 
   return (
-    <div className={styles.page}>
-      <StandupHeader standup={standup} active="responses" onPauseResume={pauseResume.toggle} pauseResumeBusy={pauseResume.busy} />
+    <div className={layout.page}>
+      <StandupHeader standup={standup} active="responses" onStandupChange={setStandup} />
 
       <HistoryFiltersCard
         key={JSON.stringify(initial)}
@@ -92,7 +80,7 @@ export function StandupResponsesPage() {
       )}
 
       {history.days.length > 0 ? (
-        <div className={styles.stack} aria-busy={loading || undefined}>
+        <div className={layout.stack} aria-busy={loading || undefined}>
           {history.days.map((day) => (
             <HistoryDaySection key={day.date} day={day} />
           ))}

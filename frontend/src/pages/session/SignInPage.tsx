@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { Button, FormControl, TextInput } from "@primer/react";
 import { CommentDiscussionIcon, HashIcon, PeopleIcon } from "@primer/octicons-react";
 import { ApiError } from "../../api/client";
-import { ErrorBanner } from "../../components/ErrorBanner";
+import { ErrorBanner } from "../../components";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useSession } from "../../session/context";
 import { canAccess, PLATFORM_SIGN_IN, safeNextPath } from "../../session/paths";

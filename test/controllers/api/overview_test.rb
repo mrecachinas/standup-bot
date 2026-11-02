@@ -152,16 +152,9 @@ class Api::OverviewTest < ActionDispatch::IntegrationTest
   end
 
   test "an admin's token sees every standup" do
-    get api_overview_path, headers: { "Authorization" => "Bearer admin-access-token" }, as: :json
+    get api_overview_path, headers: token_headers, as: :json
 
     assert_response :success
     assert_equal Standup.count, response.parsed_body["standups"].size
-  end
-
-  private
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

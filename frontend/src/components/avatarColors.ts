@@ -1,4 +1,4 @@
-/** Same palette and rules as UiHelper (AVATAR_PALETTE / initials_for), so avatars look the same everywhere. */
+/** Background/foreground pairs for initials avatars; a given name always gets the same pair. */
 export const AVATAR_PALETTE: readonly (readonly [background: string, foreground: string])[] = [
   ["#e0e7ff", "#3730a3"],
   ["#dcfce7", "#166534"],
@@ -21,7 +21,7 @@ export function initialsFor(name: string | null | undefined): string {
   return initials.toUpperCase();
 }
 
-/** Ruby's String#sum: the byte sum of the UTF-8 string, modulo 2^16. */
+/** A cheap, stable hash: the UTF-8 byte sum, modulo 2^16. */
 function byteSum(value: string): number {
   let sum = 0;
   for (const byte of new TextEncoder().encode(value)) sum += byte;

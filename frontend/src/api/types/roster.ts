@@ -1,22 +1,10 @@
 // Payloads for a standup's Participants, Schedule and Responses tabs.
-import type { Platform, Standup, Tone } from "../types";
+import type { Participant, Platform, Standup, Tone } from "../types";
 
 // ---- Participants (GET /api/standups/:id/participants?view=console) ----
 
 /** ParticipantSerializer + ParticipantRosterSerializer. */
-export interface RosterParticipant {
-  id: number;
-  standup_id: number;
-  platform_user_id: string;
-  display_name: string;
-  active: boolean;
-  cached_timezone: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  avatar_url: string | null;
-  vacation_until: string | null;
-  timezone_cache_status: "fresh" | "stale" | "invalid" | "missing";
-  timezone_cache_status_description: string;
+export interface RosterParticipant extends Participant {
   status_label: string;
   status_tone: Tone;
   manager: boolean;

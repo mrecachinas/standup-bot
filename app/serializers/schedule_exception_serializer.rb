@@ -23,7 +23,7 @@ class ScheduleExceptionSerializer
       rescheduled_time: rescheduled_time,
       rescheduled_timezone: @schedule_exception.rescheduled_timezone,
       scheduled_at: scheduled_at&.iso8601,
-      scheduled_at_label: scheduled_at&.strftime("%a, %b %-d at %-l:%M %p %Z"),
+      scheduled_at_label: scheduled_at&.to_fs(:short_weekday_clock),
       reason: @schedule_exception.reason,
       created_at: @schedule_exception.created_at&.iso8601,
       updated_at: @schedule_exception.updated_at&.iso8601

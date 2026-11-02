@@ -24,16 +24,18 @@ src/
   main.tsx, App.tsx       entry; ThemeRoot + RouterProvider
   router.tsx              every route → a page component
   paths.ts                URL helpers (paths.standup(id), standupTabPath(id, "participants"), …)
-  api/client.ts           fetch wrapper: get/post/patch/put/del, ApiError
-  api/types.ts            API payload types (Bootstrap, Standup, …)
+  api/client.ts           fetch wrapper: get/post/patch/del, ApiError
+  api/types.ts            shared API types (Bootstrap, Standup, Participant, RunTotals, …)
+  api/types/              per-area payload types
   session/                SessionProvider (GET /api/session), useSession, route guards
   flash/                  toasts: useFlash().push({ type, message })
   theme/                  ThemeRoot (Primer ThemeProvider + BaseStyles), ThemeSwitch
   layout/                 Root (providers) and AppShell (PageLayout + sidebar)
-  hooks/                  useApi, useMutation, useDocumentTitle
+  hooks/                  useApi, useMutation, useDocumentTitle, useForwardedQuery, usePauseResume
   components/             shared UI (import from "../components")
   components/charts/      SVG charts (RunBreakdownChart, RateLineChart, Sparkline, RunLegend)
-  lib/                    formatting helpers
+  lib/                    formatting, tone and field-error helpers
+  styles/                 global CSS and layout.module.css (page/stack/mainAside/list/hint utilities)
   pages/                  one component per route
   test/                   Vitest setup, fixtures, renderApp/mockFetch helpers
 ```
@@ -45,7 +47,12 @@ src/
   `useMutation(fn, options)` → `{ run, loading, error, reset }`; `run` never
   rejects (it returns `undefined` and sets `error`). Show `error` with
   `<ErrorBanner error={error} />` and per-field messages with
-  `error?.fieldError("name")` in `FormControl.Validation`.
+  `fieldMessage(error, "name", "Name")` (lib/fieldErrors) in `FormControl.Validation`.
+- **Standup tabs.** `useStandupPage<T>(path, "Insights")` loads the tab and
+  titles it; render `<StandupLoadState>` until `data` arrives, then
+  `<StandupHeader standup={…} active="insights" onStandupChange={setStandup} />`.
+- **Query params.** `useForwardedQuery(base, keys)` builds an API path from
+  the page URL's filter params.
 - **API client.** Use `get/post/patch/del` from `api/client`. It sends the
   session cookie, JSON and the `X-CSRF-Token` header, refreshes the session
   and retries once on "Invalid authenticity token", and on a 401 re-fetches
@@ -58,22 +65,22 @@ src/
   same way.
 - **Sidebar.** After creating, renaming, pausing/resuming or deleting a
   standup, refresh the bootstrap: pass `refreshSidebar: true` to
-  `useMutation`, or call `useRefreshSidebar()()` / `useSession().refresh()`.
+  `useMutation`, or call `useSession().refresh()`.
 - **Session.** `useSession()` → `{ bootstrap, refresh, signIn, signOut, consumeFlash }`.
   `bootstrap.user` is the manager/admin, `bootstrap.member` the Slack/Teams
   identity, `bootstrap.platforms` the per-platform labels and copy.
 - **Titles.** Every page calls `useDocumentTitle("Participants")` →
   "Participants · Standup Bot".
-- **Styling.** Primer components first; layout tweaks in a co-located
+- **Styling.** Primer components first, then `Panel`/`Meter`/… and the
+  `styles/layout.module.css` utilities; anything page-specific goes in a co-located
   `*.module.css` using Primer CSS variables (`var(--fgColor-muted)`,
   `var(--base-size-16)`, …). No hard-coded colours, so light and dark both work.
 
 ## Adding a page
 
 1. Create `src/pages/<area>/<Name>Page.tsx` exporting `function <Name>Page()`.
-   Placeholders already exist for every console route; replace their body.
 2. Register it in `src/router.tsx` under the right guard (`RequireUser`,
-   `RequireUser admin`, or `RequireMember`) if it isn't there yet.
+   `RequireUser admin`, or `RequireMember`).
 3. Use `useParams()` for ids, `useApi` / `useMutation` for data,
    `PageHeader` (or `StandupHeader` for standup tabs) for the header.
 4. Add a test next to it (`*.test.tsx`). `renderApp(path)` + `mockFetch(bootstrap, handler)`
@@ -89,13 +96,18 @@ src/
 | `StandupStatusLabel` | `active: boolean` |
 | `StatCard` / `StatGrid` | `label`, `value`, `hint?`, `tone?`, `icon?`, children |
 | `PageHeader` | `title`, `description?`, `actions?`, `breadcrumbs?: { label, to? }[]`, `trailingVisual?`, children (meta row) |
-| `StandupHeader` | `standup` (StandupSerializer payload), `active: StandupTab`, `onPauseResume?`, `pauseResumeBusy?`, `participantCount?` |
+| `StandupHeader` | `standup` (StandupSerializer payload), `active: StandupTab`, `onStandupChange?` (shows Pause/Resume), `participantCount?` |
+| `Panel` | `title?`, `description?`, `leadingVisual?`, `actions?`, `footer?`, `flush?`, `headingId?`, `label?` — the bordered card; `PanelBody`, `PanelList`/`PanelListItem`, `KeyValueList`, `PanelEmptyText` go inside |
+| `Meter` | `value` (0–100), `tone`, `label`, children (the visible value) |
+| `DateTile` | `date` ("2026-10-02"), `blocked?` |
+| `StatusDot` | `tone`, `label?` (announced when set) |
+| `CompletionDelta` | `value`, `direction` — "↑ 5 pts" |
 | `EmptyState` | `title`, `description?`, `icon?`, `action?`, `secondaryAction?`, `border?`, `narrow?`, `size?` |
 | `RelativeTime` | `datetime`, `fallback?` ("—") |
 | `ConfirmButton` | Button props + `title`, `message?`, `confirmLabel?`, `danger?`, `onConfirm` |
-| `ErrorBanner` | `error` (ApiError/Error/string/null), `title?`, `action?`, `onDismiss?` |
+| `ErrorBanner` | `error` (ApiError/Error/string/string[]/null), `title?`, `action?`, `onDismiss?` |
 | `LoadingState` | `label?`, `fullPage?` |
 | Charts | `RunBreakdownChart({ runs })`, `RateLineChart({ points })`, `Sparkline({ values })`, `RunLegend({ pending })` |
 
 Formatting helpers (`formatPercent`, `pluralize`, `toSentence`,
-`formatRelativeTime`, `parseApiDate`, …) are re-exported from `components`.
+`formatRelativeTime`, `parseApiDate`, …) live in `lib/format`.

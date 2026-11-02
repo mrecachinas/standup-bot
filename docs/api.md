@@ -115,7 +115,7 @@ The console uses these too, and so can scripts with an access token, except wher
 | `GET /api/standups/:id/responses?view=history` | Response history by day |
 | `GET /api/standups/:id/analytics?view=insights`, `.csv` | Insights page and CSV export |
 | `/api/standups/:id/report` | Report settings and on-demand reports |
-| `/api/standups/:id/chat_setup` | Channel, people, discovery, and test messages for one standup |
+| `/api/standups/:id/chat_setup` | Summary channel, channel discovery, and test messages for one standup |
 | `GET /api/integrations` | Slack and Teams connection status and discovery |
 | `GET /api/admin/dashboard` | Installation health, usage, users, and audit log. Admins only. |
 | `/api/me/standups`, `/api/me/responses`, `/api/me/availability` | The signed-in member's own standups, answers, and time away. Session only. |

@@ -3,7 +3,7 @@ import type { FlashMessage } from "../api/types";
 import { FlashContext, type FlashEntry } from "./context";
 
 /** Success toasts dismiss themselves after this long; warnings and errors stay. */
-export const SUCCESS_TIMEOUT_MS = 6000;
+const SUCCESS_TIMEOUT_MS = 6000;
 
 export function FlashProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<FlashEntry[]>([]);
@@ -30,18 +30,12 @@ export function FlashProvider({ children }: { children: ReactNode }) {
     [dismiss],
   );
 
-  const clear = useCallback(() => {
-    timers.current.forEach((timer) => clearTimeout(timer));
-    timers.current.clear();
-    setMessages([]);
-  }, []);
-
   useEffect(() => {
     const pending = timers.current;
     return () => pending.forEach((timer) => clearTimeout(timer));
   }, []);
 
-  const value = useMemo(() => ({ messages, push, dismiss, clear }), [messages, push, dismiss, clear]);
+  const value = useMemo(() => ({ messages, push, dismiss }), [messages, push, dismiss]);
 
   return <FlashContext.Provider value={value}>{children}</FlashContext.Provider>;
 }

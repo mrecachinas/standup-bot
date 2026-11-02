@@ -4,8 +4,6 @@ require_relative "../../support/teams_test_helper"
 # The console's standup pages, as JSON: the editor (new/edit/create/update),
 # the overview (?include=overview), the live schedule preview, and pause/resume.
 class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "admin-access-token".freeze
-
   setup do
     @manager = users(:manager)
     @admin = users(:admin)
@@ -25,7 +23,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
   test "new standup form starts from a template" do
     sign_in(@manager, "manager-access-token")
 
-    get "/api/standups/new", params: { template: "retro" }, as: :json
+    get "/api/standups/new", params: { template: "retro" }
 
     assert_response :success
     body = response.parsed_body
@@ -63,7 +61,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
   test "new standups detect the browser timezone when the creator's is unknown" do
     sign_in(@manager, "manager-access-token")
 
-    get "/api/standups/new", params: { template: "blank" }, as: :json
+    get "/api/standups/new", params: { template: "blank" }
 
     assert_response :success
     body = response.parsed_body
@@ -106,7 +104,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal 4, body.dig("schedule_preview", "occurrences").size
     assert_nil body.dig("schedule_preview", "error")
     occurrence = body.dig("schedule_preview", "occurrences").first
-    assert_equal %w[date day label local_time month scheduled_at short_date time weekday], occurrence.keys.sort
+    assert_equal %w[date label scheduled_at time weekday], occurrence.keys.sort
   end
 
   test "an admin's token gets a form without a creator row" do
@@ -173,7 +171,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
       answers: [ { "question" => "What did you do yesterday?", "answer" => "Shipped it" } ]
     )
 
-    get api_standup_path(@owned_standup), params: { include: "overview" }, as: :json
+    get api_standup_path(@owned_standup), params: { include: "overview" }
 
     assert_response :success
     body = response.parsed_body
@@ -207,7 +205,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
   test "the overview of a paused standup says so" do
     sign_in(@admin, "admin-access-token")
 
-    get api_standup_path(@inactive_standup), params: { include: "overview", preview_timezone: "Eastern Time (US & Canada)" }, as: :json
+    get api_standup_path(@inactive_standup), params: { include: "overview", preview_timezone: "Eastern Time (US & Canada)" }
 
     assert_response :success
     overview = response.parsed_body["overview"]
@@ -331,7 +329,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
   test "manager cannot see the overview of an unowned standup" do
     sign_in(@manager, "manager-access-token")
 
-    get api_standup_path(@unowned_standup), params: { include: "overview" }, as: :json
+    get api_standup_path(@unowned_standup), params: { include: "overview" }
 
     assert_response :forbidden
   end
@@ -540,25 +538,6 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal [ "added", "added" ], audit_log.metadata.fetch("participants").map { |participant| participant.fetch("action") }
   end
 
-  test "people rows posted as a position-keyed hash still work" do
-    sign_in(@manager, "manager-access-token")
-
-    post api_standups_path,
-      params: {
-        standup: wizard_standup_params(
-          name: "Hash Rows",
-          participants: {
-            "1" => { platform_user_id: "UHASH002", display_name: "Second", active: "1" },
-            "0" => { platform_user_id: "UHASH001", display_name: "First", active: "1" }
-          }
-        )
-      },
-      as: :json
-
-    assert_response :created
-    assert_equal %w[UHASH001 UHASH002], Standup.find_by!(name: "Hash Rows").standup_participants.order(:id).pluck(:platform_user_id)
-  end
-
   test "replacing the pre-filled creator row looks up the new person instead of keeping the creator's details" do
     ChatUserResolver.any_instance.expects(:resolve)
       .with("UNEWGUY", fallback_name: "")
@@ -723,7 +702,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
   test "admin can manage unowned standup" do
     sign_in(@admin, "admin-access-token")
 
-    get api_standup_path(@unowned_standup), params: { include: "overview" }, as: :json
+    get api_standup_path(@unowned_standup), params: { include: "overview" }
 
     assert_response :success
     assert_equal @unowned_standup.name, response.parsed_body.dig("standup", "name")
@@ -742,15 +721,6 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
   end
 
   private
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
-  end
-
-  def token_headers
-    { "Authorization" => "Bearer #{ADMIN_TOKEN}" }
-  end
 
   def admin_standup_params(overrides = {})
     {
@@ -796,7 +766,7 @@ class Api::TeamsStandupsConsoleTest < ActionDispatch::IntegrationTest
   test "new standup offers both platforms and a Teams channel picker" do
     sign_in(@manager, "manager-access-token")
 
-    get "/api/standups/new", params: { platform: "teams" }, as: :json
+    get "/api/standups/new", params: { platform: "teams" }
 
     assert_response :success
     body = response.parsed_body
@@ -819,7 +789,7 @@ class Api::TeamsStandupsConsoleTest < ActionDispatch::IntegrationTest
 
     sign_in(@manager, "manager-access-token")
 
-    get "/api/standups/new", params: { platform: "teams" }, as: :json
+    get "/api/standups/new", params: { platform: "teams" }
 
     body = response.parsed_body
     assert_equal "text", body.dig("channel", "input")
@@ -948,15 +918,8 @@ class Api::TeamsStandupsConsoleTest < ActionDispatch::IntegrationTest
       .with(limit: ChatIntegrationService::MAX_LIMIT, include_private: true)
       .returns(ChatIntegrationService::Result.new(status: "ok", records: [], message: "Found 0."))
 
-    get channel_options_api_standups_path(platform: "teams"), headers: { "Authorization" => "Bearer admin-access-token" }, as: :json
+    get channel_options_api_standups_path(platform: "teams"), headers: token_headers, as: :json
 
     assert_response :success
-  end
-
-  private
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

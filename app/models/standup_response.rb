@@ -17,23 +17,7 @@ class StandupResponse < ApplicationRecord
 
   scope :pending, -> { where(status: "pending") }
   scope :completed, -> { where(status: "completed") }
-  scope :skipped, -> { where(status: "skipped") }
-  scope :cancelled, -> { where(status: "cancelled") }
-  scope :expired, -> { where(status: "expired") }
-  scope :for_standup_date, ->(date, timezone = Time.zone) { for_date_in_timezone(date, timezone) }
-  scope :for_date_in_timezone, ->(date, timezone) {
-    standup_date = normalize_date(date)
-    zone = Standup.resolve_time_zone(timezone)
-    day_start = zone.local(standup_date.year, standup_date.month, standup_date.day)
-    day_range = day_start...(day_start + 1.day)
-
-    where(standup_date: standup_date).or(where(standup_date: nil, created_at: day_range))
-  }
-  scope :for_today_in_timezone, ->(timezone) {
-    zone = Standup.resolve_time_zone(timezone)
-    for_date_in_timezone(zone.today, zone)
-  }
-  scope :for_today, -> { for_today_in_timezone(Time.zone) }
+  scope :for_standup_date, ->(date) { where(standup_date: normalize_date(date)) }
   scope :on_platform, ->(platform) { joins(:standup).where(standups: { platform: platform.to_s }) }
   # Responses belonging to this person in standups they're still part of.
   scope :authorized_for, ->(platform, platform_user_id) {
@@ -43,6 +27,11 @@ class StandupResponse < ApplicationRecord
       .where(standup_participants: { platform_user_id: platform_user_id })
       .distinct
   }
+
+  # The answer a DM reply should go to: this person's most recent unfinished standup.
+  def self.latest_pending_for(platform, platform_user_id)
+    authorized_for(platform, platform_user_id).pending.order("standup_responses.created_at DESC").first
+  end
 
   def participant
     standup.standup_participants.find_by(platform_user_id: platform_user_id)

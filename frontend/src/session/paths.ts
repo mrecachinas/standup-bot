@@ -1,6 +1,7 @@
 import type { Bootstrap, Platform } from "../api/types";
+import { paths } from "../paths";
 
-export const SIGN_IN_PATH = "/session/new";
+const SIGN_IN_PATH = paths.signIn;
 
 /** /session/new?next=<path> for the page someone tried to open. */
 export function signInPath(next?: string): string {
@@ -17,8 +18,8 @@ export function safeNextPath(next: string | null | undefined): string | null {
 
 /** Where "/" sends someone. */
 export function homePath(bootstrap: Bootstrap): string {
-  if (bootstrap.user) return "/manager/standups";
-  if (bootstrap.member) return "/me";
+  if (bootstrap.user) return paths.standups;
+  if (bootstrap.member) return paths.me;
   return SIGN_IN_PATH;
 }
 

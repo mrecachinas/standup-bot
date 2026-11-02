@@ -27,7 +27,7 @@ WORKDIR /rails
 
 # Install base packages
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl default-mysql-client libjemalloc2 libpq5 libvips postgresql-client && \
+    apt-get install --no-install-recommends -y curl default-mysql-client libjemalloc2 libpq5 postgresql-client && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Set production environment

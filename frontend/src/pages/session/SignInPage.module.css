@@ -47,11 +47,6 @@
   font-weight: var(--base-text-weight-semibold);
 }
 
-.subtitle {
-  margin: 0;
-  color: var(--fgColor-muted);
-}
-
 .buttons {
   display: flex;
   flex-direction: column;

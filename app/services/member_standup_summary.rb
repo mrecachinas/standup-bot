@@ -35,10 +35,6 @@ class MemberStandupSummary
     @today_response = standup.standup_responses.find_by(platform_user_id: platform_user_id, standup_date: participant.standup_date_for(@now))
   end
 
-  def last_completed_at
-    standup.standup_responses.where(platform_user_id: platform_user_id, status: "completed").maximum(:updated_at)
-  end
-
   def teammates
     @teammates ||= standup.standup_participants.active.where.not(platform_user_id: platform_user_id).order(:display_name).pluck(:display_name, :avatar_url)
   end
@@ -50,7 +46,7 @@ class MemberStandupSummary
   def status
     return [ "Not active", nil ] unless participant.active?
     return [ "Standup paused", "warning" ] unless standup.active?
-    return [ "Away through #{participant.vacation_until.strftime("%b %-d")}", "warning" ] if away?
+    return [ "Away through #{participant.vacation_until.to_fs(:month_day)}", "warning" ] if away?
 
     [ "Active", "success" ]
   end

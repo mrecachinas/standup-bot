@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { Banner, Button, FormControl, Select, TextInput, Textarea } from "@primer/react";
+import { Button, FormControl, Select, TextInput, Textarea } from "@primer/react";
 import type { ApiError } from "../../../api/client";
 import type { ReportConfigurationParams, ReportPayload } from "../../../api/types/insights";
-import { Panel } from "./Panel";
+import { ErrorBanner, Panel } from "../../../components";
+import { fieldMessage } from "../../../lib/fieldErrors";
 import styles from "./insights.module.css";
 
 export interface ReportSettingsFormProps {
@@ -20,11 +21,10 @@ export function ReportSettingsForm({ payload, saving, error, onSubmit }: ReportS
   const [reportFormat, setReportFormat] = useState(config.report_format);
   const [detailLevel, setDetailLevel] = useState(config.detail_level);
 
-  const validationErrors = error?.status === 422 ? error.errors : [];
-  const channelError = error?.fieldError("delivery_channel");
-  const recipientsError = error?.fieldError("recipients") ?? error?.fieldError("recipients_text");
-  const formatError = error?.fieldError("report_format");
-  const detailError = error?.fieldError("detail_level");
+  const channelError = fieldMessage(error, "delivery_channel", "Channel");
+  const recipientsError = fieldMessage(error, ["recipients", "recipients_text"], "Recipients");
+  const formatError = fieldMessage(error, "report_format", "Format");
+  const detailError = fieldMessage(error, "detail_level", "Detail");
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -43,20 +43,7 @@ export function ReportSettingsForm({ payload, saving, error, onSubmit }: ReportS
         }
       >
         <div className={styles.form}>
-          {validationErrors.length > 0 && (
-            <Banner
-              variant="critical"
-              title="Fix the report settings"
-              description={
-                <ul className={styles.errorList}>
-                  {validationErrors.map((message) => (
-                    <li key={message}>{message}</li>
-                  ))}
-                </ul>
-              }
-            />
-          )}
-          {error && error.status !== 422 && <Banner variant="critical" title="Couldn't save the report settings" description={error.message} />}
+          <ErrorBanner error={error} title={error?.status === 422 ? "Fix the report settings" : "Couldn't save the report settings"} />
 
           <FormControl>
             <FormControl.Label>Post to channel</FormControl.Label>

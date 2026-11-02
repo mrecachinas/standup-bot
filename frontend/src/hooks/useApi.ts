@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type DependencyList } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ApiError, get } from "../api/client";
 
 export interface ApiState<T> {
@@ -19,13 +19,10 @@ interface Result<T> {
   error: ApiError | null;
 }
 
-/**
- * GETs `path` (e.g. `/api/standups/${id}`) and re-fetches when `path` or `deps`
- * change. Pass `null` to skip. `deps` must be JSON-serialisable (ids, filters).
- */
-export function useApi<T>(path: string | null, deps: DependencyList = []): ApiState<T> {
+/** GETs `path` (e.g. `/api/standups/${id}`) and re-fetches when it changes. Pass `null` to skip. */
+export function useApi<T>(path: string | null): ApiState<T> {
   const [nonce, setNonce] = useState(0);
-  const key = path === null ? null : JSON.stringify([path, nonce, deps]);
+  const key = path === null ? null : `${nonce}:${path}`;
   const [result, setResult] = useState<Result<T>>({ key: null, data: undefined, error: null });
 
   useEffect(() => {

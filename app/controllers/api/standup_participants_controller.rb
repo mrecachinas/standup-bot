@@ -72,7 +72,7 @@ module Api
     end
 
     def bulk_import
-      result = StandupParticipantImporter.new(@standup, user_resolver: user_resolver).import_text(params[:participants_text])
+      result = StandupParticipantImporter.new(@standup, user_resolver: ChatUserResolver.for(@standup.platform)).import_text(params[:participants_text])
       render_import_result(result, "standup_participant.bulk_import", "bulk_import", notice: import_notice("Import finished", result))
     end
 
@@ -157,18 +157,12 @@ module Api
       user_id.present? && ChatPlatform.for_standup(@standup).channel_member_ids(channel).include?(user_id)
     end
 
-    # The admin API sends `participant`; the old console form sent
-    # `standup_participant`.
-    def participant_param_key
-      params[:participant].blank? && params[:standup_participant].present? ? :standup_participant : :participant
-    end
-
     def lookup_requested?
-      ActiveModel::Type::Boolean.new.cast(params[:lookup]) || participant_param_key == :standup_participant
+      ActiveModel::Type::Boolean.new.cast(params[:lookup])
     end
 
     def participant_params
-      permitted = params.require(participant_param_key).permit(
+      permitted = params.require(:participant).permit(
         :platform_user_id,
         :display_name,
         :active,
@@ -185,16 +179,8 @@ module Api
       identifier = permitted[:platform_user_id].to_s.strip
       return permitted if identifier.blank?
 
-      resolved_user = user_resolver.resolve(identifier, fallback_name: permitted[:display_name])
-      permitted[:platform_user_id] = resolved_user.platform_user_id
-      permitted[:display_name] = permitted[:display_name].presence || resolved_user.display_name
-      permitted[:cached_timezone] = permitted[:cached_timezone].presence || resolved_user.cached_timezone
-      permitted[:avatar_url] = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
-      permitted
-    end
-
-    def user_resolver
-      @user_resolver ||= ChatUserResolver.new(service: ChatIntegrationService.for(@standup.platform))
+      resolved_user = ChatUserResolver.for(@standup.platform).resolve(identifier, fallback_name: permitted[:display_name])
+      resolved_user.fill_in(permitted.to_h.symbolize_keys)
     end
 
     def render_import_result(result, summary_action, source, notice:)

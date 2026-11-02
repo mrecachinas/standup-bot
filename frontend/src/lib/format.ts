@@ -63,3 +63,10 @@ export function formatShortDate(date: Date, withYear = false): string {
   const base = `${MONTHS[date.getMonth()]} ${date.getDate()}`;
   return withYear ? `${base}, ${date.getFullYear()}` : base;
 }
+
+/** "Oct 30, 5:00 PM" in the browser's time zone, or "—" without a date. */
+export function formatShortDateTime(value: string | null | undefined): string {
+  const date = parseApiDate(value);
+  if (!date) return "—";
+  return `${formatShortDate(date)}, ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}

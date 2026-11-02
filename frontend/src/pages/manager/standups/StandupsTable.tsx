@@ -6,7 +6,7 @@ import type { OverviewStandup } from "../../../api/types/standups";
 import { AvatarStack, StatusLabel, StandupStatusLabel } from "../../../components";
 import { Sparkline } from "../../../components/charts";
 import { paths } from "../../../paths";
-import { progressBgForTone } from "./tone";
+import { progressBgForTone } from "../../../lib/tone";
 import styles from "./StandupsTable.module.css";
 
 export interface StandupsTableProps {

@@ -35,28 +35,36 @@ export function useSchedulePreview(payload: StandupFormPayload, schedule: Record
   const [nonce, setNonce] = useState(0);
   const body = { standup: { platform: payload.platform.key, ...schedule }, preview_timezone: timezone };
   const key = JSON.stringify(body);
-  // What the server's initial preview already shows; nothing to fetch until it changes.
-  const fetchedKey = useRef(JSON.stringify({ standup: { platform: payload.platform.key, ...schedule }, preview_timezone: payload.preview_timezone }));
-  const fetchedNonce = useRef(0);
+  // What the preview on screen shows (the server's initial one to start with). Only
+  // a finished request moves it, so an aborted one never leaves it pointing at data we don't have.
+  const shownKey = useRef(JSON.stringify({ standup: { platform: payload.platform.key, ...schedule }, preview_timezone: payload.preview_timezone }));
+  const shownNonce = useRef(0);
 
   useEffect(() => {
-    if (key === fetchedKey.current && nonce === fetchedNonce.current) return;
+    if (key === shownKey.current && nonce === shownNonce.current) return;
     const controller = new AbortController();
-    const delay = nonce !== fetchedNonce.current ? 0 : PREVIEW_DELAY_MS;
-    const timer = window.setTimeout(() => {
-      fetchedKey.current = key;
-      fetchedNonce.current = nonce;
-      setState((current) => ({ ...current, loading: true }));
-      post<SchedulePreview>("/api/standups/preview", JSON.parse(key), { signal: controller.signal }).then(
-        (preview) => setState({ preview, error: null, loading: false }),
-        () => {
-          if (!controller.signal.aborted) setState((current) => ({ ...current, error: "Couldn't load the preview. Try again.", loading: false }));
-        },
-      );
-    }, delay);
+    let started = false;
+    const timer = window.setTimeout(
+      () => {
+        started = true;
+        setState((current) => ({ ...current, loading: true }));
+        post<SchedulePreview>("/api/standups/preview", JSON.parse(key), { signal: controller.signal }).then(
+          (preview) => {
+            shownKey.current = key;
+            shownNonce.current = nonce;
+            setState({ preview, error: null, loading: false });
+          },
+          () => {
+            if (!controller.signal.aborted) setState((current) => ({ ...current, error: "Couldn't load the preview. Try again.", loading: false }));
+          },
+        );
+      },
+      nonce !== shownNonce.current ? 0 : PREVIEW_DELAY_MS,
+    );
     return () => {
       window.clearTimeout(timer);
       controller.abort();
+      if (started) setState((current) => ({ ...current, loading: false }));
     };
   }, [key, nonce]);
 

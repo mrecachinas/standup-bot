@@ -67,8 +67,6 @@ Rails.application.routes.draw do
 
       resource :chat_setup, only: [ :show ], controller: "standup_chat_integrations" do
         patch :channel, action: :update_channel
-        post :participants, action: :add_participant
-        delete "participants/:participant_id", action: :remove_participant, as: :participant
         post :test_message
       end
       resources :participants, controller: "standup_participants", only: [ :index, :create, :update, :destroy ] do

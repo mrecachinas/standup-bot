@@ -305,15 +305,4 @@ class Api::ScheduleExceptionsTest < ActionDispatch::IntegrationTest
       assert_response :created
     end
   end
-
-  private
-
-  def token_headers
-    { "Authorization" => "Bearer admin-access-token" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :success
-  end
 end

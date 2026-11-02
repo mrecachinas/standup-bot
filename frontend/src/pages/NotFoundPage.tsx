@@ -1,7 +1,7 @@
 import { Link as RouterLink } from "react-router";
 import { Button } from "@primer/react";
 import { QuestionIcon } from "@primer/octicons-react";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState } from "../components";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function NotFoundPage() {

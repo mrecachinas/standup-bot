@@ -139,7 +139,7 @@ describe("StandupAnalyticsPage", () => {
     mockFetch(userBootstrap(), (url) => (url.startsWith(BASE) ? jsonResponse({ error: "You don't manage this standup." }, 403) : undefined));
     renderApp("/manager/standups/7/analytics");
 
-    expect(await screen.findByRole("heading", { name: "You don't have access to this standup" })).toBeInTheDocument();
-    expect(screen.getByText("You don't manage this standup.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "You don't manage this standup" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to standups" })).toHaveAttribute("href", "/manager/standups");
   });
 });

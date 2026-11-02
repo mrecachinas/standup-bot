@@ -1,0 +1,18 @@
+.meter {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8);
+}
+
+.bar {
+  flex: 1 1 auto;
+  min-width: 4rem;
+}
+
+.value {
+  min-width: 2.75rem;
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

@@ -47,10 +47,14 @@ class StandupSerializer
       schedule_summary: UiFormat.schedule_summary(@standup),
       schedule_sentence: UiFormat.schedule_sentence(@standup),
       schedule_picker: UiFormat.schedule_picker_state(@standup),
-      status_label: @standup.active? ? "Active" : "Paused",
-      status_tone: @standup.active? ? "success" : "warning",
+      status_label: status_label,
+      status_tone: UiFormat.status_tone(status_label),
       channel_label: @standup.platform_channel_name.presence || @standup.platform_channel.to_s.delete_prefix("#"),
       timezone_label: @standup.respect_timezone? ? "Participant timezones" : "UTC"
     }
+  end
+
+  def status_label
+    @standup.active? ? "Active" : "Paused"
   end
 end
