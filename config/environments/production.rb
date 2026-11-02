@@ -18,9 +18,6 @@ Rails.application.configure do
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
 
-  # Store uploaded files on the local file system (see config/storage.yml for options).
-  config.active_storage.service = :local
-
   force_ssl = ActiveModel::Type::Boolean.new.cast(ENV.fetch("FORCE_SSL", true))
 
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
@@ -52,19 +49,6 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
-  # Ignore bad email addresses and do not raise email delivery errors.
-  # Set this to true and configure the email server for immediate delivery to raise delivery errors.
-  # config.action_mailer.raise_delivery_errors = false
-
-  # Specify outgoing SMTP server. Remember to add smtp/* credentials via rails credentials:edit.
-  # config.action_mailer.smtp_settings = {
-  #   user_name: Rails.application.credentials.dig(:smtp, :user_name),
-  #   password: Rails.application.credentials.dig(:smtp, :password),
-  #   address: "smtp.example.com",
-  #   port: 587,
-  #   authentication: :plain
-  # }
-
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
   config.i18n.fallbacks = true
@@ -80,9 +64,6 @@ Rails.application.configure do
     .map(&:strip)
     .reject(&:blank?)
   app_hosts = [ "app.example.com" ] if app_hosts.empty?
-
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: app_hosts.first }
 
   # Enable DNS rebinding protection and other `Host` header attacks.
   config.hosts = app_hosts

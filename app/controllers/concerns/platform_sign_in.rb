@@ -35,7 +35,7 @@ module PlatformSignIn
 
   # Sign-in is a free chance to pick up a changed photo everywhere it's shown.
   def refresh_avatar(platform, user, identity)
-    return unless SlackAvatar.safe_url?(identity.avatar_url)
+    return unless AvatarUrl.safe?(identity.avatar_url)
 
     user.update_columns(avatar_url: identity.avatar_url) if user.avatar_url != identity.avatar_url
     StandupParticipant.on_platform(platform).where(platform_user_id: identity.user_id).update_all(avatar_url: identity.avatar_url)

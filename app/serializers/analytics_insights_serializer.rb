@@ -41,7 +41,7 @@ class AnalyticsInsightsSerializer
       start_date: @analytics.start_date.iso8601,
       end_date: @analytics.end_date.iso8601,
       days: range_days,
-      label: "#{@analytics.start_date.strftime("%b %-d")} – #{@analytics.end_date.strftime("%b %-d, %Y")}",
+      label: "#{@analytics.start_date.to_fs(:month_day)} – #{@analytics.end_date.to_fs(:month_day_year)}",
       limited: @analytics.range_limited?,
       max_days: StandupAnalyticsService::MAX_RANGE_DAYS,
       presets: RANGE_PRESETS.map do |days|
@@ -84,9 +84,9 @@ class AnalyticsInsightsSerializer
       pending = run[:pending].positive? ? ", #{run[:pending]} pending" : ""
       run.merge(
         date: run[:date].iso8601,
-        label: run[:date].strftime("%b %-d"),
+        label: run[:date].to_fs(:month_day),
         total: RUN_SEGMENTS.sum { |key| run[key].to_i },
-        title: "#{run[:date].strftime("%b %-d, %Y")}: #{run[:completed]} completed, #{run[:skipped]} skipped, " \
+        title: "#{run[:date].to_fs(:month_day_year)}: #{run[:completed]} completed, #{run[:skipped]} skipped, " \
           "#{run[:missed]} missed#{pending} (#{run[:completion_rate].round}%)"
       )
     end
@@ -96,7 +96,7 @@ class AnalyticsInsightsSerializer
     @analytics.run_breakdown.map do |run|
       {
         date: run[:date].iso8601,
-        label: run[:date].strftime("%b %-d"),
+        label: run[:date].to_fs(:month_day),
         value: run[:completion_rate],
         title: "#{run[:date].to_fs(:long)}: #{run[:completion_rate].round}% (#{run[:completed]}/#{run[:expected]})"
       }
@@ -109,7 +109,7 @@ class AnalyticsInsightsSerializer
       .map do |stat|
         stat.merge(
           name: stat[:display_name].presence || stat[:platform_user_id],
-          avatar_url: (stat[:avatar_url] if SlackAvatar.safe_url?(stat[:avatar_url])),
+          avatar_url: stat[:avatar_url],
           missed_label: stat[:missed].positive? ? "#{stat[:missed]} missed #{"response".pluralize(stat[:missed])}" : "No misses",
           rate_tone: UiFormat.rate_tone(stat[:completion_rate]),
           has_expected: stat[:expected].positive?
@@ -135,7 +135,7 @@ class AnalyticsInsightsSerializer
       question.merge(
         latest_answers: question[:latest_answers].map do |answer|
           answered_at = Time.zone.parse(answer[:answered_at].to_s) if answer[:answered_at].present?
-          answer.merge(answered_at_label: answered_at&.strftime("%b %-d"))
+          answer.merge(answered_at_label: answered_at&.to_fs(:month_day))
         end
       )
     end

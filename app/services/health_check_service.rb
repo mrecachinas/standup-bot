@@ -44,10 +44,6 @@ class HealthCheckService
       }
     end
 
-    def slack_status
-      slack_check
-    end
-
     def platform_status(platform)
       platform.to_s == "teams" ? teams_check : slack_check
     end

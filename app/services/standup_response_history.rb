@@ -83,16 +83,22 @@ class StandupResponseHistory
     end
   end
 
-  attr_reader :standup, :start_date, :end_date, :participant_slack_id, :question
+  attr_reader :standup, :start_date, :end_date, :participant_id, :question
 
   def initialize(standup:, params: {}, today: Time.zone.today)
     @standup = standup
     @params = params.to_h.with_indifferent_access
     @today = today.to_date
-    @end_date = parse_date(@params[:end_date]) || @today
-    @start_date = parse_date(@params[:start_date]) || (@end_date - (DEFAULT_RANGE_DAYS - 1))
-    @start_date, @end_date = normalize_range(@start_date, @end_date)
-    @participant_slack_id = @params[:participant].presence
+    @range = ReportingRange.from_params(
+      start_date: @params[:start_date],
+      end_date: @params[:end_date],
+      default_end: @today,
+      default_start: ->(end_date) { end_date - (DEFAULT_RANGE_DAYS - 1) },
+      max_days: MAX_RANGE_DAYS
+    )
+    @start_date = @range.start_date
+    @end_date = @range.end_date
+    @participant_id = @params[:participant].presence
     @question = @params[:question].presence
   end
 
@@ -105,9 +111,9 @@ class StandupResponseHistory
   def participant_options
     @participant_options ||= begin
       known_options = all_participants.map { |participant| participant_option(participant) }
-      known_slack_ids = known_options.map(&:platform_user_id)
+      known_ids = known_options.map(&:platform_user_id)
       unknown_options = responses_in_range.map(&:platform_user_id).uniq.sort.filter_map do |platform_user_id|
-        next if known_slack_ids.include?(platform_user_id)
+        next if known_ids.include?(platform_user_id)
 
         Participant.new(platform_user_id: platform_user_id, display_name: nil, active: false)
       end
@@ -132,29 +138,10 @@ class StandupResponseHistory
   end
 
   def range_limited?
-    @range_limited || false
+    @range.limited?
   end
 
   private
-
-  def parse_date(value)
-    return if value.blank?
-
-    Date.iso8601(value.to_s)
-  rescue ArgumentError
-    nil
-  end
-
-  def normalize_range(start_date, end_date)
-    start_date, end_date = end_date, start_date if start_date > end_date
-
-    if (end_date - start_date).to_i >= MAX_RANGE_DAYS
-      @range_limited = true
-      start_date = end_date - (MAX_RANGE_DAYS - 1)
-    end
-
-    [ start_date, end_date ]
-  end
 
   def all_participants
     @all_participants ||= standup.standup_participants.order(:display_name, :platform_user_id).to_a
@@ -162,9 +149,9 @@ class StandupResponseHistory
 
   def participant_records_for_history
     records = all_participants
-    return records if participant_slack_id.blank?
+    return records if participant_id.blank?
 
-    records.select { |participant| participant.platform_user_id == participant_slack_id }
+    records.select { |participant| participant.platform_user_id == participant_id }
   end
 
   def participant_option(participant)
@@ -184,7 +171,7 @@ class StandupResponseHistory
   end
 
   def response_dates
-    responses_in_range.map { |response| response_date(response) }
+    responses_in_range.map(&:standup_date)
   end
 
   def entries_for(date)
@@ -192,14 +179,14 @@ class StandupResponseHistory
     participant_entries = participant_records_for_history.filter_map do |participant|
       response = responses_for_date[participant.platform_user_id]
       expected = participant.available_on?(date)
-      next unless expected || response || participant_slack_id.present?
+      next unless expected || response || participant_id.present?
 
       build_entry(date, participant_option(participant), expected, response)
     end
 
-    known_slack_ids = participant_entries.map(&:platform_user_id)
+    known_ids = participant_entries.map(&:platform_user_id)
     unknown_entries = responses_for_date.keys.sort.filter_map do |platform_user_id|
-      next if known_slack_ids.include?(platform_user_id)
+      next if known_ids.include?(platform_user_id)
 
       build_entry(
         date,
@@ -222,30 +209,17 @@ class StandupResponseHistory
     )
   end
 
+  # { date => { platform_user_id => response } }; there's at most one per person per day.
   def responses_by_date
-    @responses_by_date ||= responses_in_range.group_by { |response| response_date(response) }.transform_values do |responses|
-      responses.group_by(&:platform_user_id).transform_values do |participant_responses|
-        participant_responses.max_by { |response| [ response.updated_at || response.created_at, response.created_at ] }
-      end
-    end
+    @responses_by_date ||= responses_in_range.group_by(&:standup_date).transform_values { |responses| responses.index_by(&:platform_user_id) }
   end
 
   def responses_in_range
     @responses_in_range ||= begin
-      relation = standup.standup_responses.where(
-        "(standup_date BETWEEN :start_date AND :end_date) OR (standup_date IS NULL AND created_at BETWEEN :start_time AND :end_time)",
-        start_date: start_date,
-        end_date: end_date,
-        start_time: start_date.beginning_of_day,
-        end_time: end_date.end_of_day
-      )
-      relation = relation.where(platform_user_id: participant_slack_id) if participant_slack_id.present?
+      relation = standup.standup_responses.where(standup_date: start_date..end_date)
+      relation = relation.where(platform_user_id: participant_id) if participant_id.present?
       relation.order(created_at: :desc).to_a
     end
-  end
-
-  def response_date(response)
-    response.standup_date || response.created_at.in_time_zone.to_date
   end
 
   def answers_for(response)
@@ -273,19 +247,5 @@ class StandupResponseHistory
 
   def scheduled_on?(date)
     standup.scheduled_on_date?(date)
-  end
-
-  def schedule_days
-    days = Array(standup.schedule_days).filter_map { |day| Integer(day, exception: false) }
-    days.presence || [ 1 ]
-  end
-
-  def biweekly_week?(date)
-    week_start = date.beginning_of_week(:monday)
-    ((week_start - Standup::BIWEEKLY_REFERENCE_DATE) / 7).to_i.even?
-  end
-
-  def monthly_scheduled_on?(date)
-    date.day == [ schedule_days.first, date.end_of_month.day ].min
   end
 end

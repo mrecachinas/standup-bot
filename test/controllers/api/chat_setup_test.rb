@@ -4,8 +4,6 @@ require_relative "../../support/teams_test_helper"
 class Api::ChatSetupTest < ActionDispatch::IntegrationTest
   include TeamsTestHelper
 
-  ADMIN_TOKEN = "admin-access-token".freeze
-
   setup do
     @manager = users(:manager)
     @admin = users(:admin)
@@ -312,38 +310,5 @@ class Api::ChatSetupTest < ActionDispatch::IntegrationTest
     patch channel_api_standup_chat_setup_path(standup), params: { channel_id: "not a channel" }, as: :json
     assert_response :unprocessable_entity
     assert response.parsed_body["field_errors"].key?("platform_channel")
-  end
-
-  private
-
-  def stub_slack_status
-    SlackIntegrationService.any_instance.stubs(:configuration_status).returns(slack_status)
-    SlackIntegrationService.any_instance.stubs(:connection_status).returns(
-      SlackIntegrationService::Result.new(status: "ok", message: "Slack API authentication succeeded.", metadata: { "team" => "Example" })
-    )
-    SlackIntegrationService.any_instance.stubs(:discover_channels).returns(SlackIntegrationService::Result.new(status: "ok", records: []))
-    SlackIntegrationService.any_instance.stubs(:discover_users).returns(SlackIntegrationService::Result.new(status: "ok", records: []))
-  end
-
-  def slack_status
-    {
-      configured: true,
-      installation: { message: "Slack app bot token is configured." },
-      credentials: {
-        bot_token: { label: "Bot token", configured: true, required: true, message: "Bot token is configured." },
-        signing_secret: { label: "Signing secret", configured: true, required: true, message: "Signing secret is configured." },
-        client_id: { label: "Client ID", configured: false, required: false, message: "Client ID is optional." },
-        client_secret: { label: "Client secret", configured: false, required: false, message: "Client secret is optional." }
-      }
-    }
-  end
-
-  def token_headers
-    { "Authorization" => "Bearer #{ADMIN_TOKEN}" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

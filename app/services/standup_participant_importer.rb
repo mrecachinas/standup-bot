@@ -160,7 +160,7 @@ class StandupParticipantImporter
         profile_value(profile, "cached_timezone").presence ||
         profile_value(profile, :tz).presence ||
         profile_value(profile, "tz").presence,
-      avatar_url: SlackAvatar.safe_url?(profile_value(profile, "avatar_url")) ? profile_value(profile, "avatar_url") : nil,
+      avatar_url: AvatarUrl.sanitize(profile_value(profile, "avatar_url")),
       active: true,
       source: "#{standup.platform}_sync",
       line: index
@@ -229,9 +229,9 @@ class StandupParticipantImporter
   end
 
   def deactivate_missing_participants(rows, result)
-    incoming_slack_ids = rows.map { |row| row[:platform_user_id] }.to_set
+    incoming_ids = rows.map { |row| row[:platform_user_id] }.to_set
 
-    standup.standup_participants.where(active: true).where.not(platform_user_id: incoming_slack_ids).find_each do |participant|
+    standup.standup_participants.where(active: true).where.not(platform_user_id: incoming_ids).find_each do |participant|
       before = audited_participant_attributes(participant)
       participant.update!(active: false)
       result.deactivated << participant

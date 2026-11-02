@@ -175,7 +175,7 @@ class ChatPlatform::TeamsAdapterTest < ActiveSupport::TestCase
   end
 
   test "plain_text strips mentions and HTML" do
-    assert_equal "standup status", ChatPlatform::TeamsAdapter.plain_text("<at>Standup Bot</at> standup status")
-    assert_equal "Fixed bugs & shipped\nNext: tests", ChatPlatform::TeamsAdapter.plain_text("<p>Fixed <b>bugs</b> &amp; shipped<br>Next: tests</p>")
+    assert_equal "standup status", ChatPlatform.for(:teams).plain_text("<at>Standup Bot</at> standup status")
+    assert_equal "Fixed bugs & shipped\nNext: tests", ChatPlatform.for(:teams).plain_text("<p>Fixed <b>bugs</b> &amp; shipped<br>Next: tests</p>")
   end
 end

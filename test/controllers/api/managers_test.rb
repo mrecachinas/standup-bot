@@ -19,7 +19,7 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :created
-    promoted = User.find_by_identity!(:slack, @member.platform_user_id)
+    promoted = User.find_by_identity(:slack, @member.platform_user_id)
     body = response.parsed_body
     assert_equal "Jane Smith can now manage #{@daily.name}.", body["notice"]
     assert_equal promoted.id, body.dig("manager", "id")
@@ -93,7 +93,7 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
   test "a manager can be removed, but not the last one" do
     sign_in(@manager, "manager-access-token")
     post api_standup_managers_path(@daily), params: { participant_id: @member.id }, as: :json
-    promoted = User.find_by_identity!(:slack, @member.platform_user_id)
+    promoted = User.find_by_identity(:slack, @member.platform_user_id)
 
     assert_difference "@daily.standup_ownerships.count", -1 do
       delete api_standup_manager_path(@daily, promoted), as: :json
@@ -139,7 +139,7 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
     assert_response :created
     reset!
 
-    alice = User.find_by_identity!(:slack, standup_participants(:three).platform_user_id)
+    alice = User.find_by_identity(:slack, standup_participants(:three).platform_user_id)
     delete api_standup_manager_path(@weekly, alice), headers: token_headers, as: :json
     assert_response :success
     assert response.parsed_body["can_manage"]
@@ -158,7 +158,7 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
     post api_standup_managers_path(standup), params: { participant_id: participant.id }, as: :json
 
     assert_response :created
-    promoted = User.find_by_identity!(:teams, TEAMS_USER_ID)
+    promoted = User.find_by_identity(:teams, TEAMS_USER_ID)
     assert_equal TEAMS_USER_ID, response.parsed_body.dig("manager", "platform_user_id")
     assert promoted.can_manage_standup?(standup)
     assert_nil User.find_by_identity(:slack, TEAMS_USER_ID)
@@ -173,16 +173,5 @@ class Api::ManagersTest < ActionDispatch::IntegrationTest
     assert_includes body["managers"].map { |manager| manager["name"] }, @manager.name
     member = body["participants"].find { |participant| participant["id"] == @member.id }
     assert member["can_make_manager"]
-  end
-
-  private
-
-  def token_headers
-    { "Authorization" => "Bearer admin-access-token" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :success
   end
 end

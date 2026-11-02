@@ -114,10 +114,6 @@ class Standup < ApplicationRecord
       .first(count)
   end
 
-  def next_occurrence_in_timezone(timezone)
-    next_occurrence_detail_in_timezone(timezone)&.scheduled_at
-  end
-
   def next_occurrence_detail_in_timezone(timezone, from: nil)
     upcoming_occurrence_details_in_timezone(timezone, count: 1, from: from).first
   end
@@ -191,10 +187,6 @@ class Standup < ApplicationRecord
       holiday_entries.any? do |entry|
         entry_holiday_date(entry) == holiday_date && holiday_applies_to_standup?(entry, standup)
       end
-    end
-
-    def reload_holidays!
-      @holiday_entries = nil
     end
 
     private

@@ -2,7 +2,6 @@ require "test_helper"
 
 class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @admin_token = "admin-access-token"
     @standup = standups(:daily)
   end
 
@@ -12,7 +11,7 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "lists standups" do
-    get api_standups_path, headers: admin_headers
+    get api_standups_path, headers: token_headers
 
     assert_response :success
     body = JSON.parse(response.body)
@@ -35,7 +34,7 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
             active: true
           }
         },
-        headers: admin_headers,
+        headers: token_headers,
         as: :json
     end
 
@@ -50,7 +49,7 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
   test "rejects changing a standup's platform" do
     patch api_standup_path(@standup),
       params: { standup: { platform: "other" } },
-      headers: admin_headers,
+      headers: token_headers,
       as: :json
 
     assert_response :unprocessable_entity
@@ -61,7 +60,7 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
     assert_difference "AuditLog.where(action: 'standup.update', actor: users(:admin)).count", 1 do
       patch api_standup_path(@standup),
         params: { standup: { name: "Updated Name", active: false } },
-        headers: admin_headers,
+        headers: token_headers,
         as: :json
     end
 
@@ -80,15 +79,9 @@ class Api::StandupsControllerTest < ActionDispatch::IntegrationTest
     )
 
     assert_difference "Standup.count", -1 do
-      delete api_standup_path(standup), headers: admin_headers
+      delete api_standup_path(standup), headers: token_headers
     end
 
     assert_response :no_content
-  end
-
-  private
-
-  def admin_headers
-    { "Authorization" => "Bearer #{@admin_token}" }
   end
 end

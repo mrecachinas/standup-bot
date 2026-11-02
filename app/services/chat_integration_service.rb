@@ -16,11 +16,10 @@ class ChatIntegrationService
     end
   end
 
+  SERVICES = { slack: "SlackIntegrationService", teams: "TeamsIntegrationService" }.freeze
+
   def self.for(platform)
-    case platform.to_s
-    when "teams" then TeamsIntegrationService.new
-    else SlackIntegrationService.new
-    end
+    SERVICES.fetch(ChatPlatform.key_for(platform)).constantize.new
   end
 
   def initialize(client:, config:)

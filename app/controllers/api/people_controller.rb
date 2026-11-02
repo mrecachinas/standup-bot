@@ -28,11 +28,10 @@ module Api
     private
 
     def person_json(record)
-      avatar_url = record["avatar_url"]
       {
         platform_user_id: record["id"],
         display_name: record["label"].presence || record["display_name"].presence || record["real_name"].presence || record["name"].presence || record["id"],
-        avatar_url: (avatar_url if SlackAvatar.safe_url?(avatar_url)),
+        avatar_url: AvatarUrl.sanitize(record["avatar_url"]),
         timezone: record["tz"].presence || record["timezone"].presence
       }
     end

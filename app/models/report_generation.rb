@@ -16,10 +16,6 @@ class ReportGeneration < ApplicationRecord
 
   scope :recent, -> { order(requested_at: :desc, created_at: :desc) }
 
-  def succeeded?
-    status == "succeeded"
-  end
-
   def failed?
     status == "failed"
   end

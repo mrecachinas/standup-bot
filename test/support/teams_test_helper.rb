@@ -30,8 +30,13 @@ module TeamsTestHelper
     standup
   end
 
-  def rsa_key
+  # Generated once per test process; RSA key generation is slow.
+  def self.rsa_key
     @rsa_key ||= OpenSSL::PKey::RSA.generate(2048)
+  end
+
+  def rsa_key
+    TeamsTestHelper.rsa_key
   end
 
   def jwks_for(key = rsa_key, kid: "test-key", endorsements: [ "msteams" ])

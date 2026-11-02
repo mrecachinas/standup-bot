@@ -49,7 +49,7 @@ module Api
       participant = @standup.standup_participants.find_or_initialize_by(platform_user_id: platform_user_id)
       participant.assign_attributes(display_name: display_name, active: true)
       participant.cached_timezone ||= resolved_user.cached_timezone
-      participant.avatar_url = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
+      participant.avatar_url = resolved_user.avatar_url if resolved_user.avatar_url.present?
 
       if participant.save
         audit_change!(

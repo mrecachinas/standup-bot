@@ -75,7 +75,7 @@ class HealthCheckServiceTest < ActiveSupport::TestCase
     original_config = Rails.application.config.slack
     Rails.application.config.slack = { bot_token: "xoxb-configured", signing_secret: "signing-secret" }
 
-    check = HealthCheckService.slack_status
+    check = HealthCheckService.platform_status(:slack)
 
     assert_equal "ok", check[:status]
     assert_equal true, check[:configured]
@@ -89,7 +89,7 @@ class HealthCheckServiceTest < ActiveSupport::TestCase
     original_config = Rails.application.config.slack
     Rails.application.config.slack = { bot_token: "xoxb-configured", signing_secret: nil }
 
-    check = HealthCheckService.slack_status
+    check = HealthCheckService.platform_status(:slack)
 
     assert_equal "warn", check[:status]
     assert_equal false, check[:configured]
@@ -121,6 +121,6 @@ class HealthCheckServiceTest < ActiveSupport::TestCase
     Rails.application.config.stubs(:slack).returns({})
     Rails.application.config.stubs(:teams).returns({ app_id: "a", app_password: "b", tenant_id: "c" })
 
-    assert_equal "ok", HealthCheckService.slack_status[:status]
+    assert_equal "ok", HealthCheckService.platform_status(:slack)[:status]
   end
 end
