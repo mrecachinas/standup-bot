@@ -20,4 +20,11 @@ class SpaControllerTest < ActionDispatch::IntegrationTest
     get "/some/page.json"
     assert_response :not_found
   end
+
+  test "old chat setup links go to the standup's General settings" do
+    %w[/manager/standups/42/chat_setup /manager/standups/42/slack_setup].each do |path|
+      get path
+      assert_redirected_to "/manager/standups/42/edit"
+    end
+  end
 end

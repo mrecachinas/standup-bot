@@ -153,7 +153,7 @@ export function IntegrationsPage() {
                       </>
                     }
                     trailing={
-                      <Button as={RouterLink} to={paths.standupChatSetup(standup.id)} size="small" aria-label={`Configure ${standup.name}`}>
+                      <Button as={RouterLink} to={paths.editStandup(standup.id)} size="small" aria-label={`Configure ${standup.name}`}>
                         Configure
                       </Button>
                     }

@@ -1,8 +1,8 @@
+/* Pages space their children, so the header adds no margin of its own. */
 .header {
   display: flex;
   flex-direction: column;
   gap: var(--base-size-8);
-  margin-bottom: var(--base-size-24);
 }
 
 .meta {
@@ -17,10 +17,4 @@
   display: inline-flex;
   align-items: center;
   gap: var(--base-size-4);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--base-size-8);
 }

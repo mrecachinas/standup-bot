@@ -3,12 +3,14 @@ import type { StandupFormPayload } from "../../api/types/standups";
 import { LoadingState, StandupHeader } from "../../components";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { SettingsLayout } from "./settings/SettingsLayout";
+import { TestMessagePanel } from "./settings/TestMessagePanel";
 import { StandupForm } from "./standupForm/StandupForm";
 import { StandupLoadError } from "./standups/StandupLoadError";
 import { usePauseResume } from "./standups/usePauseResume";
 import styles from "./standups/standups.module.css";
 
-/** /manager/standups/:id/edit: the standup's Settings tab. */
+/** /manager/standups/:id/edit: General, the first page of a standup's Settings tab. */
 export function EditStandupPage() {
   const { id = "" } = useParams();
   const { data, error, loading, reload, setData } = useApi<StandupFormPayload>(`/api/standups/${id}/edit`);
@@ -34,7 +36,9 @@ export function EditStandupPage() {
         onPauseResume={() => void pauseResume.run(standup.id, standup.active)}
         pauseResumeBusy={pauseResume.loading}
       />
-      <StandupForm key={standup.id} payload={data} />
+      <SettingsLayout standupId={standup.id} section="general">
+        <StandupForm key={standup.id} payload={data} aside={<TestMessagePanel standupId={standup.id} platformLabel={data.platform.label} />} />
+      </SettingsLayout>
     </div>
   );
 }

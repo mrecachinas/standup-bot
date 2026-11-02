@@ -124,12 +124,10 @@ export function StandupsTable({ standups, labelledBy, onPauseResume }: StandupsT
 
 function RowActions({ standup, onPauseResume }: { standup: OverviewStandup; onPauseResume: (standup: OverviewStandup) => void }) {
   const links: [string, string][] = [
-    ["Edit", paths.editStandup(standup.id)],
-    ["Participants", paths.standupParticipants(standup.id)],
-    ["Responses", paths.standupResponses(standup.id)],
     ["Insights", paths.standupAnalytics(standup.id)],
-    ["Reports", paths.standupReport(standup.id)],
-    ["Schedule", paths.standupScheduleExceptions(standup.id)],
+    ["Responses", paths.standupResponses(standup.id)],
+    ["People", paths.standupParticipants(standup.id)],
+    ["Settings", paths.editStandup(standup.id)],
   ];
 
   return (

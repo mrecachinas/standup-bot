@@ -42,8 +42,8 @@ describe("StandupParticipantsPage", () => {
     renderApp(PAGE);
 
     expect(await screen.findByRole("heading", { name: "Add people" })).toBeInTheDocument();
-    await waitFor(() => expect(document.title).toBe("Participants · Daily standup · Standup Bot"));
-    expect(screen.getByRole("link", { name: /Participants/ })).toHaveAttribute("aria-current", "page");
+    await waitFor(() => expect(document.title).toBe("People · Daily standup · Standup Bot"));
+    expect(screen.getByRole("link", { name: /^People/ })).toHaveAttribute("aria-current", "page");
 
     const input = screen.getByLabelText("Slack user");
     expect(input).toHaveAttribute("placeholder", "@jane, Jane Doe, or U123ABC");

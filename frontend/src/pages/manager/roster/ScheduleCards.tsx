@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link as RouterLink } from "react-router";
 import { Button, FormControl, Select, TextInput } from "@primer/react";
-import { PauseIcon, PencilIcon, PlayIcon } from "@primer/octicons-react";
+import { PencilIcon } from "@primer/octicons-react";
 import { post } from "../../../api/client";
 import type { Standup } from "../../../api/types";
 import type { ScheduleExceptionParams, ScheduleExceptionResult, ScheduleExceptionsPayload, ScheduleOccurrence } from "../../../api/types/roster";
@@ -13,7 +13,7 @@ import { MessagesBanner } from "./MessagesBanner";
 import { Section, SectionBody } from "./Section";
 import styles from "./roster.module.css";
 
-export function RegularScheduleCard({ standup, onPauseResume, busy }: { standup: Standup; onPauseResume: () => void; busy: boolean }) {
+export function RegularScheduleCard({ standup }: { standup: Standup }) {
   return (
     <Section
       title="Regular schedule"
@@ -25,12 +25,9 @@ export function RegularScheduleCard({ standup, onPauseResume, busy }: { standup:
     >
       <SectionBody>
         <p style={{ margin: 0 }}>{standup.schedule_summary}</p>
-        <p className={styles.hint}>Pausing stops all runs until you resume. Saved exceptions are kept.</p>
-        <div>
-          <Button size="small" leadingVisual={standup.active ? PauseIcon : PlayIcon} onClick={onPauseResume} loading={busy}>
-            {standup.active ? "Pause standup" : "Resume standup"}
-          </Button>
-        </div>
+        <p className={styles.hint}>
+          {standup.active ? "Pausing the standup stops every run until you resume." : "Paused: no runs go out until you resume."} Saved exceptions are kept.
+        </p>
       </SectionBody>
     </Section>
   );

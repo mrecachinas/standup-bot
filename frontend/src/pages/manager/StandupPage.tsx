@@ -62,7 +62,7 @@ export function StandupPage() {
           hint={completion.sub_label}
         />
         <StatCard label="Avg. time to respond" value={overview.average_response_time.label} hint="From prompt to submitted" />
-        <StatCard label="Participants" value={overview.participant_counts.active} hint={`${overview.participant_counts.inactive} inactive`} />
+        <StatCard label="People" value={overview.participant_counts.active} hint={`${overview.participant_counts.inactive} inactive`} />
         <StatCard label="Next run" value={<span className={overviewStyles.smallValue}>{overview.next_run.label}</span>} hint={overview.next_run.sub_label} />
       </StatGrid>
 
@@ -193,7 +193,7 @@ export function StandupPage() {
           )}
 
           <Section
-            title="Participants"
+            title="People"
             actions={
               <Button as={RouterLink} to={paths.standupParticipants(standup.id)} size="small" variant="invisible">
                 Manage

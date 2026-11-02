@@ -111,7 +111,7 @@ test.describe("as a standup manager", () => {
     await page.getByRole("button", { name: "Create standup" }).click();
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
 
-    await page.getByRole("navigation", { name: `${name} sections` }).getByRole("link", { name: /Participants/ }).click();
+    await page.getByRole("navigation", { name: `${name} sections` }).getByRole("link", { name: /People/ }).click();
     await page.getByText("Import a list").click();
     await page.getByRole("textbox", { name: "Participants" }).fill("U0E2E0001,Erin Example,Europe/London,true");
     await page.getByRole("button", { name: "Import participants" }).click();
@@ -131,10 +131,7 @@ test.describe("as a standup manager", () => {
     for (const [tab, path] of [
       ["Insights", /\/analytics/],
       ["Responses", /\/responses/],
-      [/Participants/, /\/participants/],
-      ["Schedule", /\/schedule_exceptions/],
-      ["Reports", /\/report/],
-      ["Slack", /\/chat_setup/],
+      [/People/, /\/participants/],
       ["Settings", /\/edit/],
       ["Overview", /\/manager\/standups\/\d+$/],
     ] as const) {
@@ -142,6 +139,20 @@ test.describe("as a standup manager", () => {
       await expect(page).toHaveURL(path);
       await expect(tabs.getByRole("link", { name: tab })).toHaveAttribute("aria-current", "page");
       await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0);
+    }
+
+    // Settings has its own side nav; every page keeps the Settings tab current.
+    await tabs.getByRole("link", { name: "Settings" }).click();
+    const settings = page.getByRole("navigation", { name: "Settings" });
+    for (const [section, path] of [
+      ["Schedule", /\/schedule_exceptions/],
+      ["Reports", /\/report/],
+      ["General", /\/edit/],
+    ] as const) {
+      await settings.getByRole("link", { name: section }).click();
+      await expect(page).toHaveURL(path);
+      await expect(settings.getByRole("link", { name: section })).toHaveAttribute("aria-current", "page");
+      await expect(tabs.getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
     }
 
     checkErrors();

@@ -7,6 +7,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { SignInPage } from "./pages/session/SignInPage";
 import { HomeRedirect, RequireMember, RequireUser } from "./session/guards";
 import { LoadingState } from "./components";
+import { RedirectToSettings } from "./pages/manager/settings/RedirectToSettings";
 
 /**
  * Console routes. Paths match the Rails routes that SpaController serves, so
@@ -44,7 +45,8 @@ export const routes: RouteObject[] = [
               { path: "/manager/standups/:id/participants", lazy: page(() => import("./pages/manager/StandupParticipantsPage"), "StandupParticipantsPage") },
               { path: "/manager/standups/:id/schedule_exceptions", lazy: page(() => import("./pages/manager/ScheduleExceptionsPage"), "ScheduleExceptionsPage") },
               { path: "/manager/standups/:id/report", lazy: page(() => import("./pages/manager/StandupReportPage"), "StandupReportPage") },
-              { path: "/manager/standups/:id/chat_setup", lazy: page(() => import("./pages/manager/ChatSetupPage"), "ChatSetupPage") },
+              // The chat tab was folded into Settings > General (Rails redirects old links too).
+              { path: "/manager/standups/:id/chat_setup", element: <RedirectToSettings /> },
               { path: "/manager/integrations", lazy: page(() => import("./pages/manager/IntegrationsPage"), "IntegrationsPage") },
             ],
           },

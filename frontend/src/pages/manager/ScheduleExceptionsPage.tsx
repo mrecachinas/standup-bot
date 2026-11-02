@@ -17,6 +17,7 @@ import { MoveNextRunCard, RegularScheduleCard, SkipDateCard } from "./roster/Sch
 import { ExceptionsTable, UpcomingRunsSection } from "./roster/ScheduleLists";
 import { StandupLoadError } from "./roster/StandupLoadError";
 import { usePauseResume } from "./roster/usePauseResume";
+import { SettingsLayout } from "./settings/SettingsLayout";
 import styles from "./roster/roster.module.css";
 
 export function ScheduleExceptionsPage() {
@@ -81,47 +82,51 @@ export function ScheduleExceptionsPage() {
 
   return (
     <div className={styles.page}>
-      <StandupHeader standup={standup} active="schedule" onPauseResume={pauseResume.toggle} pauseResumeBusy={pauseResume.busy} />
+      <StandupHeader standup={standup} active="settings" onPauseResume={pauseResume.toggle} pauseResumeBusy={pauseResume.busy} />
 
-      {error && !loading && <ErrorBanner error={error} title="Couldn't refresh the schedule" action={<Button onClick={reload}>Try again</Button>} />}
-      <ErrorBanner error={create.error} title="Couldn't save the exception" onDismiss={create.reset} />
-      <ErrorBanner error={remove.error} title="Couldn't remove the exception" onDismiss={remove.reset} />
-
-      <div className={styles.mainAside}>
+      <SettingsLayout standupId={standup.id} section="schedule">
         <div className={styles.stack}>
-          <UpcomingRunsSection
-            occurrences={data.upcoming_occurrences}
-            previewTimezone={data.preview_timezone}
-            timeZoneOptions={data.time_zone_options}
-            onPreviewTimezoneChange={handlePreviewTimezone}
-            skipping={skipping}
-            onSkip={(occurrence) => void handleSkip(occurrence)}
-            removing={removing}
-            onUnskip={(exceptionId) => void handleRemove(exceptionId)}
-          />
-          <ExceptionsTable exceptions={data.schedule_exceptions} removing={removing} onRemove={(exception) => void handleRemove(exception.id)} />
-        </div>
+          {error && !loading && <ErrorBanner error={error} title="Couldn't refresh the schedule" action={<Button onClick={reload}>Try again</Button>} />}
+          <ErrorBanner error={create.error} title="Couldn't save the exception" onDismiss={create.reset} />
+          <ErrorBanner error={remove.error} title="Couldn't remove the exception" onDismiss={remove.reset} />
 
-        <aside className={styles.stack} aria-label="Schedule changes">
-          <RegularScheduleCard standup={standup} onPauseResume={() => void pauseResume.toggle()} busy={pauseResume.busy} />
-          <SkipDateCard standupId={standup.id} options={data.exception_type_options} onSaved={reload} />
-          <MoveNextRunCard
-            standupId={standup.id}
-            next={data.next_occurrence}
-            previewTimezone={data.preview_timezone}
-            timeZoneOptions={data.time_zone_options}
-            onSaved={reload}
-            onCancelRun={handleCancelRun}
-          />
-          {data.notes.length > 0 && (
-            <ul className={styles.notes}>
-              {data.notes.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          )}
-        </aside>
-      </div>
+          <div className={styles.mainAside}>
+            <div className={styles.stack}>
+              <UpcomingRunsSection
+                occurrences={data.upcoming_occurrences}
+                previewTimezone={data.preview_timezone}
+                timeZoneOptions={data.time_zone_options}
+                onPreviewTimezoneChange={handlePreviewTimezone}
+                skipping={skipping}
+                onSkip={(occurrence) => void handleSkip(occurrence)}
+                removing={removing}
+                onUnskip={(exceptionId) => void handleRemove(exceptionId)}
+              />
+              <ExceptionsTable exceptions={data.schedule_exceptions} removing={removing} onRemove={(exception) => void handleRemove(exception.id)} />
+            </div>
+
+            <aside className={styles.stack} aria-label="Schedule changes">
+              <RegularScheduleCard standup={standup} />
+              <SkipDateCard standupId={standup.id} options={data.exception_type_options} onSaved={reload} />
+              <MoveNextRunCard
+                standupId={standup.id}
+                next={data.next_occurrence}
+                previewTimezone={data.preview_timezone}
+                timeZoneOptions={data.time_zone_options}
+                onSaved={reload}
+                onCancelRun={handleCancelRun}
+              />
+              {data.notes.length > 0 && (
+                <ul className={styles.notes}>
+                  {data.notes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              )}
+            </aside>
+          </div>
+        </div>
+      </SettingsLayout>
     </div>
   );
 }

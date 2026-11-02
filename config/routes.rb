@@ -17,7 +17,9 @@ Rails.application.routes.draw do
 
   # Old console URLs that may still be bookmarked or linked from chat.
   get "manager/slack_integration", to: redirect("/manager/integrations")
-  get "manager/standups/:standup_id/slack_setup", to: redirect { |params, _request| "/manager/standups/#{params[:standup_id]}/chat_setup" }
+  # The Slack/Teams tab was folded into Settings > General.
+  get "manager/standups/:standup_id/slack_setup", to: redirect { |params, _request| "/manager/standups/#{params[:standup_id]}/edit" }
+  get "manager/standups/:standup_id/chat_setup", to: redirect { |params, _request| "/manager/standups/#{params[:standup_id]}/edit" }
 
   get "auth/slack", to: "slack_sessions#new", as: :slack_sign_in
   get "auth/slack/callback", to: "slack_sessions#callback", as: :slack_sign_in_callback

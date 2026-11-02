@@ -348,7 +348,7 @@ export function editFormFixture(overrides: Partial<StandupFormPayload> = {}): St
         meta: "inactive",
       },
     ],
-    participants_hint: "Names and timezones come from Slack. Set time away and more on the Participants tab.",
+    participants_hint: "Names and timezones come from Slack.",
     default_preview_timezone: null,
     preview_timezone: "UTC",
     ...overrides,

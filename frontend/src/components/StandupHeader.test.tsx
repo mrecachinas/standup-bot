@@ -30,14 +30,16 @@ describe("StandupHeader", () => {
     expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByText("Engineering › General")).toBeInTheDocument();
     expect(screen.getByText("Weekdays at 9:00 AM")).toBeInTheDocument();
-    expect(screen.getByText("3 participants")).toBeInTheDocument();
+    expect(screen.getByText("3 people")).toBeInTheDocument();
     expect(screen.getByText("Participant timezones")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Edit standup/ })).toHaveAttribute("href", "/manager/standups/7/edit");
+    // The Settings tab is the way in, so there's no separate "Edit standup" button.
+    expect(screen.queryByRole("link", { name: /Edit standup/ })).toBeNull();
 
     const tabs = screen.getByRole("navigation", { name: "Daily standup sections" });
-    expect(within(tabs).getByRole("link", { name: /Participants/ })).toHaveAttribute("aria-current", "page");
-    expect(within(tabs).getByRole("link", { name: /Microsoft Teams/ })).toHaveAttribute("href", "/manager/standups/7/chat_setup");
+    expect(within(tabs).getAllByRole("link").map((link) => link.textContent?.replace(/\d.*$/, ""))).toEqual(["Overview", "Insights", "Responses", "People", "Settings"]);
+    expect(within(tabs).getByRole("link", { name: /People/ })).toHaveAttribute("aria-current", "page");
     expect(within(tabs).getByRole("link", { name: /Insights/ })).toHaveAttribute("href", "/manager/standups/7/analytics");
+    expect(within(tabs).getByRole("link", { name: /Settings/ })).toHaveAttribute("href", "/manager/standups/7/edit");
 
     await userEvent.click(screen.getByRole("button", { name: "Pause Daily standup" }));
     expect(onPauseResume).toHaveBeenCalled();

@@ -406,3 +406,20 @@ p.hint {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Inside a container (the Settings side nav's content): narrower aside, then one column. */
+@container (max-width: 63.98rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 16rem;
+  }
+}
+
+@container (max-width: 47.98rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    position: static;
+  }
+}

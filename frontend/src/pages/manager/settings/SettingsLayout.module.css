@@ -1,0 +1,39 @@
+.layout {
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: var(--base-size-24);
+  align-items: start;
+}
+
+.nav {
+  position: sticky;
+  top: var(--base-size-16);
+  margin: calc(var(--base-size-8) * -1) 0 0 calc(var(--base-size-8) * -1);
+}
+
+/* Sections lay out their own main/aside columns against this width, not the viewport's. */
+.content {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+@media (max-width: 1011.98px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nav {
+    position: static;
+    margin: 0 calc(var(--base-size-8) * -1);
+  }
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-12);
+}
+
+.failure p {
+  margin: 0;
+}

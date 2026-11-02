@@ -132,7 +132,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert body["participant_rows"].all? { |row| row["id"].present? && row["destroy"] == false }
     inactive_row = body["participant_rows"].find { |row| row["id"] == standup_participants(:inactive).id }
     assert_equal "inactive", inactive_row["meta"]
-    assert_includes body["participants_hint"], "Participants tab"
+    assert_equal "Names and timezones come from Slack.", body["participants_hint"]
   end
 
   test "editing a weekly standup selects its day" do
@@ -243,6 +243,16 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal @owned_standup, audit_log.auditable
     assert_equal [ "Daily Standup", "Manager Updated" ], audit_log.metadata.dig("changes", "name")
     assert_not audit_log.metadata.key?("participants")
+  end
+
+  test "saving settings without people leaves the people alone" do
+    sign_in(@manager, "manager-access-token")
+    before = @owned_standup.standup_participants.order(:id).pluck(:id, :active)
+
+    patch api_standup_path(@owned_standup), params: { standup: { name: "Renamed", question_rows: [ "What changed?" ] } }, as: :json
+
+    assert_response :success
+    assert_equal before, @owned_standup.standup_participants.order(:id).pluck(:id, :active)
   end
 
   test "manager can pause and resume owned standup with audit logs" do

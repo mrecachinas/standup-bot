@@ -1,4 +1,4 @@
-# The console's Reports tab: delivery settings, the options and per-platform
+# The console's Settings > Reports page: delivery settings, the options and per-platform
 # hints for the form, the last few generations, and recent completion.
 class ReportPageSerializer
   SLACK_CHANNEL_PLACEHOLDER = "daily-standup or C0123".freeze

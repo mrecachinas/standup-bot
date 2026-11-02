@@ -19,7 +19,8 @@ describe("StandupReportPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Delivery settings" })).toBeInTheDocument();
     await waitFor(() => expect(document.title).toBe("Reports · Daily standup · Standup Bot"));
-    expect(screen.getByRole("link", { name: "Reports" })).toHaveAttribute("aria-current", "page");
+    expect(within(screen.getByRole("navigation", { name: "Settings" })).getByRole("link", { name: "Reports" })).toHaveAttribute("aria-current", "page");
+    expect(within(screen.getByRole("navigation", { name: "Daily standup sections" })).getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
 
     expect(screen.getByLabelText("Post to channel")).toHaveValue("C0123");
     expect(screen.getByLabelText("Post to channel")).toHaveAttribute("placeholder", "daily-standup or C0123");
@@ -118,7 +119,7 @@ describe("StandupReportPage", () => {
     });
     renderApp("/manager/standups/7/report");
 
-    await user.click(await screen.findByRole("button", { name: "Generate report now" }));
+    await user.click(await screen.findByRole("button", { name: "Send report now" }));
 
     expect(await screen.findByText("Report queued. It will appear in the history below when it's sent.")).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([url, init]) => url === `${PATH}/generate` && init?.method === "POST")).toBe(true);
@@ -135,7 +136,7 @@ describe("StandupReportPage", () => {
     });
     renderApp("/manager/standups/7/report");
 
-    await user.click(await screen.findByRole("button", { name: "Generate report now" }));
+    await user.click(await screen.findByRole("button", { name: "Send report now" }));
 
     expect(await screen.findByText("Couldn't generate the report")).toBeInTheDocument();
     const rows = within(screen.getByRole("table", { name: "History" })).getAllByRole("row");

@@ -38,7 +38,7 @@ export function StandupParticipantsPage() {
   const refreshSidebar = useRefreshSidebar();
   const currentUserId = useSession().bootstrap.user?.id;
   const { data, error, loading, reload, setData } = useApi<ParticipantsConsole>(`/api/standups/${id}/participants?view=console`);
-  useDocumentTitle(data ? `Participants · ${data.standup.name}` : "Participants");
+  useDocumentTitle(data ? `People · ${data.standup.name}` : "People");
 
   const base = `/api/standups/${id}`;
   const [editing, setEditing] = useState<RosterParticipant | null>(null);
@@ -112,7 +112,7 @@ export function StandupParticipantsPage() {
   };
 
   if (!data) {
-    if (error) return <StandupLoadError error={error} title="Participants" onRetry={reload} />;
+    if (error) return <StandupLoadError error={error} title="People" onRetry={reload} />;
     return <LoadingState label="Loading participants…" />;
   }
 

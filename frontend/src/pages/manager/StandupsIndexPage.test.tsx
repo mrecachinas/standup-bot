@@ -144,8 +144,8 @@ describe("StandupsIndexPage", () => {
 
     await user.click(await screen.findByRole("button", { name: "Actions for Daily standup" }));
     const menu = await screen.findByRole("menu");
-    expect(within(menu).getByRole("menuitem", { name: "Edit" })).toHaveAttribute("href", "/manager/standups/7/edit");
-    expect(within(menu).getByRole("menuitem", { name: "Schedule" })).toHaveAttribute("href", "/manager/standups/7/schedule_exceptions");
+    expect(within(menu).getByRole("menuitem", { name: "People" })).toHaveAttribute("href", "/manager/standups/7/participants");
+    expect(within(menu).getByRole("menuitem", { name: "Settings" })).toHaveAttribute("href", "/manager/standups/7/edit");
     await user.click(within(menu).getByRole("menuitem", { name: "Pause" }));
 
     expect(await screen.findByText("Daily standup was paused.")).toBeInTheDocument();
