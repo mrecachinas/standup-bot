@@ -170,7 +170,7 @@ class StandupCommandHandler
     return_date = Date.current + days.days
     StandupParticipant.where(id: participant_ids).update_all(active: false, vacation_until: return_date)
     # Reactivate exactly these rows, not ones the person paused some other way.
-    SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(user_id, participant_ids, platform.to_s)
+    ParticipantReactivationJob.set(wait_until: return_date.noon).perform_later(user_id, participant_ids, platform.to_s)
 
     Reply.text("You've been marked as away from standups until #{return_date.to_fs(:weekday_month_day)}. Type #{fmt.code("back")} anytime to return early.")
   end

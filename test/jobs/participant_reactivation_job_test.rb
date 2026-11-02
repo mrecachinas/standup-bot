@@ -1,6 +1,6 @@
 require "test_helper"
 
-class SlackUserReactivationJobTest < ActiveJob::TestCase
+class ParticipantReactivationJobTest < ActiveJob::TestCase
   setup do
     # Use fixtures instead of creating records
     @participant1 = standup_participants(:inactive_daily)
@@ -27,7 +27,7 @@ class SlackUserReactivationJobTest < ActiveJob::TestCase
       .once
 
     # Run the job
-    SlackUserReactivationJob.perform_now(@platform_user_id)
+    ParticipantReactivationJob.perform_now(@platform_user_id)
 
     # Verify that participants were reactivated
     @participant1.reload
@@ -45,7 +45,7 @@ class SlackUserReactivationJobTest < ActiveJob::TestCase
     @mock_slack_client.expects(:send_message).never
 
     # Run the job
-    SlackUserReactivationJob.perform_now(@platform_user_id)
+    ParticipantReactivationJob.perform_now(@platform_user_id)
 
     # Verify that participants remain active
     @participant1.reload
@@ -64,7 +64,7 @@ class SlackUserReactivationJobTest < ActiveJob::TestCase
 
     # No error should be raised
     assert_nothing_raised do
-      SlackUserReactivationJob.perform_now(@platform_user_id)
+      ParticipantReactivationJob.perform_now(@platform_user_id)
     end
   end
 end

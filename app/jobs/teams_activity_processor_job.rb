@@ -38,18 +38,10 @@ class TeamsActivityProcessorJob < ApplicationJob
     activity.dig("conversation", "conversationType") == "personal"
   end
 
-  # Keep the 1:1 chat on file so later DMs don't need to create it.
   def remember_conversation
     return unless personal? && user_id.present? && conversation_id.present?
-    return unless Microsoft::BotConnectorClient.trusted_service_url?(activity["serviceUrl"])
 
-    ChatConversation.remember!(
-      platform: :teams,
-      platform_user_id: user_id,
-      conversation_id: conversation_id,
-      service_url: activity["serviceUrl"],
-      tenant_id: activity.dig("conversation", "tenantId")
-    )
+    chat.remember_conversation(user_id: user_id, conversation_id: conversation_id, service_url: activity["serviceUrl"], tenant_id: activity.dig("conversation", "tenantId"))
   end
 
   def handle_message
@@ -58,7 +50,7 @@ class TeamsActivityProcessorJob < ApplicationJob
     value = activity["value"]
     return handle_card_submit(value) if value.is_a?(Hash) && value["action_id"].present?
 
-    text = ChatPlatform::TeamsAdapter.plain_text(activity["text"])
+    text = chat.plain_text(activity["text"])
     return if text.blank?
 
     # In a channel or group chat the bot only sees @mentions, so treat them as
@@ -75,7 +67,7 @@ class TeamsActivityProcessorJob < ApplicationJob
   def handle_edit
     return unless personal? && user_id.present?
 
-    text = ChatPlatform::TeamsAdapter.plain_text(activity["text"])
+    text = chat.plain_text(activity["text"])
     StandupConversationHandler.new(chat).handle(inbound_message(text, edited: true))
   end
 

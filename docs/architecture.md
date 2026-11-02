@@ -143,7 +143,7 @@ Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custo
 | `TeamsActivityProcessorJob` | On each Teams activity | The same for Teams, plus `standup` commands and card choices. It also caches the 1:1 conversation |
 | `StandupReminderJob` | Every 15 minutes | Reminds people who haven't finished, based on each standup's reminder settings |
 | `StandupCollectionJob` | On demand | Gathers completed responses into a report (for `/standup report` or the console) |
-| `SlackUserReactivationJob` | When someone's `away` period ends | Puts the participant back in rotation |
+| `ParticipantReactivationJob` | When someone's `away` period ends | Puts the participant back in rotation |
 | `DataCleanupJob` | Daily at 3am | Expires stale pending responses and deletes data older than the retention window |
 
 Recurring schedules are defined in [`config/recurring.yml`](../config/recurring.yml). If you set `ADMIN_CHANNEL` (Slack) or `TEAMS_ADMIN_CHANNEL` (Teams), failed jobs post a message there.

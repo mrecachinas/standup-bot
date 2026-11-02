@@ -123,7 +123,7 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
 
   test "direct_message away pauses active standups and schedules the return" do
     Timecop.freeze(Time.zone.local(2025, 4, 7, 9)) do
-      assert_enqueued_with(job: SlackUserReactivationJob) do
+      assert_enqueued_with(job: ParticipantReactivationJob) do
         assert_match(/until Thursday, April 10/, @handler.direct_message("away 3").text)
       end
     end
