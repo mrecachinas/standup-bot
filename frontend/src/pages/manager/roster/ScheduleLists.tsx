@@ -149,7 +149,9 @@ export function ExceptionsTable({ exceptions, removing, onRemove }: ExceptionsTa
           ]}
         />
       ) : (
-        <EmptyState icon={CalendarIcon} headingLevel="h3" size="small" title="No exceptions" description="No skipped, holiday, or moved dates yet." />
+        <div className={layout.tableArea}>
+          <EmptyState icon={CalendarIcon} headingLevel="h3" size="small" title="No exceptions" description="No skipped, holiday, or moved dates yet." />
+        </div>
       )}
     </Table.Container>
   );

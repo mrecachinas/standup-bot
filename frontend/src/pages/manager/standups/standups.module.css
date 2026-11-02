@@ -20,10 +20,7 @@
   gap: var(--base-size-8);
 }
 
-/* Table.Container is a grid; sit in its table area like a bare DataTable would. */
 .tableEmpty {
-  grid-area: table;
-  margin-block-start: var(--base-size-8);
   border: var(--borderWidth-thin) solid var(--borderColor-default);
   border-radius: var(--borderRadius-medium);
 }

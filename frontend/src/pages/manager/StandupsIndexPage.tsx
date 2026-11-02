@@ -132,7 +132,7 @@ export function StandupsIndexPage() {
                 onPauseResume={(standup: OverviewStandup) => void pauseResume.run(standup)}
               />
             ) : (
-              <p className={`${layout.empty} ${styles.tableEmpty}`}>{data.empty_list_message}</p>
+              <p className={`${layout.empty} ${layout.tableArea} ${styles.tableEmpty}`}>{data.empty_list_message}</p>
             )}
           </Table.Container>
         </>

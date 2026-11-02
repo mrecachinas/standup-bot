@@ -107,12 +107,14 @@ export function PeopleSection({ participants, summary, platformLabel, busyId, on
           ]}
         />
       ) : (
-        <EmptyState
-          icon={PeopleIcon}
-          headingLevel="h3"
-          title="No participants yet"
-          description={`Add people above, or sync everyone from a ${platformLabel} channel.`}
-        />
+        <div className={layout.tableArea}>
+          <EmptyState
+            icon={PeopleIcon}
+            headingLevel="h3"
+            title="No participants yet"
+            description={`Add people above, or sync everyone from a ${platformLabel} channel.`}
+          />
+        </div>
       )}
     </Table.Container>
   );

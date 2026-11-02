@@ -114,6 +114,12 @@
   white-space: nowrap;
 }
 
+/* Content in a Primer Table.Container's table slot (e.g. an empty state instead of the table). */
+.tableArea {
+  grid-area: table;
+  margin-block-start: var(--base-size-8);
+}
+
 .danger {
   color: var(--fgColor-danger);
 }

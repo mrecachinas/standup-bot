@@ -92,7 +92,9 @@ function ReportHistory({ generations }: { generations: ReportGeneration[] }) {
         History
       </Table.Title>
       {generations.length === 0 ? (
-        <EmptyState title="No reports have been sent yet." size="small" headingLevel="h3" />
+        <div className={layout.tableArea}>
+          <EmptyState title="No reports have been sent yet." size="small" headingLevel="h3" />
+        </div>
       ) : (
         <DataTable
           aria-labelledby="report-history"
