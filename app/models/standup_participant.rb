@@ -14,6 +14,10 @@ class StandupParticipant < ApplicationRecord
 
   scope :active, -> { where(active: true) }
   scope :on_platform, ->(platform) { joins(:standup).where(standups: { platform: platform.to_s }) }
+  # This person's rows in standups that are still running, whether or not they're away.
+  scope :in_active_standups, ->(platform, platform_user_id) {
+    on_platform(platform).merge(Standup.active).where(platform_user_id: platform_user_id)
+  }
   scope :available_on, ->(date) { active.where("vacation_until IS NULL OR vacation_until < ?", date) }
 
   def fetch_profile

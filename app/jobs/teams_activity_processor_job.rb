@@ -101,13 +101,7 @@ class TeamsActivityProcessorJob < ApplicationJob
   end
 
   def reply(reply)
-    target = personal? ? conversation_id : user_id
-
-    if reply.selection?
-      chat.send_selection(target, reply.text, reply.options, action_id: reply.action_id)
-    else
-      chat.send_message(target, reply.text)
-    end
+    chat.send_reply(personal? ? conversation_id : user_id, reply)
   end
 
   def inbound_message(text, edited:)

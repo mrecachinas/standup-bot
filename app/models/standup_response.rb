@@ -28,6 +28,11 @@ class StandupResponse < ApplicationRecord
       .distinct
   }
 
+  # The answer a DM reply should go to: this person's most recent unfinished standup.
+  def self.latest_pending_for(platform, platform_user_id)
+    authorized_for(platform, platform_user_id).pending.order("standup_responses.created_at DESC").first
+  end
+
   def participant
     standup.standup_participants.find_by(platform_user_id: platform_user_id)
   end

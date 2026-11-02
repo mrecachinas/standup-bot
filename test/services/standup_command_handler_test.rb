@@ -73,4 +73,70 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
       assert_equal "Starting #{standups(:daily).name} now. Check your DMs.", @handler.start_selected(standups(:daily).id).text
     end
   end
+
+  test "direct_message recognizes each keyword, ignoring case and whitespace" do
+    handler = StandupCommandHandler.new(chat: MarkdownChat.new, user_id: "UNOBODY")
+
+    [ "help", "report", "skip", "cancel", "away", "away 3", "back", "  HELP  " ].each do |text|
+      assert_kind_of ChatPlatform::Reply, handler.direct_message(text), "expected #{text.inspect} to be a command"
+    end
+  end
+
+  test "direct_message returns nil for anything else, so it's treated as an answer" do
+    [ "This is not a command", "helpful", "", "   ", nil ].each do |text|
+      assert_nil @handler.direct_message(text), "expected #{text.inspect} not to be a command"
+    end
+  end
+
+  test "direct_message help lists the DM keywords" do
+    text = @handler.direct_message("help").text
+
+    assert_includes text, "**Available Commands:**"
+    assert_includes text, "• `away [days]`"
+  end
+
+  test "direct_message report queues the report for the participant's local date" do
+    participant = StandupParticipant.create!(
+      standup: standups(:daily), platform_user_id: "U12345678", display_name: "Report User",
+      active: true, cached_timezone: "UTC", cached_timezone_updated_at: Time.current
+    )
+    handler = StandupCommandHandler.new(chat: MarkdownChat.new, user_id: participant.platform_user_id)
+
+    StandupCollectionJob.expects(:perform_later).with(standups(:daily).id, participant.standup_date_for(Time.current).iso8601, "Etc/UTC")
+
+    assert_match(/\AGenerating report for/, handler.direct_message("report").text)
+  end
+
+  test "direct_message skip and cancel need a pending standup" do
+    handler = StandupCommandHandler.new(chat: MarkdownChat.new, user_id: "UNOBODY")
+
+    assert_equal "You don't have an active standup to skip questions for.", handler.direct_message("skip").text
+    assert_equal "You don't have an active standup to cancel.", handler.direct_message("cancel").text
+  end
+
+  test "direct_message cancel cancels the latest pending response" do
+    response = StandupResponse.create!(standup: @participant.standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: Date.current)
+
+    assert_equal "Your standup has been cancelled.", @handler.direct_message("cancel").text
+    assert_equal "cancelled", response.reload.status
+  end
+
+  test "direct_message away pauses active standups and schedules the return" do
+    Timecop.freeze(Time.zone.local(2025, 4, 7, 9)) do
+      assert_enqueued_with(job: SlackUserReactivationJob) do
+        assert_match(/until Thursday, April 10/, @handler.direct_message("away 3").text)
+      end
+    end
+
+    assert_not @participant.reload.active?
+    assert_equal Date.new(2025, 4, 10), @participant.vacation_until
+  end
+
+  test "direct_message back ends time away that was set on the web" do
+    @participant.update!(active: true, vacation_until: Date.current + 3)
+
+    assert_match(/Welcome back/, @handler.direct_message("back").text)
+    assert_nil @participant.reload.vacation_until
+    assert @participant.active?
+  end
 end

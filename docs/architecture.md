@@ -57,7 +57,7 @@ flowchart LR
     J --> CH[StandupConversationHandler]
     TJ --> CH
     TJ --> CMD
-    CH --> DM[DirectMessageCommands]
+    CH --> CMD
     CH --> SVC[StandupResponseService]
     CMD --> Jobs[Standup jobs]
     SVC --> REG["ChatPlatform.for_standup(standup)"]
@@ -72,7 +72,7 @@ flowchart LR
 - `ChatPlatform::Adapter` defines the contract: sending DMs and channel messages, posting and editing a person's update, posting reports, offering a choice of standups, looking up people and channels, validating IDs and channels, and a `formatter` for bold, italic, code, and channel references. Every adapter's tests include `test/support/chat_platform_adapter_contract.rb`.
 - `ChatPlatform::SlackAdapter` implements it with Block Kit and mrkdwn on top of `SlackClient`, the low-level Web API wrapper.
 - `ChatPlatform::TeamsAdapter` implements it with Teams markdown and Adaptive Cards. It uses the Bot Connector to message people and channels, and Microsoft Graph to look people and channels up. People are identified by Entra object ID, and channels by `TEAM_ID|CHANNEL_ID`. Before the bot can DM someone it needs a 1:1 conversation, which it opens (or learns about from incoming activities) and caches in `ChatConversation`. See [Microsoft Teams setup](teams-setup.md).
-- Inbound messages are normalized into a `ChatPlatform::InboundMessage` and handled by `StandupConversationHandler`. Commands go through `StandupCommandHandler`, which returns `ChatPlatform::Reply` objects that each platform renders its own way: ephemeral Block Kit in Slack, chat messages and cards in Teams.
+- Inbound messages are normalized into a `ChatPlatform::InboundMessage` and handled by `StandupConversationHandler`. Slash commands, Teams @mentions, and DM keywords (`help`, `skip`, `away`, ...) all go through `StandupCommandHandler`, which returns `ChatPlatform::Reply` objects that each platform renders its own way (`Adapter#send_reply`): ephemeral Block Kit in Slack, chat messages and cards in Teams.
 - `ChatIntegrationService` (with `SlackIntegrationService` and `TeamsIntegrationService`) backs the console's credential checks, discovery, and test messages. `ChatUserResolver` turns what someone typed into a person on the standup's platform.
 
 ## A standup, end to end

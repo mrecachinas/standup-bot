@@ -1,5 +1,6 @@
-# Handles a direct message from a participant on any platform: DM commands,
-# answers to the current question, and edits to earlier answers.
+# Handles a direct message from a participant on any platform: DM commands
+# (see StandupCommandHandler#direct_message), answers to the current question,
+# and edits to earlier answers.
 class StandupConversationHandler
   def initialize(chat)
     @chat = chat
@@ -11,14 +12,10 @@ class StandupConversationHandler
     text = StandupResponseService.normalize_answer_text(message.text)
     return if message.user_id.blank? || text.blank?
 
-    commands = DirectMessageCommands.new(chat)
-    command_info = commands.parse(text)
-    if command_info
-      commands.process(command_info, message.user_id, message.conversation)
-      return
-    end
+    reply = StandupCommandHandler.new(chat: chat, user_id: message.user_id).direct_message(text)
+    return chat.send_reply(message.conversation, reply) if reply
 
-    standup_response = pending_response_for(message.user_id)
+    standup_response = StandupResponse.latest_pending_for(platform, message.user_id)
     StandupResponseService.record_answer(standup_response, text) if standup_response
   end
 
@@ -34,7 +31,7 @@ class StandupConversationHandler
     user_id = message.user_id
     text = StandupResponseService.normalize_answer_text(message.text)
 
-    pending_response = pending_response_for(user_id)
+    pending_response = StandupResponse.latest_pending_for(platform, user_id)
     if pending_response && pending_response.answers.present?
       update_pending_response(pending_response, text)
       return
@@ -42,14 +39,6 @@ class StandupConversationHandler
 
     completed_response = current_completed_response_for(user_id)
     update_completed_response(completed_response, text) if completed_response
-  end
-
-  def pending_response_for(user_id)
-    StandupResponse
-      .authorized_for(platform, user_id)
-      .where(status: "pending")
-      .order("standup_responses.created_at DESC")
-      .first
   end
 
   def update_pending_response(standup_response, text)
@@ -95,10 +84,6 @@ class StandupConversationHandler
   end
 
   def active_participants_for(user_id)
-    StandupParticipant
-      .on_platform(platform)
-      .where(platform_user_id: user_id, active: true)
-      .merge(Standup.active)
-      .includes(:standup)
+    StandupParticipant.in_active_standups(platform, user_id).where(active: true).includes(:standup)
   end
 end

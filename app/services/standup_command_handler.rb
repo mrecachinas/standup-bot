@@ -1,7 +1,17 @@
-# The /standup command family (start, status, skip, report, history, help) for
-# any platform. Returns ChatPlatform::Reply objects; callers render them.
+# The /standup command family (start, status, skip, report, history, help) and
+# the keywords people can type in their DM with the bot, for any platform.
+# Returns ChatPlatform::Reply objects; callers render them.
 class StandupCommandHandler
   Reply = ChatPlatform::Reply
+  DEFAULT_AWAY_DAYS = 7
+  DIRECT_MESSAGE_COMMANDS = {
+    "help" => "Show this help message",
+    "report" => "Generate a standup report",
+    "skip" => "Skip the current question in your standup",
+    "cancel" => "Cancel the current standup",
+    "away [days]" => "Mark yourself as away (#{DEFAULT_AWAY_DAYS} days unless you say otherwise)",
+    "back" => "Return from away status"
+  }.freeze
 
   def initialize(chat:, user_id:, base_command: "/standup", status_command: "/standup-status")
     @chat = chat
@@ -28,6 +38,18 @@ class StandupCommandHandler
       help
     else
       help("I don't recognize #{fmt.code(command_text)}.")
+    end
+  end
+
+  # Returns nil when the text isn't a DM command, so the caller can treat it as an answer.
+  def direct_message(text)
+    case text.to_s.strip
+    when /\Ahelp\z/i then direct_message_help
+    when /\Areport\z/i then report
+    when /\Askip\z/i then skip_question
+    when /\Acancel\z/i then cancel
+    when /\Aaway(?:\s+(\d+))?\z/i then away(($1 || DEFAULT_AWAY_DAYS).to_i)
+    when /\Aback\z/i then back
     end
   end
 
@@ -120,6 +142,51 @@ class StandupCommandHandler
     Reply.text(text)
   end
 
+  def direct_message_help
+    lines = DIRECT_MESSAGE_COMMANDS.map { |command, description| "• #{fmt.code(command)} - #{description}" }
+    Reply.text("#{fmt.bold("Available Commands:")}\n#{lines.join("\n")}")
+  end
+
+  def skip_question
+    response = StandupResponse.latest_pending_for(platform, user_id)
+    return Reply.text("You don't have an active standup to skip questions for.") unless response
+
+    StandupResponseService.skip_question(response)
+    Reply.text("Question skipped. Moving on to the next one.")
+  end
+
+  def cancel
+    response = StandupResponse.latest_pending_for(platform, user_id)
+    return Reply.text("You don't have an active standup to cancel.") unless response
+
+    response.update!(status: "cancelled")
+    Reply.text("Your standup has been cancelled.")
+  end
+
+  def away(days)
+    participant_ids = active_participants.map(&:id)
+    return Reply.text("You're not currently part of any active standups.") if participant_ids.empty?
+
+    return_date = Date.current + days.days
+    StandupParticipant.where(id: participant_ids).update_all(active: false, vacation_until: return_date)
+    # Reactivate exactly these rows, not ones the person paused some other way.
+    SlackUserReactivationJob.set(wait_until: return_date.noon).perform_later(user_id, participant_ids, platform.to_s)
+
+    Reply.text("You've been marked as away from standups until #{return_date.strftime('%A, %B %d')}. Type #{fmt.code("back")} anytime to return early.")
+  end
+
+  def back
+    # Inactive rows (from `away`) plus rows paused with a current away date (set on the web)
+    participant_ids = StandupParticipant
+      .in_active_standups(platform, user_id)
+      .where("standup_participants.active = ? OR standup_participants.vacation_until >= ?", false, Date.current)
+      .pluck(:id)
+    return Reply.text("You're already active in all your standups.") if participant_ids.empty?
+
+    StandupParticipant.where(id: participant_ids).update_all(active: true, vacation_until: nil)
+    Reply.text("Welcome back! You'll now receive standup prompts again.")
+  end
+
   # Someone picked a standup from a selection reply.
   def start_selected(standup_id)
     with_selected_participant(standup_id) do |standup, participant|
@@ -168,10 +235,9 @@ class StandupCommandHandler
 
   def active_participants
     @active_participants ||= StandupParticipant
-      .on_platform(platform)
+      .in_active_standups(platform, user_id)
+      .where(active: true)
       .includes(:standup)
-      .where(platform_user_id: user_id, active: true)
-      .merge(Standup.active)
       .order("standups.name ASC")
   end
 
