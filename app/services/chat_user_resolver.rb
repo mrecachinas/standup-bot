@@ -3,7 +3,22 @@
 class ChatUserResolver
   ResolutionError = Class.new(StandardError)
 
-  ResolvedUser = Struct.new(:platform_user_id, :display_name, :cached_timezone, :avatar_url, keyword_init: true)
+  ResolvedUser = Struct.new(:platform_user_id, :display_name, :cached_timezone, :avatar_url, keyword_init: true) do
+    # The typed-in attributes with this person's ID and avatar, plus their name
+    # and timezone wherever the typed ones are blank.
+    def fill_in(attributes)
+      attributes.merge(
+        platform_user_id: platform_user_id,
+        display_name: attributes[:display_name].presence || display_name,
+        cached_timezone: attributes[:cached_timezone].presence || cached_timezone,
+        avatar_url: avatar_url
+      )
+    end
+  end
+
+  def self.for(platform)
+    new(service: ChatIntegrationService.for(platform))
+  end
 
   def initialize(service: SlackIntegrationService.new)
     @service = service

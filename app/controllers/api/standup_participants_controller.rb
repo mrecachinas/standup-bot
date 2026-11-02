@@ -72,7 +72,7 @@ module Api
     end
 
     def bulk_import
-      result = StandupParticipantImporter.new(@standup, user_resolver: user_resolver).import_text(params[:participants_text])
+      result = StandupParticipantImporter.new(@standup, user_resolver: ChatUserResolver.for(@standup.platform)).import_text(params[:participants_text])
       render_import_result(result, "standup_participant.bulk_import", "bulk_import", notice: import_notice("Import finished", result))
     end
 
@@ -179,16 +179,10 @@ module Api
       identifier = permitted[:platform_user_id].to_s.strip
       return permitted if identifier.blank?
 
-      resolved_user = user_resolver.resolve(identifier, fallback_name: permitted[:display_name])
-      permitted[:platform_user_id] = resolved_user.platform_user_id
-      permitted[:display_name] = permitted[:display_name].presence || resolved_user.display_name
-      permitted[:cached_timezone] = permitted[:cached_timezone].presence || resolved_user.cached_timezone
-      permitted[:avatar_url] = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
-      permitted
-    end
-
-    def user_resolver
-      @user_resolver ||= ChatUserResolver.new(service: ChatIntegrationService.for(@standup.platform))
+      resolved_user = ChatUserResolver.for(@standup.platform).resolve(identifier, fallback_name: permitted[:display_name])
+      attributes = resolved_user.fill_in(permitted.to_h.symbolize_keys)
+      attributes.delete(:avatar_url) unless SlackAvatar.safe_url?(attributes[:avatar_url])
+      attributes
     end
 
     def render_import_result(result, summary_action, source, notice:)
