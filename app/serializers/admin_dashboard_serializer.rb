@@ -162,7 +162,7 @@ class AdminDashboardSerializer
       avatar_url: (user.avatar_url if SlackAvatar.safe_url?(user.avatar_url)),
       admin: user.admin?,
       access_label: user.admin? ? "Admin" : "Member",
-      access_tone: user.admin? ? "accent" : nil,
+      access_tone: user.admin? ? "info" : nil,
       owned_standups_count: owned,
       owned_standups_label: user.admin? ? "All" : owned.to_s,
       last_signed_in_at: user.last_signed_in_at&.iso8601,

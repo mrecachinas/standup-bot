@@ -98,7 +98,7 @@ function dashboard(overrides: Partial<AdminDashboard> = {}): AdminDashboard {
         avatar_url: null,
         admin: true,
         access_label: "Admin",
-        access_tone: "accent",
+        access_tone: "info",
         owned_standups_count: 0,
         owned_standups_label: "All",
         last_signed_in_at: recent,

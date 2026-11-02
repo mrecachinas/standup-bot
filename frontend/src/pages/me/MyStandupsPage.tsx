@@ -1,10 +1,10 @@
 import { Link as RouterLink } from "react-router";
 import { Banner, Button, ProgressBar } from "@primer/react";
 import { CalendarIcon, CheckCircleIcon, ClockIcon, CommentDiscussionIcon, PersonIcon } from "@primer/octicons-react";
-import type { Tone } from "../../api/types";
 import type { MemberStandupSummary, MemberStandupsPayload } from "../../api/types/member";
 import { AvatarStack, EmptyState, ErrorBanner, LoadingState, PageHeader, StatCard, StatGrid, StatusLabel } from "../../components";
 import { formatPercent, pluralize } from "../../lib/format";
+import { progressBgForTone } from "../../lib/tone";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { paths } from "../../paths";
@@ -12,13 +12,6 @@ import { MemberTip } from "./components/MemberTip";
 import { useClearAway } from "./components/useClearAway";
 import shared from "./components/me.module.css";
 import styles from "./MyStandupsPage.module.css";
-
-const PROGRESS_BG: Record<NonNullable<Tone>, string> = {
-  success: "success.emphasis",
-  info: "accent.emphasis",
-  warning: "attention.emphasis",
-  danger: "danger.emphasis",
-};
 
 export function MyStandupsPage() {
   useDocumentTitle("My standups");
@@ -146,7 +139,7 @@ function StandupCard({ summary }: { summary: MemberStandupSummary }) {
                 <ProgressBar
                   className={styles.meterBar}
                   progress={Math.min(100, Math.max(0, summary.completion_rate))}
-                  bg={PROGRESS_BG[summary.completion_rate_tone ?? "success"]}
+                  bg={progressBgForTone(summary.completion_rate_tone)}
                   aria-label={`Your completion in ${standup.name}`}
                 />
                 <span className={styles.meterValue}>{formatPercent(summary.completion_rate)}</span>

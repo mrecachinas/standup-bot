@@ -61,8 +61,8 @@ export interface AdminUser {
   avatar_url: string | null;
   admin: boolean;
   access_label: string;
-  /** "accent" for admins, null otherwise. */
-  access_tone: "accent" | null;
+  /** "info" for admins, null otherwise. */
+  access_tone: Tone;
   owned_standups_count: number;
   owned_standups_label: string;
   last_signed_in_at: string | null;

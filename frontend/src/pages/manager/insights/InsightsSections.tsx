@@ -4,7 +4,7 @@ import type { InsightsParticipant, InsightsStats, Keyword, QuestionFunnel, Quest
 import { Avatar } from "../../../components";
 import { formatPercent, pluralize } from "../../../lib/format";
 import { Panel, PanelEmptyText, PanelList, PanelListItem } from "./Panel";
-import { progressBgForTone } from "./tone";
+import { progressBgForTone } from "../../../lib/tone";
 import styles from "./insights.module.css";
 
 /** "↑ 5 pts" against the previous period of the same length. */

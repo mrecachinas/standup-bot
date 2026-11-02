@@ -2,10 +2,10 @@ import { useState, type FormEvent } from "react";
 import { Link as RouterLink } from "react-router";
 import { Button, FormControl, ProgressBar, Select, TextInput } from "@primer/react";
 import { GraphIcon } from "@primer/octicons-react";
-import type { Tone } from "../../../api/types";
 import type { HistoryDay, HistoryEntry, HistoryFilters, ResponseHistory } from "../../../api/types/roster";
 import { Avatar, StatusLabel } from "../../../components";
 import { formatPercent } from "../../../lib/format";
+import { progressBgForTone } from "../../../lib/tone";
 import { DateTile, SectionBody } from "./Section";
 import styles from "./roster.module.css";
 
@@ -100,13 +100,6 @@ export function HistoryFiltersCard({ history, initial, resetPath, insightsPath, 
   );
 }
 
-const TONE_COLOURS: Record<NonNullable<Tone>, string> = {
-  success: "var(--bgColor-success-emphasis)",
-  info: "var(--bgColor-accent-emphasis)",
-  warning: "var(--bgColor-attention-emphasis)",
-  danger: "var(--bgColor-danger-emphasis)",
-};
-
 export function HistoryDaySection({ day }: { day: HistoryDay }) {
   const headingId = `standup-history-${day.date}-heading`;
   return (
@@ -126,7 +119,7 @@ export function HistoryDaySection({ day }: { day: HistoryDay }) {
         <div className={`${styles.meter} ${styles.hideSmall}`}>
           <ProgressBar
             progress={day.answer_rate}
-            bg={day.answer_rate_tone ? TONE_COLOURS[day.answer_rate_tone] : undefined}
+            bg={progressBgForTone(day.answer_rate_tone)}
             aria-label={`${formatPercent(day.answer_rate)} answered on ${day.date_label}`}
           />
           <span className={styles.meterValue}>{formatPercent(day.answer_rate)}</span>

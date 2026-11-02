@@ -1,16 +1,16 @@
 import { Link as RouterLink } from "react-router";
-import { Button, Label, Link, ProgressBar } from "@primer/react";
+import { Button, Link, ProgressBar } from "@primer/react";
 import { DataTable, Table } from "@primer/react/experimental";
 import { CheckIcon, SyncIcon } from "@primer/octicons-react";
 import type { AdminDashboard, AdminUser } from "../../api/types/admin";
 import { Avatar, EmptyState, ErrorBanner, LoadingState, PageHeader, RelativeTime, StatCard, StatGrid, StatusLabel } from "../../components";
 import { pluralize } from "../../lib/format";
+import { progressBgForTone } from "../../lib/tone";
 import { RunBreakdownChart, RunLegend } from "../../components/charts";
 import { useApi } from "../../hooks/useApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { paths } from "../../paths";
 import { Panel, PanelEmptyText, PanelList, PanelListItem } from "../manager/insights/Panel";
-import { labelVariant, progressBgForTone } from "../manager/insights/tone";
 import { HealthCard } from "./components/HealthCard";
 import insightsStyles from "../manager/insights/insights.module.css";
 import styles from "./components/admin.module.css";
@@ -170,7 +170,7 @@ function UsersTable({ users }: { users: AdminUser[] }) {
           {
             header: "Access",
             field: "access_label",
-            renderCell: (user) => <Label variant={labelVariant(user.access_tone)}>{user.access_label}</Label>,
+            renderCell: (user) => <StatusLabel tone={user.access_tone}>{user.access_label}</StatusLabel>,
           },
           { header: "Owns", field: "owned_standups_label", align: "end" },
           {
