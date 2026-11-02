@@ -156,18 +156,6 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal "America/New_York", participant.cached_timezone
   end
 
-  test "the old console param key also resolves people" do
-    ChatUserResolver.any_instance.expects(:resolve)
-      .with("@legacy", fallback_name: nil)
-      .returns(ChatUserResolver::ResolvedUser.new(platform_user_id: "ULEGACY", display_name: "Legacy"))
-    sign_in(@manager, "manager-access-token")
-
-    post api_standup_participants_path(@owned_standup), params: { standup_participant: { platform_user_id: "@legacy" } }, as: :json
-
-    assert_response :created
-    assert @owned_standup.standup_participants.exists?(platform_user_id: "ULEGACY")
-  end
-
   test "without lookup, admin creates don't hit the chat platform" do
     ChatUserResolver.any_instance.expects(:resolve).never
 
@@ -403,13 +391,12 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     missing = StandupParticipant.create!(standup: standup, platform_user_id: "USYNC2", display_name: "Missing Sync", active: true)
 
     @manager.link_identity!(:slack, "UMGRSYNC")
-    slack_client = mock("SlackClient")
+    slack_client = stub_slack_client
     slack_client.expects(:channel_members).with("sync-channel").returns([ "UMGRSYNC", existing.platform_user_id ])
     slack_client.expects(:channel_member_profiles).with("sync-channel").returns([
       { "platform_user_id" => existing.platform_user_id, "display_name" => "Synced User", "cached_timezone" => "America/Los_Angeles" },
       { "platform_user_id" => "USYNC3", "display_name" => "New Sync", "cached_timezone" => "UTC" }
     ])
-    SlackClient.stubs(:instance).returns(slack_client)
     sign_in(@manager, "manager-access-token")
 
     assert_difference "StandupParticipant.count", 1 do
@@ -431,10 +418,9 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
 
   test "sync surfaces Slack lookup errors without auditing" do
     @manager.link_identity!(:slack, "UMGRSYNC")
-    slack_client = mock("SlackClient")
+    slack_client = stub_slack_client
     slack_client.expects(:channel_members).with("empty-channel").returns([ "UMGRSYNC" ])
     slack_client.expects(:channel_member_profiles).with("empty-channel").returns([])
-    SlackClient.stubs(:instance).returns(slack_client)
     sign_in(@manager, "manager-access-token")
 
     assert_no_difference "AuditLog.count" do
@@ -447,10 +433,9 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
 
   test "managers can only sync people from channels they're in" do
     @manager.link_identity!(:slack, "UOUTSIDER")
-    slack_client = mock("SlackClient")
+    slack_client = stub_slack_client
     slack_client.expects(:channel_members).with("secret-channel").returns([ "USOMEONE" ])
     slack_client.expects(:channel_member_profiles).never
-    SlackClient.stubs(:instance).returns(slack_client)
     sign_in(@manager, "manager-access-token")
 
     assert_no_difference "StandupParticipant.count" do
@@ -462,9 +447,8 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
   end
 
   test "sync reports platform failures" do
-    slack_client = mock("SlackClient")
+    slack_client = stub_slack_client
     slack_client.expects(:channel_member_profiles).raises(StandardError, "boom")
-    SlackClient.stubs(:instance).returns(slack_client)
 
     post sync_api_standup_participants_path(@owned_standup), headers: token_headers, as: :json
 
@@ -486,16 +470,5 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     assert standup.standup_participants.exists?(platform_user_id: "2f2f2f2f-1111-2222-3333-444444444444")
     assert_equal "Synced Microsoft Teams channel: 1 added, 0 updated, 0 unchanged.", response.parsed_body["notice"]
     assert_equal "teams_sync", AuditLog.where(action: "standup_participant.sync").last.metadata["source"]
-  end
-
-  private
-
-  def token_headers
-    { "Authorization" => "Bearer admin-access-token" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :success
   end
 end

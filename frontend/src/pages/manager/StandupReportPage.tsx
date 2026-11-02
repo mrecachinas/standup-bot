@@ -1,27 +1,23 @@
+import { clsx } from "clsx";
 import { useParams } from "react-router";
 import { Banner, Button } from "@primer/react";
 import { DataTable, Table } from "@primer/react/experimental";
 import { PaperAirplaneIcon } from "@primer/octicons-react";
 import { ApiError, patch, post } from "../../api/client";
 import type { ReportConfigurationParams, ReportGeneration, ReportPayload } from "../../api/types/insights";
-import { LoadingState, StandupHeader, StatusLabel, TableEmptyState, formatPercent } from "../../components";
-import { useApi } from "../../hooks/useApi";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { EmptyState, KeyValueList, Panel, StandupHeader, StatusLabel } from "../../components";
+import { formatPercent, formatShortDateTime } from "../../lib/format";
 import { useMutation } from "../../hooks/useMutation";
-import { formatShortDateTime } from "./insights/formatTime";
-import { PageLoadError } from "./insights/PageLoadError";
-import { KeyValueList, Panel } from "./insights/Panel";
 import { ReportSettingsForm } from "./insights/ReportSettingsForm";
-import { useStandupPauseResume } from "./insights/useStandupPauseResume";
 import { SettingsLayout } from "./settings/SettingsLayout";
-import styles from "./insights/insights.module.css";
+import { StandupLoadState } from "./standups/StandupLoadState";
+import { useStandupPage } from "./standups/useStandupPage";
+import layout from "../../styles/layout.module.css";
 
 export function StandupReportPage() {
   const { id = "" } = useParams();
   const path = `/api/standups/${id}/report`;
-  const { data, error, reload, setData } = useApi<ReportPayload>(path);
-  const pauseResume = useStandupPauseResume(data?.standup, (standup) => setData((current) => ({ ...(current as ReportPayload), standup })));
-  useDocumentTitle(data ? `Reports · ${data.standup.name}` : "Reports");
+  const { data, error, reload, setData, setStandup } = useStandupPage<ReportPayload>(path, "Reports");
 
   const save = useMutation((params: ReportConfigurationParams["report_configuration"]) => patch<ReportPayload>(path, { report_configuration: params }), {
     onSuccess: (result) => setData(result),
@@ -40,32 +36,29 @@ export function StandupReportPage() {
     { onSuccess: (result) => setData(result) },
   );
 
-  if (!data) {
-    if (error) return <PageLoadError error={error} onRetry={reload} />;
-    return <LoadingState label="Loading reports…" />;
-  }
+  if (!data) return <StandupLoadState error={error} onRetry={reload} title="Reports" />;
 
   const { standup, report_configuration: config, summary } = data;
 
   return (
-    <div className={styles.page}>
-      <StandupHeader standup={standup} active="settings" onPauseResume={pauseResume.onPauseResume} pauseResumeBusy={pauseResume.busy} />
+    <div className={layout.page}>
+      <StandupHeader standup={standup} active="settings" onStandupChange={setStandup} />
 
       <SettingsLayout standupId={standup.id} section="reports">
-        <div className={styles.page}>
+        <div className={layout.page}>
           {generate.error && (
             <Banner variant="warning" title="Couldn't generate the report" description={generate.error.message} onDismiss={generate.reset} />
           )}
 
-          <div className={styles.mainAside}>
-            <div className={styles.page}>
+          <div className={layout.mainAside}>
+            <div className={layout.stack}>
               <ReportSettingsForm key={config.updated_at ?? "new"} payload={data} saving={save.loading} error={save.error} onSubmit={(params) => void save.run(params)} />
               <ReportHistory generations={data.report_generations} />
             </div>
 
-            <aside className={styles.page} aria-label="Report actions">
+            <aside className={layout.stack} aria-label="Report actions">
               <Panel title="Send a report now">
-                <p className={styles.hint}>
+                <p className={layout.hint}>
                   Builds a report from today&apos;s responses using the saved settings.
                 </p>
                 <KeyValueList
@@ -104,7 +97,9 @@ function ReportHistory({ generations }: { generations: ReportGeneration[] }) {
         History
       </Table.Title>
       {generations.length === 0 ? (
-        <TableEmptyState title="No reports have been sent yet." />
+        <div className={layout.tableArea}>
+          <EmptyState title="No reports have been sent yet." size="small" headingLevel="h3" />
+        </div>
       ) : (
         <DataTable
           aria-labelledby="report-history"
@@ -115,9 +110,9 @@ function ReportHistory({ generations }: { generations: ReportGeneration[] }) {
               field: "requested_at",
               rowHeader: true,
               renderCell: (row) => (
-                <div className={styles.nowrap}>
+                <div className={layout.nowrap}>
                   <div>{formatShortDateTime(row.requested_at)}</div>
-                  <div className={styles.cellSub}>{row.requested_by_label}</div>
+                  <div className={layout.hint}>{row.requested_by_label}</div>
                 </div>
               ),
             },
@@ -131,8 +126,8 @@ function ReportHistory({ generations }: { generations: ReportGeneration[] }) {
               field: "delivery_channel",
               renderCell: (row) => (
                 <div>
-                  <span className={styles.mono}>{row.delivery_channel}</span>
-                  <div className={styles.cellSub}>{row.detail_level_label}</div>
+                  <span className={layout.mono}>{row.delivery_channel}</span>
+                  <div className={layout.hint}>{row.detail_level_label}</div>
                 </div>
               ),
             },
@@ -140,7 +135,7 @@ function ReportHistory({ generations }: { generations: ReportGeneration[] }) {
               header: "Result",
               field: "result_label",
               renderCell: (row) =>
-                row.failed ? <span className={styles.dangerText}>{row.result_label}</span> : <span className={row.response_count != null ? styles.smallText : styles.cellSub}>{row.result_label}</span>,
+                <span className={clsx(layout.small, row.failed ? layout.danger : row.response_count === null && layout.muted)}>{row.result_label}</span>,
             },
           ]}
         />

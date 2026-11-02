@@ -208,7 +208,7 @@ class StandupFormSerializer
       original_platform_user_id: row[:platform_user_id],
       display_name: row[:display_name],
       cached_timezone: row[:cached_timezone],
-      avatar_url: (row[:avatar_url] if SlackAvatar.safe_url?(row[:avatar_url])),
+      avatar_url: row[:avatar_url],
       active: row[:active] ? true : false,
       destroy: row[:destroy] ? true : false,
       label: name,

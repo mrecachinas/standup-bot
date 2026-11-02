@@ -1,9 +1,9 @@
 import { FormControl, IconButton, Select, Spinner } from "@primer/react";
 import { LocationIcon, SyncIcon } from "@primer/octicons-react";
 import type { SchedulePreview, StandupFormPayload } from "../../../api/types/standups";
+import { Panel } from "../../../components";
+import layout from "../../../styles/layout.module.css";
 import { OccurrenceList } from "../standups/OccurrenceList";
-import { Section } from "../standups/Section";
-import standupStyles from "../standups/standups.module.css";
 import styles from "./StandupForm.module.css";
 import { detectedZoneName } from "./useSchedulePreview";
 
@@ -21,9 +21,9 @@ export function SchedulePreviewCard({ options, preview, error, loading, timezone
   const detected = detectedZoneName(options);
 
   return (
-    <Section title="Next runs" flush>
+    <Panel title="Next runs" flush>
       <div className={styles.previewControls}>
-        <FormControl className={styles.grow}>
+        <FormControl className={layout.grow}>
           <FormControl.Label visuallyHidden>Preview timezone</FormControl.Label>
           <Select block size="small" value={timezone} onChange={(event) => onTimezoneChange(event.target.value)}>
             {options.map((option) => (
@@ -53,15 +53,15 @@ export function SchedulePreviewCard({ options, preview, error, loading, timezone
       </div>
       <div aria-live="polite">
         {error ? (
-          <p className={standupStyles.inlineEmpty}>{error}</p>
+          <p className={layout.empty}>{error}</p>
         ) : preview.error ? (
-          <p className={standupStyles.inlineEmpty}>{preview.error}</p>
+          <p className={layout.empty}>{preview.error}</p>
         ) : preview.occurrences.length > 0 ? (
           <OccurrenceList occurrences={preview.occurrences} label="Next runs" />
         ) : (
-          <p className={standupStyles.inlineEmpty}>{preview.empty_message}</p>
+          <p className={layout.empty}>{preview.empty_message}</p>
         )}
       </div>
-    </Section>
+    </Panel>
   );
 }

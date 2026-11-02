@@ -25,9 +25,9 @@ class User < ApplicationRecord
   validates :role, inclusion: { in: ROLES }
   validates :access_token_digest, presence: true, format: { with: TOKEN_DIGEST_PATTERN }
 
+  normalizes :avatar_url, with: ->(url) { AvatarUrl.sanitize(url) }
+
   scope :active, -> { where(active: true) }
-  scope :admins, -> { where(role: "admin") }
-  scope :managers, -> { where(role: "manager") }
 
   def self.authenticate(email, access_token)
     user = active.find_by(email: normalize_email(email))
@@ -49,10 +49,6 @@ class User < ApplicationRecord
     return if platform_user_id.blank?
 
     joins(:identities).find_by(user_identities: { platform: platform.to_s, platform_user_id: platform_user_id })
-  end
-
-  def self.find_by_identity!(platform, platform_user_id)
-    find_by_identity(platform, platform_user_id) || raise(ActiveRecord::RecordNotFound, "No user for #{platform} #{platform_user_id}")
   end
 
   # Find or create the account for someone who signed in with a chat platform.
@@ -87,7 +83,7 @@ class User < ApplicationRecord
         name: identity.name.presence || identity.user_id,
         email: email,
         role: "manager",
-        avatar_url: (identity.avatar_url if SlackAvatar.safe_url?(identity.avatar_url)),
+        avatar_url: identity.avatar_url,
         access_token: SecureRandom.hex(32)
       )
       user.link_identity!(platform, identity.user_id)

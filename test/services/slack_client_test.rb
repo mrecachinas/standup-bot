@@ -47,42 +47,6 @@ class SlackClientTest < ActiveSupport::TestCase
     assert_equal expected_response, response
   end
 
-  test "send_standup_questions" do
-    slack_id = "U12345"
-    intro = "Time for your daily standup!"
-    questions = [ "Question 1", "Question 2" ]
-
-    expected_response = { "ok" => true, "channel" => slack_id, "ts" => "1234567890.123456" }
-    slack_response = Slack::Messages::Message.new(expected_response)
-
-    @mock_api_client.expects(:chat_postMessage)
-      .with(has_entries(channel: slack_id, as_user: true))
-      .returns(slack_response)
-
-    result = @slack_client.send_standup_questions(slack_id, intro, questions)
-
-    assert_equal({ channel: expected_response["channel"], ts: expected_response["ts"] }, result)
-  end
-
-  test "send_standup_response" do
-    channel = "C12345"
-    user_name = "John Doe"
-    responses = [
-      { question: "What did you do yesterday?", answer: "I worked on feature X" },
-      { question: "What are you working on today?", answer: "I am working on feature Y" }
-    ]
-
-    expected_response = { "ok" => true, "channel" => channel, "ts" => "1234567890.123456" }
-    slack_response = Slack::Messages::Message.new(expected_response)
-
-    @mock_api_client.expects(:chat_postMessage)
-      .with(has_entries(channel: channel, as_user: true))
-      .returns(slack_response)
-
-    result = @slack_client.send_standup_response(channel, user_name, responses)
-    assert_equal expected_response, result
-  end
-
   test "get_user_info successful" do
     slack_id = "U12345"
 

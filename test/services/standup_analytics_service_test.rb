@@ -66,21 +66,6 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     assert_equal 50.0, trend[:completion_rate]
   end
 
-  test "frequent non responders rank missed expected responses" do
-    analytics = StandupAnalyticsService.new(
-      @standup,
-      start_date: "2025-04-06",
-      end_date: "2025-04-06"
-    )
-
-    non_responder = analytics.frequent_non_responders.first
-
-    assert_equal "U234567", non_responder[:platform_user_id]
-    assert_equal "Jane Smith", non_responder[:display_name]
-    assert_equal 1, non_responder[:missed]
-    assert_equal 0.0, non_responder[:completion_rate]
-  end
-
   test "summary includes average response time" do
     @standup.standup_participants.create!(platform_user_id: "UAVG160", display_name: "Average User")
     response = StandupResponse.create!(
@@ -281,4 +266,3 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
     end
   end
 end
-

@@ -29,7 +29,7 @@ class SchedulingJob < ApplicationJob
 
         if StandupResponse
             .where(platform_user_id: participant.platform_user_id, standup_id: standup.id)
-            .for_standup_date(standup_date, participant.standup_time_zone)
+            .for_standup_date(standup_date)
             .exists?
           Rails.logger.info "Skipping participant #{participant.platform_user_id}; response already exists for #{standup_date}"
           next

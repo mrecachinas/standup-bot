@@ -115,6 +115,6 @@ describe("MyStandupsPage", () => {
     renderApp("/me");
 
     expect(await screen.findByText("Sign in with Slack or Microsoft to see your own standups.")).toBeInTheDocument();
-    expect(screen.getByText("You can't see these standups")).toBeInTheDocument();
+    expect(screen.getByText("You can't see your standups")).toBeInTheDocument();
   });
 });

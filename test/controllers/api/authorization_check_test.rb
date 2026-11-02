@@ -46,10 +46,6 @@ class Api::AuthorizationCheckTest < ActionDispatch::IntegrationTest
 
   private
 
-  def token_headers
-    { "Authorization" => "Bearer admin-access-token" }
-  end
-
   def with_probe_routes
     with_routing do |set|
       set.draw do

@@ -19,7 +19,7 @@ class ScheduleExceptionOccurrenceSerializer
       local_date: local.to_date.iso8601,
       local_time: local.strftime("%H:%M"),
       local_label: local.strftime(TIME_FORMAT),
-      local_short_label: local.strftime("%A, %B %-d"),
+      local_short_label: local.to_fs(:weekday_month_day),
       status: @occurrence.status.to_s,
       status_label: @occurrence.status_label,
       status_tone: status_tone,

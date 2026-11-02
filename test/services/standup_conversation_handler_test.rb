@@ -19,15 +19,15 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
     @handler.handle(inbound("Did things"))
   end
 
-  test "routes DM commands to DirectMessageCommands with the conversation" do
-    DirectMessageCommands.any_instance.expects(:process).with(has_entry(command: :help), @participant.platform_user_id, "D1")
+  test "replies to DM commands in the conversation" do
+    @chat.expects(:send_reply).with("D1", responds_with(:text, regexp_matches(/Available Commands/)))
     StandupResponseService.expects(:record_answer).never
 
     @handler.handle(inbound("help"))
   end
 
   test "ignores blank messages" do
-    DirectMessageCommands.any_instance.expects(:process).never
+    @chat.expects(:send_reply).never
     StandupResponseService.expects(:record_answer).never
 
     @handler.handle(inbound("   "))

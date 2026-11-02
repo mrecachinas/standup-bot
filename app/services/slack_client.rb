@@ -17,12 +17,6 @@ class SlackClient
       @instance = nil
     end
 
-    def rotate_token!
-      reset!
-      Rails.application.config.slack = Rails.application.config_for(:slack)
-      instance
-    end
-
     def selection_blocks(text, options, action_id:)
       [
         {
@@ -58,39 +52,6 @@ class SlackClient
     end
   end
 
-  def send_standup_questions(slack_id, intro, questions)
-    formatted_question = StandupFormatter.format_question(questions.first, 1, questions.size)
-
-    blocks = [
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: intro || "Time for your daily standup!"
-        }
-      },
-      { type: "divider" },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: formatted_question
-        }
-      }
-    ]
-
-    response = with_rate_limit_handling("send_standup_questions") do
-      @client.chat_postMessage(
-        channel: slack_id,
-        blocks: blocks,
-        text: "Time for your daily standup!",
-        as_user: true
-      )
-    end
-
-    { channel: response["channel"], ts: response["ts"] }
-  end
-
   def send_message(channel, text, blocks = nil)
     message = { channel: channel, text: text, as_user: true }
     message[:blocks] = blocks if blocks
@@ -105,31 +66,6 @@ class SlackClient
     Rails.logger.error "Error sending Slack message: #{e.class} - #{e.message}"
     StandupMetrics.track("slack.message_failed", channel: channel, error_class: e.class.name)
     raise
-  end
-
-  def send_standup_response(channel, user_name, responses)
-    blocks = [
-      {
-        type: "header",
-        text: {
-          type: "plain_text",
-          text: "#{user_name}'s Standup Update"
-        }
-      },
-      { type: "divider" }
-    ]
-
-    responses.each do |response|
-      blocks << {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: "*#{response[:question]}*\n#{response[:answer]}"
-        }
-      }
-    end
-
-    send_message(channel, "#{user_name}'s Standup Update", blocks)
   end
 
   def get_user_info(slack_id)

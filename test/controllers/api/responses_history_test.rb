@@ -195,13 +195,4 @@ class Api::ResponsesHistoryTest < ActionDispatch::IntegrationTest
   def history_path(standup, **filters)
     api_standup_responses_path(standup, view: "history", **filters)
   end
-
-  def token_headers
-    { "Authorization" => "Bearer admin-access-token" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :success
-  end
 end

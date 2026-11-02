@@ -5,6 +5,7 @@ import { ApiError, SESSION_PATH, configureSessionHooks, del, post, refreshSessio
 import type { Bootstrap, SignInParams } from "../api/types";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { LoadingState } from "../components/LoadingState";
+import { paths } from "../paths";
 import { SessionContext, type SessionValue } from "./context";
 
 /** Loads the bootstrap (GET /api/session) and keeps the API client's CSRF token in sync. */
@@ -52,7 +53,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     apply(await del<Bootstrap>(SESSION_PATH, undefined, { skipUnauthorizedHandler: true }));
-    navigate("/session/new", { replace: true });
+    navigate(paths.signIn, { replace: true });
   }, [apply, navigate]);
 
   const consumeFlash = useCallback(() => {

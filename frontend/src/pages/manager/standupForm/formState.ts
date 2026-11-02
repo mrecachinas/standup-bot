@@ -78,7 +78,7 @@ function numberText(value: number | null | undefined): string {
   return value === null || value === undefined ? "" : String(value);
 }
 
-export function chipFromRow(row: ParticipantRow): PersonChip {
+function chipFromRow(row: ParticipantRow): PersonChip {
   return {
     key: newKey("person"),
     id: row.id,

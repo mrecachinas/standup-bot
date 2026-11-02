@@ -3,8 +3,7 @@ require "test_helper"
 class StandupCollectionJobTest < ActiveJob::TestCase
   setup do
     @standup = standups(:daily)
-    @mock_slack_client = mock("SlackClient")
-    SlackClient.stubs(:instance).returns(@mock_slack_client)
+    @mock_slack_client = stub_slack_client
   end
 
   test "sends no-responses message when no completed responses exist today" do
@@ -204,7 +203,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
     )
 
     generation.reload
-    assert generation.succeeded?
+    assert_equal "succeeded", generation.status
     assert generation.started_at.present?
     assert generation.completed_at.present?
     assert_equal 1, generation.metadata["response_count"]
@@ -252,7 +251,7 @@ class StandupCollectionJobTest < ActiveJob::TestCase
       }
     )
 
-    assert generation.reload.succeeded?
+    assert_equal "succeeded", generation.reload.status
   end
 
   test "marks report generation failed when Slack delivery raises" do

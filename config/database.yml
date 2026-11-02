@@ -49,14 +49,3 @@ production:
     password: <%= ENV.fetch("QUEUE_DB_PASSWORD", ENV.fetch("DB_PASSWORD", "")) %>
     database: <%= ENV.fetch("QUEUE_DB_NAME", "nerdbot_production_queue") %>
     migrations_paths: db/queue_migrate
-  cable:
-    adapter: postgresql
-    encoding: unicode
-    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-    url: <%= ENV["CABLE_DATABASE_URL"] %>
-    host: <%= ENV.fetch("CABLE_DB_HOST", ENV.fetch("DB_HOST", "127.0.0.1")) %>
-    port: <%= ENV.fetch("CABLE_DB_PORT", ENV.fetch("DB_PORT", 5432)) %>
-    username: <%= ENV.fetch("CABLE_DB_USER", ENV.fetch("DB_USER", "nerdbot")) %>
-    password: <%= ENV.fetch("CABLE_DB_PASSWORD", ENV.fetch("DB_PASSWORD", "")) %>
-    database: <%= ENV.fetch("CABLE_DB_NAME", "nerdbot_production_cable") %>
-    migrations_paths: db/cable_migrate

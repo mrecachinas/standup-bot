@@ -1,6 +1,6 @@
 // Insights (GET /api/standups/:id/analytics?view=insights) and Reports
 // (/api/standups/:id/report) payloads.
-import type { Standup, Tone } from "../types";
+import type { RunTotals, Standup, Tone } from "../types";
 
 export interface InsightsRangePreset {
   days: number;
@@ -34,19 +34,6 @@ export interface InsightsStats {
   average_response_time_minutes: number | null;
   average_response_time_label: string | null;
   runs_count: number;
-}
-
-export interface InsightsRun {
-  date: string;
-  expected: number;
-  completed: number;
-  skipped: number;
-  pending: number;
-  missed: number;
-  completion_rate: number;
-  label: string;
-  total: number;
-  title: string;
 }
 
 export interface InsightsSeriesPoint {
@@ -118,7 +105,7 @@ export interface Insights {
   range: InsightsRange;
   has_data: boolean;
   stats: InsightsStats;
-  runs: InsightsRun[];
+  runs: RunTotals[];
   runs_have_pending: boolean;
   completion_series: InsightsSeriesPoint[];
   participants: InsightsParticipant[];
@@ -129,8 +116,6 @@ export interface Insights {
 
 /** GET /api/standups/:id/analytics?view=insights */
 export interface InsightsPayload {
-  /** The admin API's analytics summary for the same range (unused by the console). */
-  analytics: Record<string, unknown>;
   standup: Standup;
   insights: Insights;
   csv_path: string;

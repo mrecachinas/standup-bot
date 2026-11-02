@@ -1,0 +1,24 @@
+.dot {
+  display: inline-block;
+  flex: none;
+  width: var(--base-size-8);
+  height: var(--base-size-8);
+  border-radius: var(--borderRadius-full);
+  background: var(--fgColor-muted);
+}
+
+.dot[data-tone="success"] {
+  background: var(--bgColor-success-emphasis);
+}
+
+.dot[data-tone="info"] {
+  background: var(--bgColor-accent-emphasis);
+}
+
+.dot[data-tone="warning"] {
+  background: var(--bgColor-attention-emphasis);
+}
+
+.dot[data-tone="danger"] {
+  background: var(--bgColor-danger-emphasis);
+}

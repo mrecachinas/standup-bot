@@ -46,20 +46,6 @@
   gap: var(--base-size-16);
 }
 
-.grow {
-  flex: 1;
-  min-width: 0;
-}
-
-.hint {
-  color: var(--fgColor-muted);
-  font-size: var(--text-body-size-small);
-}
-
-p.hint {
-  margin: 0;
-}
-
 .fieldError {
   display: flex;
   align-items: center;

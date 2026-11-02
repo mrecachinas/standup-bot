@@ -19,17 +19,18 @@ import { CommentDiscussionIcon, HashIcon, PeopleIcon } from "@primer/octicons-re
 import { ApiError, patch, post } from "../../../api/client";
 import type { PlatformKey } from "../../../api/types";
 import type { Frequency, StandupFormParams, StandupFormPayload, StandupMutationResult } from "../../../api/types/standups";
-import { ErrorBanner } from "../../../components";
+import { ErrorBanner, Panel } from "../../../components";
+import { fieldMessage } from "../../../lib/fieldErrors";
 import { pluralize } from "../../../lib/format";
 import { useMutation } from "../../../hooks/useMutation";
 import { paths } from "../../../paths";
-import { Section } from "../standups/Section";
 import { FieldError } from "./FieldError";
 import { formatClock, formParams, initialFormState, scheduleParams, scheduleSentence, type FormState } from "./formState";
 import { PeoplePicker } from "./PeoplePicker";
 import { QuestionEditor } from "./QuestionEditor";
 import { SchedulePreviewCard } from "./SchedulePreviewCard";
 import { useSchedulePreview } from "./useSchedulePreview";
+import layout from "../../../styles/layout.module.css";
 import styles from "./StandupForm.module.css";
 
 export interface StandupFormProps {
@@ -116,23 +117,21 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
     await save.run(formParams(state, payload, handleText));
   };
 
-  const fieldError = (...keys: string[]) => {
-    for (const key of keys) {
-      const message = save.error?.fieldError(key);
-      if (message) return capitalize(message);
-    }
-    return undefined;
-  };
+  const fieldError = (label: string, ...keys: string[]) => fieldMessage(save.error, keys, label);
 
   const fieldErrors = save.error?.fieldErrors ?? {};
   const errorCount = save.error ? save.error.errors.length : 0;
   const frequencyHint = payload.frequency_options.find((option) => option.value === state.frequency)?.hint;
   const firstQuestion = state.questions.map((row) => row.text.trim()).filter(Boolean);
-  const nameError = fieldError("name");
-  const channelError = fieldError("platform_channel", "platform_channel_name");
-  const daysError = fieldError("schedule_days", "schedule_type");
-  const timeError = fieldError("default_hour", "default_minute");
-  const remindersError = fieldError("reminder_after_minutes", "max_reminders", "reminder_enabled");
+  const nameError = fieldError("Name", "name");
+  const channelError = fieldError("Channel", "platform_channel", "platform_channel_name");
+  const daysError = fieldError("Days", "schedule_days", "schedule_type");
+  const timeError = fieldError("Time", "default_hour", "default_minute");
+  const remindersError = fieldError("Reminders", "reminder_after_minutes", "max_reminders", "reminder_enabled");
+  const questionsError = fieldError("Questions", "questions");
+  const timezoneError = fieldError("Timezone", "respect_timezone");
+  const introError = fieldError("Greeting", "intro");
+  const outroError = fieldError("Sign-off", "outro");
 
   return (
     <form className={styles.editor} onSubmit={handleSubmit} noValidate aria-label={isNew ? "New standup" : "Standup settings"}>
@@ -142,10 +141,10 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
 
       <div className={styles.layout}>
         <div className={styles.main}>
-          <Section
+          <Panel
             id="basics"
             title={payload.show_platform_picker ? "Chat platform" : undefined}
-            hint={payload.show_platform_picker ? "Where people get their questions. This can't be changed later." : undefined}
+            description={payload.show_platform_picker ? "Where people get their questions. This can't be changed later." : undefined}
             actions={
               payload.show_platform_picker ? (
                 <SegmentedControl
@@ -169,7 +168,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
               ) : undefined
             }
           >
-            <FieldError id={ids.platform} message={fieldError("platform")} />
+            <FieldError id={ids.platform} message={fieldError("Platform", "platform")} />
             <div className={styles.grid2}>
               <FormControl required>
                 <FormControl.Label>Name</FormControl.Label>
@@ -185,9 +184,9 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
               </FormControl>
               <ChannelField payload={payload} state={state} error={channelError} onChange={update} />
             </div>
-          </Section>
+          </Panel>
 
-          <Section id="schedule" title="When" hint={<span aria-live="polite">{scheduleSentence(state)}</span>}>
+          <Panel id="schedule" title="When" description={<span aria-live="polite">{scheduleSentence(state)}</span>}>
             <div className={styles.scheduleRow}>
               {state.frequency !== "monthly" ? (
                 <div className={styles.dayPicker}>
@@ -249,22 +248,22 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
                 {timeError && <FormControl.Validation variant="error">{timeError}</FormControl.Validation>}
               </FormControl>
             </div>
-          </Section>
+          </Panel>
 
-          <Section id="questions" title="Questions" hint={payload.message_preview.hint}>
+          <Panel id="questions" title="Questions" description={payload.message_preview.hint}>
             <QuestionEditor
               questions={state.questions}
               onChange={(questions) => update({ questions })}
               suggestions={payload.question_suggestions.map((suggestion) => suggestion.text)}
-              describedBy={fieldError("questions") ? ids.questions : undefined}
-              invalid={Boolean(fieldError("questions"))}
+              describedBy={questionsError ? ids.questions : undefined}
+              invalid={Boolean(questionsError)}
             />
-            <FieldError id={ids.questions} message={fieldError("questions")} />
-          </Section>
+            <FieldError id={ids.questions} message={questionsError} />
+          </Panel>
 
           {/* Once a standup exists, people are managed on its People tab. */}
           {isNew && (
-            <Section id="participants" title="People" hint={payload.participants_hint}>
+            <Panel id="participants" title="People" description={payload.participants_hint}>
               <PeoplePicker
                 platform={platform.key}
                 people={state.people}
@@ -276,7 +275,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
                 }}
                 placeholder={`Add people: ${platform.copy.user_placeholder ?? platform.user_id_hint}, then press Enter`}
               />
-            </Section>
+            </Panel>
           )}
 
           <details
@@ -287,7 +286,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
           >
             <summary>
               <span className={styles.summaryTitle}>Advanced settings</span>
-              <span className={styles.hint}>Repeat interval, timezone, reminders, and messages</span>
+              <span className={layout.hint}>Repeat interval, timezone, reminders, and messages</span>
             </summary>
             <div className={styles.disclosureBody}>
               <RadioGroup
@@ -306,7 +305,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
                 </div>
               </RadioGroup>
               {frequencyHint && (
-                <p id={ids.frequencyHint} className={styles.hint}>
+                <p id={ids.frequencyHint} className={layout.hint}>
                   {frequencyHint}
                 </p>
               )}
@@ -320,7 +319,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
                     </Select.Option>
                   ))}
                 </Select>
-                {fieldError("respect_timezone") && <FormControl.Validation variant="error">{fieldError("respect_timezone")}</FormControl.Validation>}
+                {timezoneError && <FormControl.Validation variant="error">{timezoneError}</FormControl.Validation>}
               </FormControl>
 
               <fieldset className={styles.fieldset} aria-describedby={remindersError ? ids.reminders : undefined}>
@@ -366,7 +365,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
                     placeholder="Morning! Time for a quick standup."
                     onChange={(event) => update({ intro: event.target.value })}
                   />
-                  {fieldError("intro") && <FormControl.Validation variant="error">{fieldError("intro")}</FormControl.Validation>}
+                  {introError && <FormControl.Validation variant="error">{introError}</FormControl.Validation>}
                 </FormControl>
                 <FormControl>
                   <FormControl.Label>Sign-off</FormControl.Label>
@@ -377,7 +376,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
                     placeholder="Thanks, have a good day."
                     onChange={(event) => update({ outro: event.target.value })}
                   />
-                  {fieldError("outro") && <FormControl.Validation variant="error">{fieldError("outro")}</FormControl.Validation>}
+                  {outroError && <FormControl.Validation variant="error">{outroError}</FormControl.Validation>}
                 </FormControl>
               </div>
             </div>
@@ -394,7 +393,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
         </div>
 
         <aside className={styles.aside} aria-label="Previews">
-          <Section title="What people see">
+          <Panel title="What people see">
             <MessagePreview
               platformLabel={platform.label}
               time={formatClock(state.sendTime)}
@@ -402,7 +401,7 @@ export function StandupForm({ payload, onPlatformChange, aside }: StandupFormPro
               questionCount={Math.max(firstQuestion.length, 1)}
               firstQuestion={firstQuestion[0] ?? "Your first question shows up here."}
             />
-          </Section>
+          </Panel>
           <SchedulePreviewCard
             options={payload.time_zone_options}
             preview={preview.preview}
@@ -500,15 +499,15 @@ function MessagePreview({
       <span className={styles.dmIcon} aria-hidden="true">
         <CommentDiscussionIcon size={20} />
       </span>
-      <div className={styles.grow}>
+      <div className={layout.grow}>
         <div className={styles.dmMeta}>
           <strong>Standup Bot</strong>
           <Label size="small">APP</Label>
-          <span className={styles.hint}>{time}</span>
+          <span className={layout.hint}>{time}</span>
         </div>
         {intro && <p className={styles.dmText}>{intro}</p>}
         <p className={styles.dmQuestion}>
-          <span className={styles.hint}>Question 1 of {questionCount}</span>
+          <span className={layout.hint}>Question 1 of {questionCount}</span>
           <span>{firstQuestion}</span>
         </p>
       </div>
@@ -530,8 +529,4 @@ function useIds() {
 
 function hasAdvancedErrors(fieldErrors: Record<string, string[]> | undefined): boolean {
   return Boolean(fieldErrors && ADVANCED_FIELDS.some((key) => (fieldErrors[key] ?? []).length > 0));
-}
-
-function capitalize(message: string): string {
-  return message.charAt(0).toUpperCase() + message.slice(1);
 }

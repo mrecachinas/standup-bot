@@ -23,19 +23,7 @@
 }
 
 .meter {
-  display: flex;
-  align-items: center;
-  gap: var(--base-size-8);
-}
-
-.meterBar {
-  flex: 1;
-  max-width: 160px;
-}
-
-.meterValue {
-  font-size: var(--text-body-size-small);
-  font-variant-numeric: tabular-nums;
+  max-width: 220px;
 }
 
 .teammates {

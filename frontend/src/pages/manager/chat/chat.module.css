@@ -35,10 +35,6 @@
   padding: var(--base-size-16);
 }
 
-.mono {
-  font-family: var(--fontStack-monospace);
-}
-
 .inlineForm {
   display: flex;
   align-items: flex-start;
@@ -52,19 +48,6 @@
 
 .section {
   border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
-}
-
-.bodyStack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--base-size-12);
-  padding: var(--base-size-16);
-}
-
-.hint {
-  margin: 0;
-  color: var(--fgColor-muted);
-  font-size: var(--text-body-size-small);
 }
 
 .discoveryGrid {
@@ -85,21 +68,6 @@
 
 .discoveryColumn {
   min-width: 0;
-}
-
-.dot {
-  display: inline-block;
-  width: var(--base-size-8);
-  height: var(--base-size-8);
-  border-radius: var(--borderRadius-full);
-}
-
-.dotSuccess {
-  background: var(--bgColor-success-emphasis);
-}
-
-.dotWarning {
-  background: var(--bgColor-attention-emphasis);
 }
 
 .tabCount {

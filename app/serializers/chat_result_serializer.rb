@@ -40,7 +40,7 @@ class ChatResultSerializer
       email: record["email"],
       is_private: record["is_private"] || false,
       is_member: record["is_member"] || false,
-      avatar_url: (record["avatar_url"] if SlackAvatar.safe_url?(record["avatar_url"])),
+      avatar_url: AvatarUrl.sanitize(record["avatar_url"]),
       detail: detail(record, user)
     }
   end

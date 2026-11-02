@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, configureSessionHooks, del, get, getCsrfToken, patch, post, setCsrfToken } from "./client";
+import { ApiError, configureSessionHooks, del, get, patch, post, setCsrfToken } from "./client";
 import { jsonResponse, signedOutBootstrap } from "../test/fixtures";
 
 function stubFetch(...responses: Response[]) {
@@ -60,7 +60,6 @@ describe("api client", () => {
     expect(fetchMock.mock.calls[1][0]).toBe("/api/session");
     expect(headersOf(fetchMock.mock.calls[0])["X-CSRF-Token"]).toBe("stale");
     expect(headersOf(fetchMock.mock.calls[2])["X-CSRF-Token"]).toBe("fresh");
-    expect(getCsrfToken()).toBe("fresh");
     expect(onBootstrap).toHaveBeenCalledWith(expect.objectContaining({ csrf_token: "fresh" }));
   });
 

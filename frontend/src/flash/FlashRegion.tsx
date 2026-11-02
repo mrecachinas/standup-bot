@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Banner } from "@primer/react";
 import type { FlashType } from "../api/types";
-import { useOptionalSession } from "../session/context";
+import { useSession } from "../session/context";
 import { useFlash } from "./context";
 import styles from "./FlashRegion.module.css";
 
@@ -16,12 +16,11 @@ const TITLES: Record<FlashType, string> = { success: "Success", danger: "Error",
 /** Toasts for flash messages from the bootstrap (server flash) and from `useFlash().push`. */
 export function FlashRegion() {
   const { messages, push, dismiss } = useFlash();
-  const session = useOptionalSession();
-  const pending = session?.bootstrap?.flash;
-  const consumeFlash = session?.consumeFlash;
+  const { bootstrap, consumeFlash } = useSession();
+  const pending = bootstrap.flash;
 
   useEffect(() => {
-    if (pending && pending.length > 0 && consumeFlash) consumeFlash().forEach(push);
+    if (pending.length > 0) consumeFlash().forEach(push);
   }, [pending, consumeFlash, push]);
 
   return (

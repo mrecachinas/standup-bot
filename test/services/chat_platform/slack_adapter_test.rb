@@ -5,8 +5,7 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
   include ChatPlatformAdapterContract
 
   setup do
-    @client = mock("SlackClient")
-    SlackClient.stubs(:instance).returns(@client)
+    @client = stub_slack_client
   end
 
   def adapter

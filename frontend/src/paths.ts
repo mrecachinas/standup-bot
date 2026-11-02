@@ -7,7 +7,6 @@ export type SettingsSection = "general" | "schedule" | "reports";
 type Id = number | string;
 
 export const paths = {
-  home: "/",
   signIn: "/session/new",
   me: "/me",
   myResponses: "/me/responses",

@@ -83,16 +83,9 @@ class Api::PeopleTest < ActionDispatch::IntegrationTest
       ChatIntegrationService::Result.new(status: "ok", message: "Found 0 Slack user(s).", records: [])
     )
 
-    get api_people_path(platform: "slack", limit: 10_000), headers: { "Authorization" => "Bearer admin-access-token" }, as: :json
+    get api_people_path(platform: "slack", limit: 10_000), headers: token_headers, as: :json
 
     assert_response :success
     assert_empty response.parsed_body["people"]
-  end
-
-  private
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
   end
 end

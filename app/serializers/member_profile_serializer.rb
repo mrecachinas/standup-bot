@@ -11,7 +11,7 @@ class MemberProfileSerializer
       platform_label: ChatPlatform.for(@member.platform).label,
       platform_user_id: @member.platform_user_id,
       name: @member.name,
-      avatar_url: (avatar_url if SlackAvatar.safe_url?(avatar_url))
+      avatar_url: avatar_url
     }
   end
 end

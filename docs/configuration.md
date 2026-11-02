@@ -37,15 +37,15 @@ See [Microsoft Teams setup](teams-setup.md) for where to find these and which Gr
 
 ### Database
 
-In production, the app uses PostgreSQL with four databases: the main one, plus separate ones for the Solid Cache, Solid Queue, and Solid Cable stores.
+In production, the app uses PostgreSQL with three databases: the main one, plus separate ones for the Solid Cache and Solid Queue stores.
 
 | Variable | Description |
 | --- | --- |
 | `DATABASE_URL` | Main database |
-| `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL`, `CABLE_DATABASE_URL` | The cache, queue, and cable databases |
+| `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL` | The cache and queue databases |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | An alternative to `DATABASE_URL`. These also set the MySQL connection in development and test. |
 
-Each of the cache, queue, and cable databases also accepts `CACHE_DB_*`, `QUEUE_DB_*`, and `CABLE_DB_*` overrides. Anything you don't set falls back to the matching `DB_*` value.
+The cache and queue databases also accept `CACHE_DB_*` and `QUEUE_DB_*` overrides. Anything you don't set falls back to the matching `DB_*` value.
 
 ### Operations
 

@@ -2,20 +2,18 @@ import { useState, type FormEvent } from "react";
 import { Link as RouterLink } from "react-router";
 import { Button, FormControl, Select, TextInput } from "@primer/react";
 import { PencilIcon } from "@primer/octicons-react";
-import { post } from "../../../api/client";
 import type { Standup } from "../../../api/types";
-import type { ScheduleExceptionParams, ScheduleExceptionResult, ScheduleExceptionsPayload, ScheduleOccurrence } from "../../../api/types/roster";
-import { ConfirmButton } from "../../../components";
+import type { ScheduleExceptionParams, ScheduleExceptionsPayload, ScheduleOccurrence } from "../../../api/types/roster";
+import { ConfirmButton, ErrorBanner, Panel, PanelBody } from "../../../components";
 import { useMutation } from "../../../hooks/useMutation";
+import { baseMessages, fieldMessage } from "../../../lib/fieldErrors";
 import { paths } from "../../../paths";
-import { baseMessages, fieldMessage } from "./formErrors";
-import { MessagesBanner } from "./MessagesBanner";
-import { Section, SectionBody } from "./Section";
-import styles from "./roster.module.css";
+import layout from "../../../styles/layout.module.css";
+import { createScheduleException, zoneOptions } from "./schedule";
 
 export function RegularScheduleCard({ standup }: { standup: Standup }) {
   return (
-    <Section
+    <Panel
       title="Regular schedule"
       actions={
         <Button as={RouterLink} to={`${paths.editStandup(standup.id)}#schedule`} size="small" variant="invisible" leadingVisual={PencilIcon}>
@@ -23,13 +21,11 @@ export function RegularScheduleCard({ standup }: { standup: Standup }) {
         </Button>
       }
     >
-      <SectionBody>
-        <p style={{ margin: 0 }}>{standup.schedule_summary}</p>
-        <p className={styles.hint}>
-          {standup.active ? "Pausing the standup stops every run until you resume." : "Paused: no runs go out until you resume."} Saved exceptions are kept.
-        </p>
-      </SectionBody>
-    </Section>
+      <p style={{ margin: 0 }}>{standup.schedule_summary}</p>
+      <p className={layout.hint}>
+        {standup.active ? "Pausing the standup stops every run until you resume." : "Paused: no runs go out until you resume."} Saved exceptions are kept.
+      </p>
+    </Panel>
   );
 }
 
@@ -47,16 +43,13 @@ export function SkipDateCard({
   const [date, setDate] = useState("");
   const [type, setType] = useState(options[0]?.value ?? "skipped_date");
   const [reason, setReason] = useState("");
-  const save = useMutation(
-    (params: ScheduleExceptionParams) => post<ScheduleExceptionResult>(`/api/standups/${standupId}/schedule_exceptions`, { schedule_exception: params }),
-    {
-      onSuccess: () => {
-        setDate("");
-        setReason("");
-        onSaved();
-      },
+  const save = useMutation((params: ScheduleExceptionParams) => createScheduleException(standupId, params), {
+    onSuccess: () => {
+      setDate("");
+      setReason("");
+      onSaved();
     },
-  );
+  });
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -68,37 +61,35 @@ export function SkipDateCard({
   const reasonError = fieldMessage(save.error, "reason", "Reason");
 
   return (
-    <Section title="Skip a date" titleId="skip-date-heading">
-      <SectionBody>
-        <form className={styles.stack} onSubmit={handleSubmit} aria-labelledby="skip-date-heading" noValidate>
-          <MessagesBanner title="Couldn't save the exception" messages={baseMessages(save.error, SKIP_FIELDS)} onDismiss={save.reset} />
-          <FormControl required>
-            <FormControl.Label>Date</FormControl.Label>
-            <TextInput type="date" name="original_date" value={date} onChange={(event) => setDate(event.target.value)} block />
-            {dateError && <FormControl.Validation variant="error">{dateError}</FormControl.Validation>}
-          </FormControl>
-          <FormControl>
-            <FormControl.Label>Type</FormControl.Label>
-            <Select name="exception_type" value={type} onChange={(event) => setType(event.target.value as typeof type)} block>
-              {options.map((option) => (
-                <Select.Option key={option.value} value={option.value}>
-                  {option.label}
-                </Select.Option>
-              ))}
-            </Select>
-            {typeError && <FormControl.Validation variant="error">{typeError}</FormControl.Validation>}
-          </FormControl>
-          <FormControl>
-            <FormControl.Label>Reason</FormControl.Label>
-            <TextInput name="reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Company holiday, offsite…" block />
-            {reasonError && <FormControl.Validation variant="error">{reasonError}</FormControl.Validation>}
-          </FormControl>
-          <Button type="submit" variant="primary" loading={save.loading} disabled={!date} block>
-            Save exception
-          </Button>
-        </form>
-      </SectionBody>
-    </Section>
+    <Panel title="Skip a date" headingId="skip-date-heading">
+      <form className={layout.stack} onSubmit={handleSubmit} aria-labelledby="skip-date-heading" noValidate>
+        <ErrorBanner title="Couldn't save the exception" error={baseMessages(save.error, SKIP_FIELDS)} onDismiss={save.reset} />
+        <FormControl required>
+          <FormControl.Label>Date</FormControl.Label>
+          <TextInput type="date" name="original_date" value={date} onChange={(event) => setDate(event.target.value)} block />
+          {dateError && <FormControl.Validation variant="error">{dateError}</FormControl.Validation>}
+        </FormControl>
+        <FormControl>
+          <FormControl.Label>Type</FormControl.Label>
+          <Select name="exception_type" value={type} onChange={(event) => setType(event.target.value as typeof type)} block>
+            {options.map((option) => (
+              <Select.Option key={option.value} value={option.value}>
+                {option.label}
+              </Select.Option>
+            ))}
+          </Select>
+          {typeError && <FormControl.Validation variant="error">{typeError}</FormControl.Validation>}
+        </FormControl>
+        <FormControl>
+          <FormControl.Label>Reason</FormControl.Label>
+          <TextInput name="reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Company holiday, offsite…" block />
+          {reasonError && <FormControl.Validation variant="error">{reasonError}</FormControl.Validation>}
+        </FormControl>
+        <Button type="submit" variant="primary" loading={save.loading} disabled={!date} block>
+          Save exception
+        </Button>
+      </form>
+    </Panel>
   );
 }
 
@@ -116,9 +107,10 @@ export interface MoveNextRunCardProps {
 
 export function MoveNextRunCard({ standupId, next, previewTimezone, timeZoneOptions, onSaved, onCancelRun }: MoveNextRunCardProps) {
   return (
-    <Section
+    <Panel
       title="Move the next run"
-      titleId="move-run-heading"
+      headingId="move-run-heading"
+      flush
       footer={
         next && (
           <ConfirmButton
@@ -147,9 +139,9 @@ export function MoveNextRunCard({ standupId, next, previewTimezone, timeZoneOpti
           onSaved={onSaved}
         />
       ) : (
-        <p className={styles.emptyInline}>There's no upcoming run to move.</p>
+        <p className={layout.empty}>There's no upcoming run to move.</p>
       )}
-    </Section>
+    </Panel>
   );
 }
 
@@ -164,12 +156,8 @@ function MoveForm({
   const [time, setTime] = useState(next.local_time);
   const [timezone, setTimezone] = useState(previewTimezone);
   const [reason, setReason] = useState("");
-  const zones = timeZoneOptions.includes(previewTimezone) ? timeZoneOptions : [previewTimezone, ...timeZoneOptions];
-
-  const save = useMutation(
-    (params: ScheduleExceptionParams) => post<ScheduleExceptionResult>(`/api/standups/${standupId}/schedule_exceptions`, { schedule_exception: params }),
-    { onSuccess: () => onSaved() },
-  );
+  const zones = zoneOptions(timeZoneOptions, previewTimezone);
+  const save = useMutation((params: ScheduleExceptionParams) => createScheduleException(standupId, params), { onSuccess: () => onSaved() });
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -190,14 +178,14 @@ function MoveForm({
   const originalError = fieldMessage(save.error, "original_date", "Original date");
 
   return (
-    <SectionBody>
-      <form className={styles.stack} onSubmit={handleSubmit} aria-labelledby="move-run-heading" noValidate>
-        <p className={styles.hint}>
+    <PanelBody>
+      <form className={layout.stack} onSubmit={handleSubmit} aria-labelledby="move-run-heading" noValidate>
+        <p className={layout.hint}>
           Currently <strong>{next.local_label}</strong>.
         </p>
-        <MessagesBanner
+        <ErrorBanner
           title="Couldn't move the run"
-          messages={[...(originalError ? [originalError] : []), ...baseMessages(save.error, MOVE_FIELDS)]}
+          error={[...(originalError ? [originalError] : []), ...baseMessages(save.error, MOVE_FIELDS)]}
           onDismiss={save.reset}
         />
         <FormControl required>
@@ -232,6 +220,6 @@ function MoveForm({
           </Button>
         </div>
       </form>
-    </SectionBody>
+    </PanelBody>
   );
 }

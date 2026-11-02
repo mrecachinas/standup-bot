@@ -36,6 +36,8 @@ describe("StandupResponsesPage", () => {
 
     expect(within(day).getByText("1 answered · 1 missed · 2 expected")).toBeInTheDocument();
     expect(within(day).getByText("50%")).toBeInTheDocument();
+    const dayBar = within(day).getByRole("progressbar", { name: "50% answered on October 30, 2026" });
+    expect(dayBar.getAttribute("style")).toContain("--progress-bg: var(--bgColor-attention-emphasis)");
     const [john, jane] = within(day).getAllByRole("listitem");
     expect(john).toHaveTextContent("John Doe");
     expect(john).toHaveTextContent("Answered");

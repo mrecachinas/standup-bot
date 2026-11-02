@@ -11,7 +11,7 @@ class ParticipantManagerSerializer
     {
       id: @user.id,
       name: @user.name,
-      avatar_url: (@user.avatar_url if SlackAvatar.safe_url?(@user.avatar_url)),
+      avatar_url: @user.avatar_url,
       admin: @user.admin?,
       role_label: @user.admin? ? "Admin" : "Manager",
       platform_user_id: @user.platform_user_id_for(@standup.platform),

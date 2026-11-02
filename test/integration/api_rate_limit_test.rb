@@ -27,7 +27,7 @@ class ApiRateLimitTest < ActionDispatch::IntegrationTest
       assert_response :unauthorized
     end
 
-    get api_standups_path, headers: { "Authorization" => "Bearer admin-access-token" }, as: :json
+    get api_standups_path, headers: token_headers, as: :json
     assert_response :forbidden
     assert_equal "blocked", response.parsed_body["error"]
   end

@@ -54,21 +54,6 @@
   font-size: var(--text-body-size-small);
 }
 
-.dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.dotActive {
-  background: var(--bgColor-success-emphasis);
-}
-
-.dotPaused {
-  background: var(--bgColor-attention-emphasis);
-}
-
 .footer {
   display: flex;
   flex-direction: column;

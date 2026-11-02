@@ -1,8 +1,8 @@
 module Api
-  # The per-standup Slack / Microsoft Teams tab: pick the summary channel,
-  # find and add people, and send a test message. Discovery runs when the
-  # request asks for it with `channel_query`/`user_query` or
-  # `discover=channels|users`.
+  # Per-standup chat endpoints: the summary channel and the test message that
+  # Settings > General sends. Channel discovery runs when the request asks for
+  # it with `channel_query` or `discover=channels`. People are managed on the
+  # People tab (StandupParticipantsController).
   class StandupChatIntegrationsController < BaseController
     before_action :require_manager!
     before_action :set_standup
@@ -35,45 +35,6 @@ module Api
       render json: chat_setup_payload.merge(notice: "#{chat_platform.label} channel updated.")
     end
 
-    def add_participant
-      identifier = params[:user].presence || params[:slack_user].presence || params[:platform_user_id]
-      resolved_user = user_resolver.resolve(identifier, fallback_name: params[:display_name].to_s.strip.presence)
-      platform_user_id = resolved_user.platform_user_id
-      display_name = resolved_user.display_name
-
-      if platform_user_id.blank?
-        render_error("Select a #{chat_platform.label} user before adding a participant.", field: :user)
-        return
-      end
-
-      participant = @standup.standup_participants.find_or_initialize_by(platform_user_id: platform_user_id)
-      participant.assign_attributes(display_name: display_name, active: true)
-      participant.cached_timezone ||= resolved_user.cached_timezone
-      participant.avatar_url = resolved_user.avatar_url if SlackAvatar.safe_url?(resolved_user.avatar_url)
-
-      if participant.save
-        audit_change!(
-          "#{@standup.platform}.participant.add",
-          auditable: participant,
-          metadata: { standup_id: @standup.id, platform_user_id: participant.platform_user_id, display_name: display_name }
-        )
-        render json: chat_setup_payload.merge(participant: ParticipantSerializer.new(participant).as_json, notice: "Participant added.")
-      else
-        render_validation_errors(participant.errors)
-      end
-    rescue ChatUserResolver::ResolutionError => error
-      render_error(error.message, field: :user)
-    end
-
-    def remove_participant
-      participant = @standup.standup_participants.find(params[:participant_id])
-      metadata = { standup_id: @standup.id, platform_user_id: participant.platform_user_id, display_name: participant.display_name }
-      participant.destroy!
-      audit_change!("#{@standup.platform}.participant.remove", auditable: participant, metadata: metadata)
-
-      render json: chat_setup_payload.merge(notice: "Participant removed.")
-    end
-
     def test_message
       result = integration_service.test_message(@standup)
       audit_test_message!(result)
@@ -100,9 +61,7 @@ module Api
     def chat_setup_payload
       platform = @standup.platform
       channel_query = params[:channel_query].presence
-      user_query = params[:user_query].presence
-      channel_result = integration_service.discover_channels(query: channel_query, include_private: principal.admin?) if discovery_requested?("channels", channel_query)
-      user_result = integration_service.discover_users(query: user_query) if discovery_requested?("users", user_query)
+      channel_result = integration_service.discover_channels(query: channel_query, include_private: principal.admin?) if channel_query.present? || params[:discover] == "channels"
 
       {
         standup: StandupSerializer.new(@standup, include_counts: true).as_json,
@@ -114,20 +73,15 @@ module Api
         },
         copy: {
           channel_id_placeholder: PlatformSerializer.copy_for(platform, :channel_id_placeholder),
-          channel_search_placeholder: PlatformSerializer.copy_for(platform, :channel_search_placeholder),
-          user_search_placeholder: PlatformSerializer.copy_for(platform, :user_search_placeholder),
-          user_placeholder: PlatformSerializer.copy_for(platform, :user_placeholder)
+          channel_search_placeholder: PlatformSerializer.copy_for(platform, :channel_search_placeholder)
         },
         integration_status: ChatStatusSerializer.new(
           integration_service.configuration_status,
           connection_result: integration_service.connection_status,
           platform: platform
         ).as_json,
-        participants: @standup.standup_participants.order(:display_name, :platform_user_id).map { |participant| ParticipantSerializer.new(participant).as_json },
         channel_query: channel_query,
-        user_query: user_query,
-        channel_result: ChatResultSerializer.new(channel_result, kind: :channels).as_json,
-        user_result: ChatResultSerializer.new(user_result, kind: :users).as_json
+        channel_result: ChatResultSerializer.new(channel_result, kind: :channels).as_json
       }
     end
 
@@ -155,14 +109,6 @@ module Api
 
     def integration_service
       @integration_service ||= ChatIntegrationService.for(@standup.platform)
-    end
-
-    def user_resolver
-      @user_resolver ||= ChatUserResolver.new(service: integration_service)
-    end
-
-    def discovery_requested?(type, query)
-      query.present? || params[:discover] == type
     end
   end
 end

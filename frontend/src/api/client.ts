@@ -27,7 +27,7 @@ export class ApiError extends Error {
 }
 
 export interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   /** Plain objects are sent as JSON; FormData is sent as-is. */
   body?: unknown;
   headers?: Record<string, string>;
@@ -51,15 +51,11 @@ export function setCsrfToken(token: string | null): void {
   csrfToken = token;
 }
 
-export function getCsrfToken(): string | null {
-  return csrfToken;
-}
-
 export function configureSessionHooks(next: SessionHooks): void {
   hooks = next;
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await send(path, options);
 
   if (response.status === 422 && options.method && options.method !== "GET") {
@@ -86,15 +82,9 @@ export function patch<T>(path: string, body?: unknown, options: Omit<RequestOpti
   return request<T>(path, { ...options, method: "PATCH", body });
 }
 
-export function put<T>(path: string, body?: unknown, options: Omit<RequestOptions, "method" | "body"> = {}): Promise<T> {
-  return request<T>(path, { ...options, method: "PUT", body });
-}
-
 export function del<T = void>(path: string, body?: unknown, options: Omit<RequestOptions, "method" | "body"> = {}): Promise<T> {
   return request<T>(path, { ...options, method: "DELETE", body });
 }
-
-export const api = { request, get, post, patch, put, del };
 
 /** Re-fetches the bootstrap, updating the CSRF token. */
 export async function refreshSession(): Promise<Bootstrap> {

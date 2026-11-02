@@ -3,7 +3,7 @@ import { PaperAirplaneIcon } from "@primer/octicons-react";
 import { ApiError, post } from "../../../api/client";
 import type { ChatResult, ChatSetupPayload } from "../../../api/types/chat";
 import { useMutation } from "../../../hooks/useMutation";
-import { Section } from "../standups/Section";
+import { Panel } from "../../../components";
 import styles from "./SettingsLayout.module.css";
 
 /** Posts a test message to the standup's channel, so a manager can check the bot can reach it. */
@@ -12,7 +12,7 @@ export function TestMessagePanel({ standupId, platformLabel }: { standupId: numb
   const failure = failureFrom(send.error);
 
   return (
-    <Section title="Test message" hint={`Check the bot can post to this standup's ${platformLabel} channel.`}>
+    <Panel title="Test message" description={`Check the bot can post to this standup's ${platformLabel} channel.`}>
       <div className={styles.panelBody}>
         {send.error && (
           <Banner
@@ -31,7 +31,7 @@ export function TestMessagePanel({ standupId, platformLabel }: { standupId: numb
           Send test message
         </Button>
       </div>
-    </Section>
+    </Panel>
   );
 }
 

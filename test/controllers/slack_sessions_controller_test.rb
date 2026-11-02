@@ -71,7 +71,7 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
       sign_in_with_slack(platform_user_id: "UVTEAM1", email: "lead@example.com")
     end
 
-    user = User.find_by_identity!(:slack, "UVTEAM1")
+    user = User.find_by_identity(:slack, "UVTEAM1")
     assert_equal "manager", user.role
     assert_redirected_to manager_standups_path
     get api_overview_path, as: :json
@@ -111,7 +111,7 @@ class SlackSessionsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in_with_slack(platform_user_id: "U123456", email: "john@example.com", avatar_url: url)
 
-    assert_equal url, User.find_by_identity!(:slack, "U123456").avatar_url
+    assert_equal url, User.find_by_identity(:slack, "U123456").avatar_url
     assert_equal url, standup_participants(:one).reload.avatar_url
   end
 

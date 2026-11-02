@@ -17,7 +17,7 @@ class StandupCollectionJob < ApplicationJob
 
     responses = StandupResponse
       .where(standup_id: standup.id, status: "completed")
-      .for_standup_date(report_date, report_zone)
+      .for_standup_date(report_date)
 
     if responses.empty?
       no_responses_message = "No standup responses have been submitted today for #{standup.name}."

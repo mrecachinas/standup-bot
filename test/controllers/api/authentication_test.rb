@@ -3,8 +3,6 @@ require "test_helper"
 # How /api decides who is calling. Bearer-token requests and cookie requests
 # share controllers and both act as a user, so these pin the boundary.
 class Api::AuthenticationTest < ActionDispatch::IntegrationTest
-  ADMIN_TOKEN = "admin-access-token".freeze
-
   setup do
     @owned = standups(:daily)
     @not_owned = standups(:weekly)
@@ -37,7 +35,7 @@ class Api::AuthenticationTest < ActionDispatch::IntegrationTest
   end
 
   test "a manager's token only sees the standups they manage" do
-    headers = { "Authorization" => "Bearer manager-access-token" }
+    headers = token_headers("manager-access-token")
 
     get api_standups_path, headers: headers, as: :json
     assert_equal [ @owned.id ], response.parsed_body["standups"].map { |standup| standup["id"] }
@@ -49,7 +47,7 @@ class Api::AuthenticationTest < ActionDispatch::IntegrationTest
   end
 
   test "creating a standup with a manager's token makes them an owner" do
-    post api_standups_path, params: { standup: standup_attributes }, headers: { "Authorization" => "Bearer manager-access-token" }, as: :json
+    post api_standups_path, params: { standup: standup_attributes }, headers: token_headers("manager-access-token"), as: :json
 
     assert_response :created
     standup = Standup.find(response.parsed_body.dig("standup", "id"))
@@ -67,7 +65,7 @@ class Api::AuthenticationTest < ActionDispatch::IntegrationTest
   test "a token shared by two accounts is rejected" do
     users(:other_manager).update_columns(access_token_digest: users(:manager).access_token_digest)
 
-    get api_standups_path, headers: { "Authorization" => "Bearer manager-access-token" }, as: :json
+    get api_standups_path, headers: token_headers("manager-access-token"), as: :json
     assert_response :unauthorized
   end
 
@@ -214,15 +212,6 @@ class Api::AuthenticationTest < ActionDispatch::IntegrationTest
   end
 
   private
-
-  def token_headers
-    { "Authorization" => "Bearer #{ADMIN_TOKEN}" }
-  end
-
-  def sign_in(user, access_token)
-    post api_session_path, params: { email: user.email, access_token: access_token }, as: :json
-    assert_response :created
-  end
 
   def standup_attributes
     { name: "API standup", platform: "slack", platform_channel: "#api-standup", questions: [ "How's it going?" ], schedule_type: "weekdays", default_hour: 9, default_minute: 0 }

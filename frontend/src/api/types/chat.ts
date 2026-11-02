@@ -52,21 +52,6 @@ export interface ChatStatus {
   connection: ChatResult | null;
 }
 
-export interface ChatSetupParticipant {
-  id: number;
-  standup_id: number;
-  platform_user_id: string;
-  display_name: string | null;
-  active: boolean;
-  cached_timezone: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  avatar_url: string | null;
-  vacation_until: string | null;
-  timezone_cache_status: string | null;
-  timezone_cache_status_description: string | null;
-}
-
 /** GET /api/standups/:id/chat_setup and every chat_setup write. */
 export interface ChatSetupPayload {
   standup: Standup;
@@ -75,17 +60,11 @@ export interface ChatSetupPayload {
   copy: {
     channel_id_placeholder: string;
     channel_search_placeholder: string;
-    user_search_placeholder: string;
-    user_placeholder: string;
   };
   integration_status: ChatStatus;
-  participants: ChatSetupParticipant[];
   channel_query: string | null;
-  user_query: string | null;
   channel_result: ChatResult | null;
-  user_result: ChatResult | null;
   notice?: string;
-  participant?: ChatSetupParticipant;
   test_message?: ChatResult;
 }
 

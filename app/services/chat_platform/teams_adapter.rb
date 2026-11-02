@@ -189,10 +189,18 @@ module ChatPlatform
     end
 
     # Inbound text can carry @mentions and HTML formatting.
-    def self.plain_text(text)
+    def plain_text(text)
       without_mentions = text.to_s.gsub(%r{<at>.*?</at>}im, " ")
       text = CGI.unescapeHTML(Rails::HTML5::FullSanitizer.new.sanitize(without_mentions.gsub(%r{<br\s*/?>}i, "\n")))
       text.gsub(/[ \t]+/, " ").gsub(/ *\n */, "\n").strip
+    end
+
+    # Keeps a 1:1 chat someone opened with the bot on file, so DMs to them
+    # don't need to create one. Ignores service URLs we wouldn't call back.
+    def remember_conversation(user_id:, conversation_id:, service_url:, tenant_id:)
+      return unless Microsoft::BotConnectorClient.trusted_service_url?(service_url)
+
+      ChatConversation.remember!(platform: key, platform_user_id: user_id, conversation_id: conversation_id, service_url: service_url, tenant_id: tenant_id)
     end
 
     private
@@ -263,13 +271,7 @@ module ChatPlatform
         user_id: user_id,
         tenant_id: Microsoft::Config.tenant_id
       )
-      ChatConversation.remember!(
-        platform: key,
-        platform_user_id: user_id,
-        conversation_id: conversation_id,
-        service_url: Microsoft::Config.service_url,
-        tenant_id: Microsoft::Config.tenant_id
-      )
+      ChatConversation.remember!(platform: key, platform_user_id: user_id, conversation_id: conversation_id, service_url: Microsoft::Config.service_url, tenant_id: Microsoft::Config.tenant_id)
     rescue Microsoft::ApiError => error
       raise unless error.forbidden?
 

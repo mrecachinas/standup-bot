@@ -39,7 +39,7 @@ describe("useApi", () => {
 describe("useMutation", () => {
   it("flashes the API notice and exposes field errors", async () => {
     const push = vi.fn();
-    const flash: FlashValue = { messages: [], push, dismiss: vi.fn(), clear: vi.fn() };
+    const flash: FlashValue = { messages: [], push, dismiss: vi.fn() };
     const wrapper = ({ children }: { children: ReactNode }) => <FlashContext.Provider value={flash}>{children}</FlashContext.Provider>;
     vi.stubGlobal(
       "fetch",
