@@ -60,7 +60,7 @@ class ResponseHistorySerializer
     {
       platform_user_id: entry.platform_user_id,
       display_name: entry.display_name,
-      avatar_url: (avatar_url if SlackAvatar.safe_url?(avatar_url)),
+      avatar_url: avatar_url,
       expected: entry.expected? || false,
       answered: entry.answered?,
       missed: entry.missed?,

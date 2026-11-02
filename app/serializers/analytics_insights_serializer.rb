@@ -109,7 +109,7 @@ class AnalyticsInsightsSerializer
       .map do |stat|
         stat.merge(
           name: stat[:display_name].presence || stat[:platform_user_id],
-          avatar_url: (stat[:avatar_url] if SlackAvatar.safe_url?(stat[:avatar_url])),
+          avatar_url: stat[:avatar_url],
           missed_label: stat[:missed].positive? ? "#{stat[:missed]} missed #{"response".pluralize(stat[:missed])}" : "No misses",
           rate_tone: UiFormat.rate_tone(stat[:completion_rate]),
           has_expected: stat[:expected].positive?

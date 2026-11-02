@@ -173,7 +173,7 @@ class StandupOverviewSerializer
       id: response.id,
       platform_user_id: response.platform_user_id,
       display_name: participant&.display_name.presence || response.platform_user_id,
-      avatar_url: (avatar_url if SlackAvatar.safe_url?(avatar_url)),
+      avatar_url: avatar_url,
       status: response.status,
       status_label: status_label,
       status_tone: UiFormat.status_tone(status_label),

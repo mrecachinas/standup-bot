@@ -77,7 +77,7 @@ class MemberStandupsSerializer
       completion_rate: rate,
       completion_rate_tone: rate && UiFormat.rate_tone(rate),
       stats: summary.stats&.slice(:expected, :completed, :missed),
-      teammates: summary.teammates.map { |name, avatar_url| { name: name, avatar_url: (avatar_url if SlackAvatar.safe_url?(avatar_url)) } }
+      teammates: summary.teammates.map { |name, avatar_url| { name: name, avatar_url: avatar_url } }
     }
   end
 

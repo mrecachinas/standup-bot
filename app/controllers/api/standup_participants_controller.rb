@@ -180,9 +180,7 @@ module Api
       return permitted if identifier.blank?
 
       resolved_user = ChatUserResolver.for(@standup.platform).resolve(identifier, fallback_name: permitted[:display_name])
-      attributes = resolved_user.fill_in(permitted.to_h.symbolize_keys)
-      attributes.delete(:avatar_url) unless SlackAvatar.safe_url?(attributes[:avatar_url])
-      attributes
+      resolved_user.fill_in(permitted.to_h.symbolize_keys)
     end
 
     def render_import_result(result, summary_action, source, notice:)

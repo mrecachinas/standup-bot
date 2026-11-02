@@ -25,6 +25,8 @@ class User < ApplicationRecord
   validates :role, inclusion: { in: ROLES }
   validates :access_token_digest, presence: true, format: { with: TOKEN_DIGEST_PATTERN }
 
+  normalizes :avatar_url, with: ->(url) { AvatarUrl.sanitize(url) }
+
   scope :active, -> { where(active: true) }
 
   def self.authenticate(email, access_token)
@@ -81,7 +83,7 @@ class User < ApplicationRecord
         name: identity.name.presence || identity.user_id,
         email: email,
         role: "manager",
-        avatar_url: (identity.avatar_url if SlackAvatar.safe_url?(identity.avatar_url)),
+        avatar_url: identity.avatar_url,
         access_token: SecureRandom.hex(32)
       )
       user.link_identity!(platform, identity.user_id)

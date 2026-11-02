@@ -160,7 +160,7 @@ class StandupParticipantImporter
         profile_value(profile, "cached_timezone").presence ||
         profile_value(profile, :tz).presence ||
         profile_value(profile, "tz").presence,
-      avatar_url: SlackAvatar.safe_url?(profile_value(profile, "avatar_url")) ? profile_value(profile, "avatar_url") : nil,
+      avatar_url: AvatarUrl.sanitize(profile_value(profile, "avatar_url")),
       active: true,
       source: "#{standup.platform}_sync",
       line: index

@@ -97,7 +97,7 @@ class OverviewDashboardSerializer
       standup_id: standup.id,
       participant_count: item.participant_count,
       participant_label: item.participant_count.positive? ? "#{item.participant_count} active #{"participant".pluralize(item.participant_count)}" : "None yet",
-      participant_avatars: item.participant_avatars.map { |name, url| { name: name, avatar_url: (url if SlackAvatar.safe_url?(url)) } },
+      participant_avatars: item.participant_avatars.map { |name, url| { name: name, avatar_url: url } },
       avatar_limit: AVATAR_LIMIT,
       completion_rate: has_runs ? rate : nil,
       completion_rate_label: has_runs ? percent(rate) : nil,

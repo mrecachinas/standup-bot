@@ -193,7 +193,7 @@ Every `/api` action has to check authorization. `Api::BaseController` runs `veri
 
 `test/controllers/api/authorization_check_test.rb` fails if any routed `/api` controller is missing this check.
 
-Avatars use each person's Slack photo when we have one. Teams photos aren't public URLs, so Teams participants show initials. `avatar_url` on `StandupParticipant` and `User` is filled in whenever the app already talks to Slack about that person: user search and resolution, channel sync, timezone refresh, and Slack sign-in, which also refreshes that person's participant rows. `SlackAvatar` only accepts `https` URLs. If a photo is missing or fails to load, the avatar falls back to initials.
+Avatars use each person's Slack photo when we have one. Teams photos aren't public URLs, so Teams participants show initials. `avatar_url` on `StandupParticipant` and `User` is filled in whenever the app already talks to Slack about that person: user search and resolution, channel sync, timezone refresh, and Slack sign-in, which also refreshes that person's participant rows. `StandupParticipant` and `User` only store `https` URLs (`AvatarUrl`), so serializers can pass them straight through. If a photo is missing or fails to load, the avatar falls back to initials.
 
 Slack and Microsoft guests are refused at sign-in. Since anyone else can sign in, non-admins only see public channels in channel discovery, and can only sync participants from channels they belong to.
 

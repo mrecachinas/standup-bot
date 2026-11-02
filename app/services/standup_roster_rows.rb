@@ -160,7 +160,7 @@ class StandupRosterRows
 
   def participant_attributes(row)
     attributes = row.slice(:platform_user_id, :display_name, :cached_timezone, :active)
-    attributes[:avatar_url] = row[:avatar_url] if SlackAvatar.safe_url?(row[:avatar_url])
+    attributes[:avatar_url] = row[:avatar_url] if row[:avatar_url].present?
     attributes
   end
 

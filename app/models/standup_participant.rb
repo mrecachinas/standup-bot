@@ -13,6 +13,8 @@ class StandupParticipant < ApplicationRecord
   validate :cached_timezone_must_be_valid
 
   scope :active, -> { where(active: true) }
+  normalizes :avatar_url, with: ->(url) { AvatarUrl.sanitize(url) }
+
   scope :on_platform, ->(platform) { joins(:standup).where(standups: { platform: platform.to_s }) }
   # This person's rows in standups that are still running, whether or not they're away.
   scope :in_active_standups, ->(platform, platform_user_id) {
@@ -157,7 +159,7 @@ class StandupParticipant < ApplicationRecord
   end
 
   def cache_avatar_url(url)
-    return unless persisted? && SlackAvatar.safe_url?(url) && url != avatar_url
+    return unless persisted? && AvatarUrl.safe?(url) && url != avatar_url
 
     update_columns(avatar_url: url)
   end
