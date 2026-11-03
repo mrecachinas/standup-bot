@@ -67,7 +67,8 @@ class Standup < ApplicationRecord
     return none unless user&.active?
     return all if user.admin?
 
-    joins(:standup_ownerships).where(standup_ownerships: { user_id: user.id }).distinct
+    # A subquery rather than a join + DISTINCT: PostgreSQL can't compare json columns.
+    where(id: StandupOwnership.where(user_id: user.id).select(:standup_id))
   end
 
   def manageable_by?(user)
