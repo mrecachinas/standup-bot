@@ -6,17 +6,20 @@ class StandupConversationHandler
     @chat = chat
   end
 
+  # How many recent responses to search when matching an edit by its old text.
+  LEGACY_EDIT_LOOKBACK = 20
+
   def handle(message)
     return handle_edit(message) if message.edited?
 
     text = StandupResponseService.normalize_answer_text(message.text)
     return if message.user_id.blank? || text.blank?
 
-    reply = StandupCommandHandler.new(chat: chat, user_id: message.user_id).direct_message(text)
+    reply = StandupCommandHandler.new(chat: chat, user_id: message.user_id).direct_message(text, message_id: message.message_id)
     return chat.send_reply(message.conversation, reply) if reply
 
     standup_response = StandupResponse.latest_pending_for(platform, message.user_id)
-    StandupResponseService.record_answer(standup_response, text) if standup_response
+    StandupResponseService.record_answer(standup_response, text, message_id: message.message_id) if standup_response
   end
 
   private
@@ -27,63 +30,53 @@ class StandupConversationHandler
     chat.key
   end
 
+  # Finds the answer recorded from the edited message and replaces it. Messages
+  # that were never recorded as answers (commands, chatter) are left alone.
   def handle_edit(message)
-    user_id = message.user_id
-    text = StandupResponseService.normalize_answer_text(message.text)
+    return if message.user_id.blank? || message.text.blank?
+    return if message.previous_text.present? && message.previous_text == message.text
 
-    pending_response = StandupResponse.latest_pending_for(platform, user_id)
-    if pending_response && pending_response.answers.present?
-      update_pending_response(pending_response, text)
+    standup_response, index = answer_for_message(message.user_id, message.message_id) ||
+      legacy_answer_for_text(message.user_id, message.previous_text)
+
+    unless standup_response
+      Rails.logger.info "Edited message #{message.message_id.inspect} doesn't match a recorded answer, skipping"
       return
     end
 
-    completed_response = current_completed_response_for(user_id)
-    update_completed_response(completed_response, text) if completed_response
+    StandupResponseService.edit_answer(standup_response, index, message.text)
   end
 
-  def update_pending_response(standup_response, text)
-    return if text.blank?
-
-    standup_response.answers.last["answer"] = text
-    standup_response.answers.last["timestamp"] = Time.current
-    standup_response.save!
+  def answer_for_message(user_id, message_id)
+    standup_response = StandupResponse.find_by_answer_message(platform, user_id, message_id)
+    index = standup_response&.answer_index_for_message(message_id)
+    [ standup_response, index ] if index
   end
 
-  def update_completed_response(standup_response, text)
-    return if text.blank?
+  # Answers recorded before message IDs were stored can only be found by the
+  # text they had before the edit. Only an unambiguous match counts.
+  def legacy_answer_for_text(user_id, previous_text)
+    previous_answer = StandupResponseService.normalize_answer_text(previous_text).strip
+    return if previous_answer.blank?
 
-    # Edit events don't say which answer changed, so match by text overlap.
-    edited = false
+    previous_answer = StandupResponseService::SKIPPED_ANSWER if StandupResponseService.skip_text?(previous_answer)
 
-    standup_response.answers.each_with_index do |answer, index|
-      if text.include?(answer["answer"]) || answer["answer"].include?(text)
-        standup_response.answers[index]["answer"] = text
-        standup_response.answers[index]["timestamp"] = Time.current
-        edited = true
-        break
+    recent_responses = StandupResponse.authorized_for(platform, user_id)
+      .order("standup_responses.created_at DESC")
+      .limit(LEGACY_EDIT_LOOKBACK)
+
+    recent_responses.each do |standup_response|
+      indexes = Array(standup_response.answers).each_index.select do |index|
+        answer = standup_response.answers[index]
+        answer["message_id"].blank? && answer["answer"].to_s.strip == previous_answer
       end
-    end
+      next if indexes.empty?
+      return [ standup_response, indexes.first ] if indexes.one?
 
-    unless edited
-      Rails.logger.warn "Could not match edited message to any answer for standup response #{standup_response.id}, skipping update"
+      Rails.logger.warn "Edited message matches #{indexes.size} answers in standup response #{standup_response.id}, skipping"
       return
     end
 
-    standup_response.save!
-    StandupResponseService.repost_response(standup_response)
-  end
-
-  def current_completed_response_for(user_id)
-    active_participants_for(user_id).filter_map do |participant|
-      StandupResponse
-        .where(platform_user_id: user_id, standup_id: participant.standup_id, status: "completed")
-        .for_standup_date(participant.standup_date_for(Time.current))
-        .order(created_at: :desc)
-        .first
-    end.max_by(&:created_at)
-  end
-
-  def active_participants_for(user_id)
-    StandupParticipant.in_active_standups(platform, user_id).where(active: true).includes(:standup)
+    nil
   end
 end

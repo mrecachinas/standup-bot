@@ -34,6 +34,21 @@ class StandupResponse < ApplicationRecord
     authorized_for(platform, platform_user_id).pending.order("standup_responses.created_at DESC").first
   end
 
+  # The response holding this person's answer recorded from message_id, on
+  # any date and in any state.
+  def self.find_by_answer_message(platform, platform_user_id, message_id)
+    return if message_id.blank?
+
+    authorized_for(platform, platform_user_id)
+      .where("JSON_CONTAINS(standup_responses.answers, JSON_OBJECT('message_id', ?))", message_id.to_s)
+      .order("standup_responses.created_at DESC")
+      .first
+  end
+
+  def answer_index_for_message(message_id)
+    Array(answers).index { |answer| answer["message_id"].present? && answer["message_id"] == message_id.to_s }
+  end
+
   def participant
     standup.standup_participants.find_by(platform_user_id: platform_user_id)
   end

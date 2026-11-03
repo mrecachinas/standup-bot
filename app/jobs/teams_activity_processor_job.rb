@@ -98,6 +98,7 @@ class TeamsActivityProcessorJob < ApplicationJob
   end
 
   def inbound_message(text, edited:)
-    ChatPlatform::InboundMessage.new(platform: :teams, user_id: user_id, text: text, conversation: conversation_id, edited: edited)
+    # Teams sends the edited message's original activity id with messageUpdate.
+    ChatPlatform::InboundMessage.new(platform: :teams, user_id: user_id, text: text, conversation: conversation_id, edited: edited, message_id: activity["id"])
   end
 end

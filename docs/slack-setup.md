@@ -164,3 +164,7 @@ Participants can also type these in their DM with the bot:
 | `back` | Come back from being away |
 | `report` | Get a standup report |
 | `help` | List the commands |
+
+### Editing answers
+
+To change an answer, edit the DM you sent. The bot updates the answer that message recorded, even if it's from an earlier day, an earlier question, or a paused standup, and edits the update it already posted to the channel. Editing a `skip` into real text fills in that answer, and editing an answer to `skip` takes it out of the posted update. If every answer was skipped and nothing was posted, filling one in posts the update. Edits to commands like `help` or `report` are ignored, and answers to a standup that was skipped or cancelled are saved without posting.

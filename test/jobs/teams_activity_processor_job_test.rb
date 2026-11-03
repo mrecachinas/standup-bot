@@ -15,9 +15,10 @@ class TeamsActivityProcessorJobTest < ActiveJob::TestCase
     ChatPlatform::TeamsAdapter.any_instance.stubs(:user_profile).returns(ChatPlatform::UserProfile.new(id: TEAMS_USER_ID, display_name: "Tess Teams"))
   end
 
-  def activity(text: nil, type: "message", conversation_type: "personal", value: nil, user_id: TEAMS_USER_ID.upcase)
+  def activity(text: nil, type: "message", conversation_type: "personal", value: nil, user_id: TEAMS_USER_ID.upcase, id: nil)
     {
       "type" => type,
+      "id" => id,
       "text" => text,
       "value" => value,
       "serviceUrl" => "https://smba.trafficmanager.net/amer/",
@@ -102,13 +103,18 @@ class TeamsActivityProcessorJobTest < ActiveJob::TestCase
     assert_not ChatConversation.exists?(platform: "teams", conversation_id: "19:chan;messageid=1")
   end
 
-  test "edits update the latest pending answer" do
+  test "edits update the answer recorded from the same activity" do
     response = pending_response!
-    response.update!(answers: [ { "question" => "Yesterday?", "answer" => "old", "timestamp" => Time.current } ])
+    TeamsActivityProcessorJob.perform_now(activity(text: "first", id: "act-1"))
+    TeamsActivityProcessorJob.perform_now(activity(text: "second", id: "act-2"))
+    ChatPlatform::TeamsAdapter.any_instance.expects(:update_standup_update)
+      .with(@standup.platform_channel, "9", has_entry(answers: [ { question: @standup.questions.first, answer: "first, edited" }, { question: @standup.questions.second, answer: "second" } ]))
 
-    TeamsActivityProcessorJob.perform_now(activity(text: "new", type: "messageUpdate"))
+    TeamsActivityProcessorJob.perform_now(activity(text: "first, edited", type: "messageUpdate", id: "act-1"))
 
-    assert_equal "new", response.reload.answers.first["answer"]
+    answers = response.reload.answers
+    assert_equal [ "act-1", "act-2" ], answers.first(2).map { |answer| answer["message_id"] }
+    assert_equal [ "first, edited", "second" ], answers.first(2).map { |answer| answer["answer"] }
   end
 
   test "doesn't answer Slack standups for a matching user ID" do

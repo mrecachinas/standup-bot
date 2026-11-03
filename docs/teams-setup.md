@@ -2,7 +2,7 @@
 
 Standup Bot can run standups in Microsoft Teams as well as Slack. Each standup picks its platform when it's created, so one deployment can serve Slack teams and Teams teams side by side.
 
-Teams works the same way as Slack: people get their questions in a 1:1 chat with the bot, answer them there, and each finished update is posted to the team's channel as a new thread. Reminders, edits to answers, DM commands (`skip`, `cancel`, `away`, `back`, `help`), reports, and the `standup` commands all work in Teams.
+Teams works the same way as Slack: people get their questions in a 1:1 chat with the bot, answer them there, and each finished update is posted to the team's channel as a new thread. Reminders, [edits to answers](slack-setup.md#editing-answers), DM commands (`skip`, `cancel`, `away`, `back`, `help`), reports, and the `standup` commands all work in Teams.
 
 ```mermaid
 flowchart LR

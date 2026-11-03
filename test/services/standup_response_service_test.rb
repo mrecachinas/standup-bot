@@ -61,6 +61,17 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     assert_equal 1, @standup_response.answers.size
     assert_equal "(skipped)", @standup_response.answers.first["answer"]
     assert_equal @standup.questions.first, @standup_response.answers.first["question"]
+    assert_not @standup_response.answers.first.key?("message_id")
+  end
+
+  test "record_answer and skip_question keep the participant's message ID" do
+    @mock_slack_client.stubs(:send_message)
+
+    StandupResponseService.record_answer(@standup_response, "Shipped", message_id: "1700.1")
+    StandupResponseService.record_answer(@standup_response, "skip", message_id: "1700.2")
+
+    assert_equal [ [ "Shipped", "1700.1" ], [ "(skipped)", "1700.2" ] ],
+      @standup_response.answers.map { |answer| [ answer["answer"], answer["message_id"] ] }
   end
 
   test "record_answer completes the standup when all questions are answered" do

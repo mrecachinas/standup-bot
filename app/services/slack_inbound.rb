@@ -4,10 +4,10 @@
 class SlackInbound
   # Allow deeper nested parameters for message_changed events.
   EVENT_FIELDS = [
-    :type, :user, :text, :channel, :ts, :subtype,
+    :type, :user, :text, :channel, :ts, :subtype, :bot_id, :app_id,
     {
-      message: [ :type, :user, :text, :ts, :edited, { edited: [ :user, :ts ] } ],
-      previous_message: [ :type, :user, :text, :ts, :edited, { edited: [ :user, :ts ] } ]
+      message: [ :type, :user, :text, :ts, :bot_id, :app_id, :edited, { edited: [ :user, :ts ] } ],
+      previous_message: [ :type, :user, :text, :ts, :bot_id, :app_id, :edited, { edited: [ :user, :ts ] } ]
     }
   ].freeze
   # Socket Mode routes by command name; HTTP routes by request URL.
@@ -20,10 +20,20 @@ class SlackInbound
       event = ActionController::Parameters.new(event) unless event.is_a?(ActionController::Parameters)
       event = event.permit(*EVENT_FIELDS)
 
+      # Slack echoes the bot's own DMs back as message events; there's nothing to do with them.
+      return if bot_event?(event)
+
       user_id = event[:user] || event.dig(:message, :user)
       Rails.logger.info "Received Slack event=#{event[:type]} subtype=#{event[:subtype]} from user=#{user_id} in channel=#{event[:channel]}"
 
       SlackEventProcessorJob.perform_later(event.to_h)
+    end
+
+    # Messages posted (or edited) by a bot, including this app.
+    def bot_event?(event)
+      event[:bot_id].present? ||
+        event[:subtype] == "bot_message" ||
+        (event[:subtype] == "message_changed" && event.dig(:message, :bot_id).present?)
     end
 
     def slash_command(command, user_id:, text: nil)

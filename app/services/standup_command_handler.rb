@@ -43,11 +43,13 @@ class StandupCommandHandler
   end
 
   # Returns nil when the text isn't a DM command, so the caller can treat it as an answer.
-  def direct_message(text)
+  # message_id is the platform ID of the DM, so a skipped answer can be filled
+  # in later by editing the "skip" message.
+  def direct_message(text, message_id: nil)
     case text.to_s.strip
     when /\Ahelp\z/i then direct_message_help
     when /\Areport\z/i then report
-    when /\Askip\z/i then skip_question
+    when /\Askip\z/i then skip_question(message_id: message_id)
     when /\Acancel\z/i then cancel
     when /\Aaway(?:\s+(\d+))?\z/i then away(($1 || DEFAULT_AWAY_DAYS).to_i)
     when /\Aback\z/i then back
@@ -152,12 +154,12 @@ class StandupCommandHandler
     Reply.text("#{fmt.bold("Available Commands:")}\n#{lines.join("\n")}")
   end
 
-  def skip_question
+  def skip_question(message_id: nil)
     response = StandupResponse.latest_pending_for(platform, user_id)
     return Reply.text("You don't have an active standup to skip questions for.") unless response
 
     # The next question (or the wrap-up message) is the acknowledgement.
-    StandupResponseService.skip_question(response)
+    StandupResponseService.skip_question(response, message_id: message_id)
     Reply.none
   end
 
