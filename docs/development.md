@@ -12,6 +12,15 @@ Open <http://localhost:5173>. Vite reloads the console as you edit it and passes
 
 Background jobs work the same way as in production: Solid Queue stores them in a separate `nerdbot_development_queue` database, and `bin/dev` starts the worker (`bin/jobs`). The worker also runs the recurring schedule in [`config/recurring.yml`](../config/recurring.yml), so scheduled standups and reminders go out locally. Set `SOLID_QUEUE_IN_PUMA=1` to run the worker inside Rails instead. `bin/rails db:prepare` (which `script/server` and `bin/setup` run) creates and loads the queue database. Worker output goes to `log/development.log`.
 
+> [!WARNING]
+> The recurring schedule is real. While `bin/dev` is running against a real Slack or Teams workspace, every active standup that comes due DMs its actual participants, reminders follow, and the nightly `DataCleanupJob` prunes old responses from your dev database. To turn the schedule off and still run jobs you trigger yourself, set `SOLID_QUEUE_SKIP_RECURRING=1`:
+>
+> ```bash
+> SOLID_QUEUE_SKIP_RECURRING=1 bin/dev
+> ```
+>
+> Solid Queue reads this variable in `bin/jobs` and when it runs inside Puma (`SOLID_QUEUE_IN_PUMA=1`). `bin/dev` prints whether recurring jobs are on when it starts. To run one scheduled pass by hand, use `bin/rails runner 'SchedulingJob.perform_later'`.
+
 If you point development at another database with `DATABASE_URL`, the queue database follows it with a `_queue` suffix (for example `nerdbot_mine` and `nerdbot_mine_queue`) unless you set `QUEUE_DATABASE_URL`. The development cache is a file store in `tmp/cache/store`, shared by Rails, the worker, and the Socket Mode client, so the Admin page shows Socket Mode activity. `bin/rails tmp:cache:clear` empties it.
 
 You'll need Node (the version in [`.node-version`](../.node-version)) for the console. `script/bootstrap` installs its packages, and `bin/dev` does too if they're missing.

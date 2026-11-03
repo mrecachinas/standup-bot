@@ -65,6 +65,9 @@ Open <http://localhost:5173>. `script/server` seeds the same `admin@example.com`
 
 Rails handles web requests, but scheduling, sending DMs, and posting summaries all happen in background jobs. `script/server` starts the job worker (`bin/jobs`) alongside Rails, and it runs the same hourly scheduling and 15-minute reminder schedule as production. Jobs live in a second MySQL database, `nerdbot_development_queue`, which `bin/rails db:prepare` creates for you.
 
+> [!WARNING]
+> Leaving `script/server` or `bin/dev` running against a real Slack or Teams workspace sends real scheduled standup DMs and reminders to the people in your active standups. The nightly cleanup job also prunes old responses from your dev database. To turn off the schedule locally, start with `SOLID_QUEUE_SKIP_RECURRING=1 script/server`. See [Development](development.md#running-the-app) for details.
+
 If you'd rather set things up by hand, `bin/setup` installs gems and npm packages, prepares the database, and starts `bin/dev`. You can also run `bundle install`, `(cd frontend && npm ci)`, `bin/rails db:prepare`, and `bin/dev` yourself. See [Development](development.md#running-the-app) for more on `bin/dev`.
 
 ### Database settings

@@ -63,6 +63,7 @@ Development uses MySQL with two databases: the main one and `nerdbot_development
 | `CLEANUP_BATCH_SIZE` | `1000` | Rows per batch in the nightly cleanup job |
 | `JOB_CONCURRENCY` | `1` | Number of job worker processes |
 | `SOLID_QUEUE_IN_PUMA` | _(unset)_ | Set it to run background jobs inside the web process instead of a separate worker |
+| `SOLID_QUEUE_SKIP_RECURRING` | _(unset)_ | Set it to `1` so the worker doesn't run the recurring schedule (scheduled standups, reminders, nightly cleanup). Useful locally to avoid DMing a real workspace. Works with `bin/jobs` and `SOLID_QUEUE_IN_PUMA`. |
 
 ### Production web settings
 

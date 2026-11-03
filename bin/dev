@@ -2,8 +2,11 @@
 # Runs Rails, the Vite dev server, and the Solid Queue job worker together.
 # Open http://localhost:5173; Vite proxies /api and /auth to Rails on port 3000.
 # Pass --rails-only to run just the Rails server. The worker is skipped when
-# SOLID_QUEUE_IN_PUMA is set, since Puma runs it then. With
-# SLACK_CONNECTION_MODE=socket, also runs the Slack Socket Mode client.
+# SOLID_QUEUE_IN_PUMA is set, since Puma runs it then. The worker runs the
+# recurring schedule in config/recurring.yml, which sends real scheduled DMs to
+# the connected workspace; SOLID_QUEUE_SKIP_RECURRING=1 turns that off (Solid
+# Queue reads it in bin/jobs and in Puma). With SLACK_CONNECTION_MODE=socket,
+# also runs the Slack Socket Mode client.
 
 if ARGV.delete("--rails-only")
   exec "./bin/rails", "server", *ARGV
@@ -19,6 +22,14 @@ pids = [
   spawn("npm", "run", "dev", chdir: frontend)
 ]
 pids << spawn("./bin/jobs") unless ENV["SOLID_QUEUE_IN_PUMA"]
+# Same truthiness as Solid Queue (ActiveModel boolean cast).
+skip_recurring = ENV["SOLID_QUEUE_SKIP_RECURRING"].to_s
+if !skip_recurring.empty? && !%w[0 f false off].include?(skip_recurring.downcase)
+  puts "==> Recurring jobs are off (SOLID_QUEUE_SKIP_RECURRING): no scheduled standups, reminders, or cleanup."
+else
+  puts "==> Recurring jobs are on: due standups and reminders DM real people in the connected workspace."
+  puts "    Set SOLID_QUEUE_SKIP_RECURRING=1 to turn them off."
+end
 if ENV["SLACK_CONNECTION_MODE"].to_s.strip.downcase == "socket" && !ENV["SLACK_SOCKET_MODE_IN_PUMA"]
   pids << spawn("./bin/slack-socket-mode")
 end
