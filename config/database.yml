@@ -8,9 +8,26 @@ default: &default
   username: <%= ENV.fetch("DB_USER", "root") %>
   password: <%= ENV.fetch("DB_PASSWORD", "") %>
 
+<%
+  # Solid Queue's database in development. If DATABASE_URL points primary at
+  # another database (e2e, isolated agent databases), the queue follows it with
+  # a "_queue" suffix so it never shares or drops the main dev queue database.
+  dev_queue_url = ENV["QUEUE_DATABASE_URL"].presence
+  if Rails.env.development? && dev_queue_url.nil? && ENV["DATABASE_URL"].present?
+    uri = URI.parse(ENV["DATABASE_URL"])
+    uri.path = "#{uri.path}_queue"
+    dev_queue_url = uri.to_s
+  end
+%>
 development:
-  <<: *default
-  database: nerdbot_development
+  primary:
+    <<: *default
+    database: nerdbot_development
+  queue:
+    <<: *default
+    url: <%= dev_queue_url %>
+    database: <%= ENV.fetch("QUEUE_DB_NAME", "nerdbot_development_queue") %>
+    migrations_paths: db/queue_migrate
 
 test:
   <<: *default
