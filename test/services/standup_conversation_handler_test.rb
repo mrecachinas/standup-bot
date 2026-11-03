@@ -179,6 +179,26 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
     assert_equal [ "theirs" ], answer_texts(other)
   end
 
+  test "edits search recent responses in Ruby, without database JSON functions" do
+    inside = response!(standup_date: 59.days.ago.to_date, answers: [ answer("Q1", "old", "100.1") ])
+    inside.update_columns(updated_at: 59.days.ago)
+    outside = response!(standup_date: 61.days.ago.to_date, answers: [ answer("Q1", "old", "100.2") ])
+    outside.update_columns(updated_at: 61.days.ago)
+    StandupResponseService.expects(:repost_response).with(inside)
+
+    queries = []
+    callback = ->(*, payload) { queries << payload[:sql] }
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      edit("new", message_id: "100.1")
+      edit("new", message_id: "100.2")
+    end
+
+    assert_equal [ "new" ], answer_texts(inside)
+    assert_equal [ "old" ], answer_texts(outside)
+    assert queries.grep(/standup_responses/).any?
+    assert_empty queries.grep(/JSON_/i)
+  end
+
   test "answers recorded before message IDs are matched by their exact previous text" do
     older = response!(standup_date: 1.day.ago.to_date, answers: [ answer("Q1", "Fixed bug"), answer("Q2", "Tests") ], platform_message_id: "post.1")
     StandupResponseService.expects(:repost_response).with(older)

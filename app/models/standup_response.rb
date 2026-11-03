@@ -34,15 +34,29 @@ class StandupResponse < ApplicationRecord
     authorized_for(platform, platform_user_id).pending.order("standup_responses.created_at DESC").first
   end
 
-  # The response holding this person's answer recorded from message_id, on
-  # any date and in any state.
-  def self.find_by_answer_message(platform, platform_user_id, message_id)
+  # Edits are only matched against this person's recent responses, newest
+  # first. Plenty for real edits, and it keeps the lookup in Ruby so it works
+  # the same on MySQL and PostgreSQL.
+  EDIT_LOOKBACK = 60.days
+  EDIT_LOOKBACK_LIMIT = 100
+
+  def self.editable_for(platform, platform_user_id)
+    authorized_for(platform, platform_user_id)
+      .where(updated_at: EDIT_LOOKBACK.ago..)
+      .order("standup_responses.created_at DESC")
+      .limit(EDIT_LOOKBACK_LIMIT)
+  end
+
+  # The response and answer index recorded from message_id, in any state.
+  def self.find_answer_for_message(platform, platform_user_id, message_id)
     return if message_id.blank?
 
-    authorized_for(platform, platform_user_id)
-      .where("JSON_CONTAINS(standup_responses.answers, JSON_OBJECT('message_id', ?))", message_id.to_s)
-      .order("standup_responses.created_at DESC")
-      .first
+    editable_for(platform, platform_user_id).each do |response|
+      index = response.answer_index_for_message(message_id)
+      return [ response, index ] if index
+    end
+
+    nil
   end
 
   def answer_index_for_message(message_id)

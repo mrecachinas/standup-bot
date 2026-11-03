@@ -6,9 +6,6 @@ class StandupConversationHandler
     @chat = chat
   end
 
-  # How many recent responses to search when matching an edit by its old text.
-  LEGACY_EDIT_LOOKBACK = 20
-
   def handle(message)
     return handle_edit(message) if message.edited?
 
@@ -36,7 +33,7 @@ class StandupConversationHandler
     return if message.user_id.blank? || message.text.blank?
     return if message.previous_text.present? && message.previous_text == message.text
 
-    standup_response, index = answer_for_message(message.user_id, message.message_id) ||
+    standup_response, index = StandupResponse.find_answer_for_message(platform, message.user_id, message.message_id) ||
       legacy_answer_for_text(message.user_id, message.previous_text)
 
     unless standup_response
@@ -47,12 +44,6 @@ class StandupConversationHandler
     StandupResponseService.edit_answer(standup_response, index, message.text)
   end
 
-  def answer_for_message(user_id, message_id)
-    standup_response = StandupResponse.find_by_answer_message(platform, user_id, message_id)
-    index = standup_response&.answer_index_for_message(message_id)
-    [ standup_response, index ] if index
-  end
-
   # Answers recorded before message IDs were stored can only be found by the
   # text they had before the edit. Only an unambiguous match counts.
   def legacy_answer_for_text(user_id, previous_text)
@@ -61,11 +52,7 @@ class StandupConversationHandler
 
     previous_answer = StandupResponseService::SKIPPED_ANSWER if StandupResponseService.skip_text?(previous_answer)
 
-    recent_responses = StandupResponse.authorized_for(platform, user_id)
-      .order("standup_responses.created_at DESC")
-      .limit(LEGACY_EDIT_LOOKBACK)
-
-    recent_responses.each do |standup_response|
+    StandupResponse.editable_for(platform, user_id).each do |standup_response|
       indexes = Array(standup_response.answers).each_index.select do |index|
         answer = standup_response.answers[index]
         answer["message_id"].blank? && answer["answer"].to_s.strip == previous_answer
