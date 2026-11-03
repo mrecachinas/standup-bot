@@ -12,8 +12,20 @@ development:
   <<: *default
   database: nerdbot_development
 
+# Tests run on MySQL by default. Set TEST_DB_ADAPTER=postgresql to run them on
+# PostgreSQL, which production uses.
 test:
+<% if ENV["TEST_DB_ADAPTER"] == "postgresql" %>
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: <%= ENV.fetch("DB_HOST", "127.0.0.1") %>
+  port: <%= ENV.fetch("DB_PORT", 5432) %>
+  username: <%= ENV.fetch("DB_USER", ENV.fetch("USER", "postgres")) %>
+  password: <%= ENV.fetch("DB_PASSWORD", "") %>
+<% else %>
   <<: *default
+<% end %>
   database: nerdbot_test
 
 production:
