@@ -154,9 +154,13 @@ module Api
 
     # Non-admins can only pull in members of channels they belong to, so the
     # bot can't be used to list the members of someone else's private channel.
+    # A channel that can't be found gets the same answer as one they're not
+    # in, so non-admins can't probe for private channel names or IDs.
     def channel_member?(channel)
       user_id = current_user&.platform_user_id_for(@standup.platform)
       user_id.present? && ChatPlatform.for_standup(@standup).channel_member_ids(channel).include?(user_id)
+    rescue ChatPlatform::ChannelAccessError
+      false
     end
 
     def lookup_requested?

@@ -420,7 +420,7 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     assert_not standup.standup_participants.exists?(platform_user_id: "UMGRSYNC")
   end
 
-  test "sync explains when Slack can't find the channel" do
+  test "an admin is told when Slack can't find the channel" do
     slack_client = stub_slack_client
     slack_client.expects(:channel_members).with("standup-bot-test")
       .raises(ChatPlatform::ChannelAccessError, "Slack couldn't find #standup-bot-test.")
@@ -444,6 +444,26 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_includes response.parsed_body["errors"], "No Slack members were returned for that channel."
+  end
+
+  test "managers get the same answer for missing channels and ones they're not in" do
+    @manager.link_identity!(:slack, "UOUTSIDER")
+    slack_client = stub_slack_client
+    slack_client.stubs(:channel_members).with("secret-channel").returns([ "USOMEONE" ])
+    slack_client.stubs(:channel_members).with("no-such-channel")
+      .raises(ChatPlatform::ChannelAccessError, "Slack couldn't find #no-such-channel.")
+    slack_client.expects(:get_user_info).never
+    sign_in(@manager, "manager-access-token")
+
+    answers = %w[secret-channel no-such-channel].map do |channel|
+      assert_no_difference [ "StandupParticipant.count", "AuditLog.count" ] do
+        post sync_api_standup_participants_path(@owned_standup), params: { channel: channel }, as: :json
+      end
+      assert_response :unprocessable_entity
+      response.parsed_body["errors"]
+    end
+
+    assert_equal [ [ "You can only sync people from a channel you're in." ] ] * 2, answers
   end
 
   test "managers can only sync people from channels they're in" do
