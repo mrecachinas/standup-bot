@@ -56,6 +56,19 @@ module Manager
       assert_nil item.latest_run_summary
     end
 
+    test "doesn't flag a standup created today for low completion" do
+      now = Time.zone.local(2026, 4, 27, 12, 0, 0)
+      standup = Standup.create!(name: "Brand new", platform_channel: "brand-new", questions: [ "Update?" ], schedule_type: "daily", created_at: now - 2.hours)
+      %w[UNEW00001 UNEW00002 UNEW00003].each do |platform_user_id|
+        standup.standup_participants.create!(platform_user_id: platform_user_id, display_name: platform_user_id, active: true, created_at: now - 2.hours)
+      end
+
+      item = StandupDashboard.new([ standup ], now: now).items.first
+
+      assert_equal 0, item.expected_responses
+      assert_not item.needs_attention?
+    end
+
     test "counts people once even when they're in several standups" do
       shared = standup_participants(:one)
       standups(:weekly).standup_participants.create!(platform_user_id: shared.platform_user_id, display_name: shared.display_name, active: true)
