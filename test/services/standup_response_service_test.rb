@@ -189,7 +189,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     StandupResponseService.repost_response(completed_response)
   end
 
-  test "repost_response handles empty answers" do
+  test "repost_response replaces a posted update with a skipped note when nothing is left to show" do
     # Create a response with only skipped answers
     completed_response = StandupResponse.new(
       id: 2,
@@ -218,10 +218,25 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       { "name" => "Test User", "profile" => { "display_name" => "Test User" } }
     ).once
 
-    # With all skipped answers, there should be no update
-    # because post_individual_response will return early with no updates
-    # and repost_response will fall through to that method
+    # Retracted answers mustn't stay up in the channel.
+    @mock_slack_client.expects(:update_message).with(
+      @standup.platform_channel,
+      "1234567890.123456",
+      "*Test User* skipped *#{@standup.name}*",
+      attachments: []
+    ).returns({ "ok" => true })
+
     StandupResponseService.repost_response(completed_response)
+  end
+
+  test "repost_response doesn't post a new update when every answer is skipped" do
+    response = StandupResponse.new(standup_id: @standup.id, platform_user_id: "U12345", status: "completed",
+      answers: [ { "question" => "Q1", "answer" => "(skipped)", "timestamp" => Time.current } ])
+    response.stubs(:standup).returns(@standup)
+    @mock_slack_client.stubs(:get_user_info).returns({ "name" => "Test User" })
+    @mock_slack_client.expects(:send_message).never
+
+    StandupResponseService.repost_response(response)
   end
 
   test "cancel_previous_pending_responses cancels old pending responses" do

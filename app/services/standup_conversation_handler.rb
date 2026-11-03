@@ -2,6 +2,9 @@
 # (see StandupCommandHandler#direct_message), answers to the current question,
 # and edits to earlier answers.
 class StandupConversationHandler
+  # Slack's clock and ours can disagree by a little.
+  LEGACY_CLOCK_SKEW = 5.seconds
+
   def initialize(chat)
     @chat = chat
   end
@@ -34,7 +37,7 @@ class StandupConversationHandler
     return if message.previous_text.present? && message.previous_text == message.text
 
     standup_response, index = StandupResponse.find_answer_for_message(platform, message.user_id, message.message_id) ||
-      legacy_answer_for_text(message.user_id, message.previous_text)
+      legacy_answer_for(message)
 
     unless standup_response
       Rails.logger.info "Edited message #{message.message_id.inspect} doesn't match a recorded answer, skipping"
@@ -45,17 +48,19 @@ class StandupConversationHandler
   end
 
   # Answers recorded before message IDs were stored can only be found by the
-  # text they had before the edit. Only an unambiguous match counts.
-  def legacy_answer_for_text(user_id, previous_text)
-    previous_answer = StandupResponseService.normalize_answer_text(previous_text).strip
+  # text they had before the edit. To keep unrelated chatter from overwriting
+  # an old answer, a match must be unambiguous, recorded no earlier than the
+  # edited message was sent, and not a "(skipped)" filler, since those can come
+  # from skipping a whole standup rather than from a message.
+  def legacy_answer_for(message)
+    return if message.sent_at.blank?
+
+    previous_answer = StandupResponseService.normalize_answer_text(message.previous_text).strip
     return if previous_answer.blank?
 
-    previous_answer = StandupResponseService::SKIPPED_ANSWER if StandupResponseService.skip_text?(previous_answer)
-
-    StandupResponse.editable_for(platform, user_id).each do |standup_response|
+    StandupResponse.editable_for(platform, message.user_id).each do |standup_response|
       indexes = Array(standup_response.answers).each_index.select do |index|
-        answer = standup_response.answers[index]
-        answer["message_id"].blank? && answer["answer"].to_s.strip == previous_answer
+        legacy_match?(standup_response.answers[index], previous_answer, message.sent_at)
       end
       next if indexes.empty?
       return [ standup_response, indexes.first ] if indexes.one?
@@ -64,6 +69,20 @@ class StandupConversationHandler
       return
     end
 
+    nil
+  end
+
+  def legacy_match?(answer, previous_answer, sent_at)
+    return false if answer["message_id"].present? || answer["answer"] == StandupResponseService::SKIPPED_ANSWER
+    return false unless answer["answer"].to_s.strip == previous_answer
+
+    recorded_at = answer_time(answer)
+    recorded_at.present? && sent_at <= recorded_at + LEGACY_CLOCK_SKEW
+  end
+
+  def answer_time(answer)
+    Time.zone.parse(answer["timestamp"].to_s)
+  rescue ArgumentError
     nil
   end
 end

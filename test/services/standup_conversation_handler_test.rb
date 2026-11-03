@@ -10,15 +10,15 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
     ChatPlatform::SlackAdapter.any_instance.stubs(:display_name_for).returns("John Doe")
   end
 
-  def inbound(text, edited: false, message_id: nil, previous_text: nil)
+  def inbound(text, edited: false, message_id: nil, previous_text: nil, sent_at: nil)
     ChatPlatform::InboundMessage.new(
       platform: :slack, user_id: @user_id, text: text, conversation: "D1",
-      edited: edited, message_id: message_id, previous_text: previous_text
+      edited: edited, message_id: message_id, previous_text: previous_text, sent_at: sent_at
     )
   end
 
-  def edit(text, message_id: nil, previous_text: nil)
-    @handler.handle(inbound(text, edited: true, message_id: message_id, previous_text: previous_text))
+  def edit(text, message_id: nil, previous_text: nil, sent_at: nil)
+    @handler.handle(inbound(text, edited: true, message_id: message_id, previous_text: previous_text, sent_at: sent_at))
   end
 
   def answer(question, text, message_id = nil)
@@ -203,7 +203,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
     older = response!(standup_date: 1.day.ago.to_date, answers: [ answer("Q1", "Fixed bug"), answer("Q2", "Tests") ], platform_message_id: "post.1")
     StandupResponseService.expects(:repost_response).with(older)
 
-    edit("Fixed two bugs", message_id: "100.1", previous_text: "Fixed bug")
+    edit("Fixed two bugs", message_id: "100.1", previous_text: "Fixed bug", sent_at: 61.minutes.ago)
 
     assert_equal [ "Fixed two bugs", "Tests" ], answer_texts(older)
   end
@@ -212,8 +212,48 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
     response = response!(answers: [ answer("Q1", "nothing"), answer("Q2", "nothing") ], platform_message_id: "post.1")
     StandupResponseService.expects(:repost_response).never
 
-    edit("Reviewed PR 264", message_id: "100.2", previous_text: "nothing")
+    edit("Reviewed PR 264", message_id: "100.2", previous_text: "nothing", sent_at: 61.minutes.ago)
 
     assert_equal [ "nothing", "nothing" ], answer_texts(response)
+  end
+
+  test "a message sent after an old answer was recorded can't edit it" do
+    response = response!(answers: [ answer("Q1", "nothing") ], platform_message_id: "post.1")
+    StandupResponseService.expects(:repost_response).never
+
+    # Later chatter that happens to repeat the answer, then gets edited.
+    edit("Reviewed PR 264", message_id: "900.1", previous_text: "nothing", sent_at: 10.minutes.ago)
+
+    assert_equal [ "nothing" ], answer_texts(response)
+  end
+
+  test "old skipped answers are never filled in by editing an unrelated skip" do
+    # A whole standup skipped with /standup skip leaves fillers with no message.
+    response = response!(status: "skipped", answers: [ answer("Q1", "(skipped)"), answer("Q2", "(skipped)") ])
+    StandupResponseService.expects(:repost_response).never
+
+    edit("Shipped", message_id: "900.1", previous_text: "skip", sent_at: 2.hours.ago)
+    edit("Shipped", message_id: "900.2", previous_text: "(skipped)", sent_at: 2.hours.ago)
+
+    assert_equal [ "(skipped)", "(skipped)" ], answer_texts(response)
+  end
+
+  test "without a send time there's no previous-text fallback" do
+    response = response!(answers: [ answer("Q1", "Fixed bug") ], platform_message_id: "post.1")
+
+    edit("Fixed two bugs", message_id: "100.1", previous_text: "Fixed bug")
+
+    assert_equal [ "Fixed bug" ], answer_texts(response)
+  end
+
+  test "editing the only posted answer to skip replaces the post with a skipped note" do
+    response = response!(answers: [ answer("Q1", "Shipped", "100.1"), answer("Q2", "(skipped)", "100.2") ], platform_message_id: "post.1")
+    ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
+      @standup.platform_channel, "post.1", display_name: "John Doe", standup_name: @standup.name, answers: []
+    )
+
+    edit("skip", message_id: "100.1", previous_text: "Shipped")
+
+    assert_equal [ "(skipped)", "(skipped)" ], answer_texts(response)
   end
 end

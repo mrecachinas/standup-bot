@@ -72,6 +72,14 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     assert_equal "I worked on feature X and also fixed bug Y", @standup_response.reload.answers.last["answer"]
   end
 
+  test "an edit to a message sent after an old answer was recorded leaves it alone" do
+    @standup_response.update!(answers: [ { "question" => "Q1", "answer" => "nothing", "timestamp" => 1.hour.ago } ])
+
+    SlackEventProcessorJob.perform_now(edit_event(ts: Time.current.to_f.to_s, text: "Reviewed PR 264", previous_text: "nothing"))
+
+    assert_equal "nothing", @standup_response.reload.answers.last["answer"]
+  end
+
   test "an edit that matches no recorded answer changes nothing" do
     @standup_response.update!(status: "completed", platform_message_id: "post.1", answers: [
       { "question" => "Q1", "answer" => "I fixed bug A", "timestamp" => Time.current, "message_id" => "1700.1" },

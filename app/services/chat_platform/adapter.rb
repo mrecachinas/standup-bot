@@ -37,6 +37,8 @@ module ChatPlatform
       raise NotImplementedError
     end
 
+    # answers can be empty when the person has since skipped everything; the
+    # post then just says they skipped, so retracted answers don't stay up.
     def update_standup_update(channel, message_id, display_name:, standup_name:, answers:)
       raise NotImplementedError
     end
@@ -172,7 +174,9 @@ module ChatPlatform
       }
     end
 
-    def standup_update_heading(display_name, standup_name)
+    def standup_update_heading(display_name, standup_name, answers)
+      return "#{formatter.bold(display_name)} skipped #{formatter.bold(standup_name)}" if answers.empty?
+
       "#{formatter.bold(display_name)} posted an update for #{formatter.bold(standup_name)}"
     end
 
@@ -181,7 +185,10 @@ module ChatPlatform
     end
 
     def standup_update_text(display_name, standup_name, answers)
-      [ standup_update_heading(display_name, standup_name), "", answer_sections(answers).join("\n\n") ].join("\n")
+      heading = standup_update_heading(display_name, standup_name, answers)
+      return heading if answers.empty?
+
+      [ heading, "", answer_sections(answers).join("\n\n") ].join("\n")
     end
   end
 end

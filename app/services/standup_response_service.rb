@@ -106,8 +106,9 @@ class StandupResponseService
 
     chat = chat_for(standup_response)
     display_name = chat.display_name_for(standup_response.platform_user_id)
+    # With nothing left to show, the post is updated to say the person skipped,
+    # so answers they've since retracted don't stay in the channel.
     answers = postable_answers(standup_response)
-    return if answers.empty?
 
     chat.update_standup_update(
       standup_response.standup.platform_channel,

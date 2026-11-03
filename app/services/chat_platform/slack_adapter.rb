@@ -37,7 +37,7 @@ module ChatPlatform
       to_message_ref(
         client.send_message(
           channel,
-          standup_update_heading(display_name, standup_name),
+          standup_update_heading(display_name, standup_name, answers),
           attachments: answer_attachments(answers)
         )
       )
@@ -47,7 +47,7 @@ module ChatPlatform
       client.update_message(
         channel,
         message_id,
-        standup_update_heading(display_name, standup_name),
+        standup_update_heading(display_name, standup_name, answers),
         attachments: answer_attachments(answers)
       )
     end

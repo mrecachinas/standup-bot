@@ -64,6 +64,12 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
     adapter.update_standup_update("team", "9.9", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: "A1" } ])
   end
 
+  test "update_standup_update with no answers left says the person skipped and clears the answers" do
+    @client.expects(:update_message).with("team", "9.9", "*Ann* skipped *Daily*", attachments: [])
+
+    adapter.update_standup_update("team", "9.9", display_name: "Ann", standup_name: "Daily", answers: [])
+  end
+
   test "send_standup_kickoff falls back to a friendly greeting without a profile" do
     @client.stubs(:get_user_info).returns(nil)
     blocks = nil
