@@ -69,23 +69,6 @@ class SlackClientTest < ActiveSupport::TestCase
     assert_nil result
   end
 
-  test "channel_member_profiles returns Slack users with cached timezones" do
-    slack_client, api = slack_client_with_real_api
-    api.expects(:post)
-      .with("conversations.members", { channel: "C12345", limit: 200, cursor: nil })
-      .returns(slack_message("members" => [ "U111", "U222" ], "response_metadata" => { "next_cursor" => "" }))
-    api.expects(:users_info).with(user: "U111").returns(slack_user_info_response("Alice", "America/New_York"))
-    api.expects(:users_info).with(user: "U222").returns(slack_user_info_response("Bob", "UTC"))
-
-    assert_equal(
-      [
-        { "platform_user_id" => "U111", "display_name" => "Alice", "cached_timezone" => "America/New_York" },
-        { "platform_user_id" => "U222", "display_name" => "Bob", "cached_timezone" => "UTC" }
-      ],
-      slack_client.channel_member_profiles("C12345")
-    )
-  end
-
   test "channel_members follows pagination cursors" do
     slack_client, api = slack_client_with_real_api
     api.expects(:post)
@@ -125,13 +108,53 @@ class SlackClientTest < ActiveSupport::TestCase
     assert_raises(Slack::Web::Api::Errors::TooManyRequestsError) { slack_client.channel_members("C12345") }
   end
 
-  test "channel_members returns an empty list for unknown channels" do
+  test "channel_members explains unknown channel names instead of returning nobody" do
     slack_client, api = slack_client_with_real_api
     api.expects(:post)
       .with("conversations.list", { limit: 200, exclude_archived: true, types: "public_channel,private_channel", cursor: nil })
       .returns(slack_message("channels" => [], "response_metadata" => { "next_cursor" => "" }))
 
-    assert_equal [], slack_client.channel_members("missing-channel")
+    error = assert_raises(ChatPlatform::ChannelAccessError) { slack_client.channel_members("missing-channel") }
+    assert_equal "Slack couldn't find #missing-channel. Check the channel, and invite the bot if it's private.", error.message
+  end
+
+  test "channel_members falls back to public channels without the groups:read scope" do
+    slack_client, api = slack_client_with_real_api
+    api.expects(:post)
+      .with("conversations.list", { limit: 200, exclude_archived: true, types: "public_channel,private_channel", cursor: nil })
+      .raises(Slack::Web::Api::Errors::MissingScope.new("missing_scope"))
+    api.expects(:post)
+      .with("conversations.list", { limit: 200, exclude_archived: true, types: "public_channel", cursor: nil })
+      .returns(slack_message("channels" => [ { "id" => "CTEST", "name" => "standup-bot-test" } ], "response_metadata" => { "next_cursor" => "" }))
+    api.expects(:post)
+      .with("conversations.members", { channel: "CTEST", limit: 200, cursor: nil })
+      .returns(slack_message("members" => [ "U111" ], "response_metadata" => { "next_cursor" => "" }))
+
+    assert_equal [ "U111" ], slack_client.channel_members("standup-bot-test")
+  end
+
+  test "channel_members mentions the missing scope when a name can't be found among public channels" do
+    slack_client, api = slack_client_with_real_api
+    api.expects(:post)
+      .with("conversations.list", { limit: 200, exclude_archived: true, types: "public_channel,private_channel", cursor: nil })
+      .raises(Slack::Web::Api::Errors::MissingScope.new("missing_scope"))
+    api.expects(:post)
+      .with("conversations.list", { limit: 200, exclude_archived: true, types: "public_channel", cursor: nil })
+      .returns(slack_message("channels" => [], "response_metadata" => { "next_cursor" => "" }))
+
+    error = assert_raises(ChatPlatform::ChannelAccessError) { slack_client.channel_members("#secret") }
+    assert_includes error.message, "Slack couldn't find #secret."
+    assert_includes error.message, "groups:read"
+  end
+
+  test "channel_members explains unknown channel IDs" do
+    slack_client, api = slack_client_with_real_api
+    api.expects(:post)
+      .with("conversations.members", { channel: "CGONE", limit: 200, cursor: nil })
+      .raises(Slack::Web::Api::Errors::ChannelNotFound.new("channel_not_found"))
+
+    error = assert_raises(ChatPlatform::ChannelAccessError) { slack_client.channel_members("CGONE") }
+    assert_includes error.message, "Slack couldn't find CGONE."
   end
 
   test "send_message retries rate limit errors" do
@@ -201,10 +224,39 @@ class SlackClientTest < ActiveSupport::TestCase
 
     channels = @slack_client.list_channels(query: "gen")
 
+    assert_nil channels.notice
     assert_equal 1, channels.size
     assert_equal "C123", channels.first["id"]
     assert_equal "#general", channels.first["label"]
     assert_equal true, channels.first["is_member"]
+  end
+
+  test "list_channels only asks for public channels when private ones aren't wanted" do
+    @mock_api_client.expects(:conversations_list)
+      .with(exclude_archived: true, limit: 100, types: "public_channel")
+      .returns(slack_message("channels" => [ { "id" => "C123", "name" => "general" } ]))
+
+    channels = @slack_client.list_channels(include_private: false)
+
+    assert_equal [ "C123" ], channels.map { |channel| channel["id"] }
+    assert_nil channels.notice
+  end
+
+  test "list_channels falls back to public channels without the groups:read scope" do
+    sequence = sequence("scope fallback")
+    @mock_api_client.expects(:conversations_list)
+      .with(exclude_archived: true, limit: 100, types: "public_channel,private_channel")
+      .in_sequence(sequence)
+      .raises(Slack::Web::Api::Errors::MissingScope.new("missing_scope"))
+    @mock_api_client.expects(:conversations_list)
+      .with(exclude_archived: true, limit: 100, types: "public_channel")
+      .in_sequence(sequence)
+      .returns(slack_message("channels" => [ { "id" => "C123", "name" => "standup-bot-test" } ]))
+
+    channels = @slack_client.list_channels(query: "standup")
+
+    assert_equal [ "C123" ], channels.map { |channel| channel["id"] }
+    assert_includes channels.notice, "groups:read"
   end
 
   test "list_users normalizes users and skips bots and deleted users" do

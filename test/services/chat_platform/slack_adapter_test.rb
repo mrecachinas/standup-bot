@@ -88,7 +88,7 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
 
   test "discovery and connection calls delegate to the client" do
     @client.expects(:list_users).with(query: "a", limit: 5).returns([ { "id" => "U1" } ])
-    @client.expects(:list_channels).with(query: "g", limit: 6).returns([ { "id" => "C1" } ])
+    @client.expects(:list_channels).with(query: "g", limit: 6, include_private: true).returns([ { "id" => "C1" } ])
     @client.expects(:channel_members).with("C1").returns([ "U1" ])
     @client.expects(:auth_test).returns({ "team_id" => "T1" })
 
@@ -96,6 +96,29 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
     assert_equal [ { "id" => "C1" } ], adapter.list_channels(query: "g", limit: 6)
     assert_equal [ "U1" ], adapter.channel_member_ids("C1")
     assert_equal "T1", adapter.connection_status["team_id"]
+  end
+
+  test "channel_member_profiles skips bots, Slackbot, and deactivated people and uses friendly names" do
+    @client.expects(:channel_members).with("C1").returns(%w[U1 U2 U3 UBOT UGONE USLACKBOT UMISSING])
+    @client.stubs(:get_user_info).with("U1").returns(
+      "name" => "m.recachinas", "tz" => "America/New_York", "avatar_url" => "https://avatars.slack-edge.com/u1.png",
+      "profile" => { "display_name" => "Michael", "real_name" => "Michael Recachinas" }
+    )
+    @client.stubs(:get_user_info).with("U2").returns("name" => "erin.recachinas", "profile" => { "display_name" => "", "real_name" => "Erin Recachinas" })
+    @client.stubs(:get_user_info).with("U3").returns("name" => "guest.user", "is_restricted" => true, "profile" => {})
+    @client.stubs(:get_user_info).with("UBOT").returns("name" => "standup_bot", "is_bot" => true, "profile" => {})
+    @client.stubs(:get_user_info).with("UGONE").returns("name" => "gone", "deleted" => true, "profile" => {})
+    @client.stubs(:get_user_info).with("UMISSING").returns(nil)
+    @client.expects(:get_user_info).with("USLACKBOT").never
+
+    assert_equal(
+      [
+        { "platform_user_id" => "U1", "display_name" => "Michael", "cached_timezone" => "America/New_York", "avatar_url" => "https://avatars.slack-edge.com/u1.png" },
+        { "platform_user_id" => "U2", "display_name" => "Erin Recachinas" },
+        { "platform_user_id" => "U3", "display_name" => "guest.user" }
+      ],
+      adapter.channel_member_profiles("C1")
+    )
   end
 
   test "validates Slack user IDs" do

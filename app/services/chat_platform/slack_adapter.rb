@@ -3,6 +3,7 @@ module ChatPlatform
   # low-level Web API wrapper; Block Kit and mrkdwn live here.
   class SlackAdapter < Adapter
     USER_ID_PATTERN = /\A[UW][A-Z0-9]{2,}\z/
+    SLACKBOT_ID = "USLACKBOT".freeze
     CHANNEL_PATTERN = /\A#?[A-Za-z0-9][A-Za-z0-9_-]*\z/
 
     def key
@@ -76,16 +77,30 @@ module ChatPlatform
       client.list_users(query: query, limit: limit)
     end
 
-    def list_channels(query: nil, limit: 100)
-      client.list_channels(query: query, limit: limit)
+    def list_channels(query: nil, limit: 100, include_private: true)
+      client.list_channels(query: query, limit: limit, include_private: include_private)
     end
 
     def channel_member_ids(channel)
       client.channel_members(channel)
     end
 
+    # Skips bots (including this app), Slackbot, and deactivated accounts, the
+    # same people user search leaves out. Guests are kept, as they are there.
     def channel_member_profiles(channel)
-      client.channel_member_profiles(channel)
+      channel_member_ids(channel).filter_map do |user_id|
+        next if user_id == SLACKBOT_ID
+
+        profile = user_profile(user_id)
+        next if profile.nil? || profile.bot? || profile.deleted?
+
+        {
+          "platform_user_id" => user_id,
+          "display_name" => profile.preferred_name || user_id,
+          "cached_timezone" => profile.timezone.presence,
+          "avatar_url" => profile.avatar_url
+        }.compact
+      end
     end
 
     def connection_status

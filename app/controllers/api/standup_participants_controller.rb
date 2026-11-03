@@ -92,6 +92,8 @@ module Api
         "#{@standup.platform}_sync",
         notice: import_notice("Synced #{@standup.chat_platform.label} channel", result)
       )
+    rescue ChatPlatform::ChannelAccessError => error
+      render json: { errors: [ error.message ], summary: nil }, status: :unprocessable_entity
     rescue StandardError => error
       label = @standup.chat_platform.label
       Rails.logger.warn "Unable to sync #{label} channel #{channel}: #{error.class} - #{error.message}"

@@ -4,7 +4,7 @@ require "yaml"
 class SlackAppManifest
   DEFAULT_APP_NAME = "Standup Bot"
   DEFAULT_DESCRIPTION = "Automates daily standups by collecting Slack DM responses and posting team summaries."
-  BOT_SCOPES = %w[channels:read chat:write commands im:history im:write users:read].freeze
+  BOT_SCOPES = %w[channels:read chat:write commands groups:read im:history im:write users:read].freeze
   # "Sign in with Slack" (OpenID Connect) for the web console.
   USER_SCOPES = %w[openid email profile].freeze
 

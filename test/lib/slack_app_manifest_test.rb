@@ -13,7 +13,7 @@ class SlackAppManifestTest < ActiveSupport::TestCase
     assert_equal false, manifest.dig("settings", "socket_mode_enabled")
 
     scopes = manifest.dig("oauth_config", "scopes", "bot")
-    %w[channels:read chat:write commands im:history im:write users:read].each do |scope|
+    %w[channels:read chat:write commands groups:read im:history im:write users:read].each do |scope|
       assert_includes scopes, scope
     end
 
