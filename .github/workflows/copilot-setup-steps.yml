@@ -32,6 +32,8 @@ jobs:
           bundler-cache: true
           
       - run: bundle install
+        env:
+          BUNDLE_FROZEN: "true"
 
       - name: Prepare database
         env:

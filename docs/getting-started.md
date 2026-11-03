@@ -69,7 +69,7 @@ Rails handles web requests, but scheduling, sending DMs, and posting summaries a
 bin/jobs
 ```
 
-If you'd rather set things up by hand, `bin/setup` installs gems and npm packages, prepares the database, and starts `bin/dev`. You can also run `bundle install`, `(cd frontend && npm ci)`, `bin/rails db:prepare`, and `bin/dev` yourself. See [Development](development.md#running-the-app) for more on `bin/dev`.
+If you'd rather set things up by hand, `bin/setup` installs gems and npm packages, prepares the database, and starts `bin/dev`. You can also run `BUNDLE_FROZEN=true bundle install`, `(cd frontend && npm ci)`, `bin/rails db:prepare`, and `bin/dev` yourself. See [Development](development.md#running-the-app) for more on `bin/dev`.
 
 ### Database settings
 
