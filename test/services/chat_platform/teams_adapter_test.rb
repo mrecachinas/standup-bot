@@ -68,10 +68,10 @@ class ChatPlatform::TeamsAdapterTest < ActiveSupport::TestCase
   test "posts standup updates as a new channel thread in Teams markdown" do
     @connector.expects(:create_channel_thread).with do |args|
       args[:channel_id] == "19:standup@thread.tacv2" &&
-        args[:activity][:text] == "**Tess's Standup Update:**\n\n**Q1**\nA1"
+        args[:activity][:text] == "**Tess** posted an update for **Daily**\n\n**Q1**\nA1"
     end.returns({ conversation_id: "19:standup@thread.tacv2;messageid=7", activity_id: "7" })
 
-    message = adapter.post_standup_update(TEAMS_CHANNEL, display_name: "Tess", answers: [ { question: "Q1", answer: "A1" } ])
+    message = adapter.post_standup_update(TEAMS_CHANNEL, display_name: "Tess", standup_name: "Daily", answers: [ { question: "Q1", answer: "A1" } ])
 
     assert_equal "7", message.id
   end
@@ -84,7 +84,7 @@ class ChatPlatform::TeamsAdapterTest < ActiveSupport::TestCase
       activity: has_entries(text: includes("A2"))
     )
 
-    adapter.update_standup_update(TEAMS_CHANNEL, "7", display_name: "Tess", answers: [ { question: "Q1", answer: "A2" } ])
+    adapter.update_standup_update(TEAMS_CHANNEL, "7", display_name: "Tess", standup_name: "Daily", answers: [ { question: "Q1", answer: "A2" } ])
   end
 
   test "replies in an existing conversation using its service URL" do
@@ -103,6 +103,16 @@ class ChatPlatform::TeamsAdapterTest < ActiveSupport::TestCase
     end.returns("x")
 
     adapter.send_selection("a:chat", "Pick one", [ { text: "Daily", value: 5 } ], action_id: "standup_selection")
+  end
+
+  test "sends a single button as an Adaptive Card" do
+    @connector.expects(:send_activity).with do |args|
+      card = args[:activity][:attachments].first
+      card.dig(:content, :body, 0, :text) == "You skipped **Daily**." &&
+        card.dig(:content, :actions, 0) == { type: "Action.Submit", title: "Restart", data: { action_id: "standup_restart", standup_id: "5" } }
+    end.returns("x")
+
+    adapter.send_action("a:chat", "You skipped **Daily**.", button: { text: "Restart", value: 5 }, action_id: "standup_restart")
   end
 
   test "maps Graph users to profiles, including Windows time zones" do

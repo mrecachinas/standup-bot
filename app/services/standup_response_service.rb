@@ -44,7 +44,8 @@ class StandupResponseService
       .where(platform_user_id: platform_user_id, standup_id: standup_id, status: "pending")
       .where(standup_date: ...standup_date)
 
-    previous_pending.each { |response| response.update!(status: "skipped") }
+    # Returns how many were wrapped up, so the next prompt can say so.
+    previous_pending.each { |response| response.update!(status: "skipped") }.size
   end
 
   def self.normalize_answer_text(text)
@@ -87,6 +88,7 @@ class StandupResponseService
       standup_response.standup.platform_channel,
       message_id,
       display_name: display_name,
+      standup_name: standup_response.standup.name,
       answers: answers
     )
   end
@@ -96,12 +98,11 @@ class StandupResponseService
     standup_response.status = "completed"
 
     chat = chat_for(standup_response)
-    channel = chat.channel_reference(standup.platform_channel, name: standup.platform_channel_name)
-    completion_message = if standup.outro.present?
-      "#{standup.outro}\n\nYour standup update has been posted to #{channel}."
-    else
-      "Thank you! Your standup update has been posted to #{channel}."
-    end
+    channel = chat.channel_mention(standup.platform_channel, name: standup.platform_channel_name)
+    completion_message = [
+      standup.outro.presence || "Thanks! 🙌",
+      "Your update has been posted to #{channel}."
+    ].join("\n\n")
     chat.send_direct_message(standup_response.platform_user_id, completion_message)
 
     post_individual_response(standup_response)
@@ -122,17 +123,13 @@ class StandupResponseService
   end
 
   def self.send_next_question(standup_response)
-    standup = standup_response.standup
-    current_question_idx = standup_response.answers.size
+    question = standup_response.standup.questions[standup_response.answers.size]
     chat = chat_for(standup_response)
-    formatted_question = StandupFormatter.format_question(
-      standup.questions[current_question_idx],
-      current_question_idx + 1,
-      standup.questions.size,
-      formatter: chat.formatter
-    )
 
-    chat.send_direct_message(standup_response.platform_user_id, formatted_question)
+    chat.send_direct_message(
+      standup_response.platform_user_id,
+      StandupFormatter.format_question(question, formatter: chat.formatter)
+    )
   end
 
   def self.post_individual_response(standup_response)
@@ -145,6 +142,7 @@ class StandupResponseService
     message = chat.post_standup_update(
       standup_response.standup.platform_channel,
       display_name: display_name,
+      standup_name: standup_response.standup.name,
       answers: answers
     )
 

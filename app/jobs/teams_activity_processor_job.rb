@@ -75,6 +75,7 @@ class TeamsActivityProcessorJob < ApplicationJob
     response = case value["action_id"]
     when "standup_selection" then command_handler.report_selected(value["standup_id"])
     when "standup_start_selection" then command_handler.start_selected(value["standup_id"])
+    when StandupCommandHandler::RESTART_ACTION_ID then command_handler.restart(value["standup_id"])
     else ChatPlatform::Reply.text("That choice isn't supported.")
     end
 

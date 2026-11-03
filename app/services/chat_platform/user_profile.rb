@@ -8,6 +8,11 @@ module ChatPlatform
       display_name.presence || real_name.presence || name.presence
     end
 
+    # What to call someone in a greeting, like "Michael" for "Michael Recachinas".
+    def first_name
+      preferred_name.to_s.split.first
+    end
+
     def deleted?
       deleted == true
     end

@@ -31,8 +31,13 @@ class Standup < ApplicationRecord
   has_one :report_configuration, dependent: :destroy
   has_many :report_generations, dependent: :destroy
 
-  attribute :intro, :text, default: "Good morning! Time for standup. When you're ready, please answer the following"
-  attribute :outro, :text, default: "Thanks for your answers! Have a great day!"
+  # The intro follows the bot's greeting ("Hi Michael! 👋 It's time for ... in #channel."),
+  # so it reads best as a short request.
+  DEFAULT_INTRO = "Please share what you've been working on.".freeze
+  DEFAULT_OUTRO = "Thanks for sharing! Have a great day. 🙌".freeze
+
+  attribute :intro, :text, default: DEFAULT_INTRO
+  attribute :outro, :text, default: DEFAULT_OUTRO
   attribute :questions, :json, default: -> { [] }
   attribute :schedule_days, :json, default: -> { [] }
   attribute :reminder_enabled, :boolean, default: true

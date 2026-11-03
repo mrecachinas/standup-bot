@@ -27,22 +27,69 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
     assert_nil adapter.send_message("C1", "hi")
   end
 
-  test "post_standup_update renders mrkdwn" do
-    @client.expects(:send_message).with("team", "*Ann's Standup Update:*\n\n*Q1*\nA1\n\n*Q2*\nA2")
+  test "post_standup_update puts each answer under a colored bar" do
+    attachments = nil
+    @client.expects(:send_message)
+      .with { |channel, text, **options| attachments = options[:attachments]; channel == "team" && text == "*Ann* posted an update for *Daily*" }
       .returns({ "channel" => "C1", "ts" => "9.9" })
 
-    message = adapter.post_standup_update("team", display_name: "Ann", answers: [ { question: "Q1", answer: "A1" }, { question: "Q2", answer: "A2" } ])
+    message = adapter.post_standup_update("team", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: "A1" }, { question: "Q2", answer: "A2" } ])
 
     assert_equal "9.9", message.id
+    assert_equal ChatPlatform::SlackAdapter::ANSWER_COLORS.first(2), attachments.map { |attachment| attachment[:color] }
+    assert_equal [ "*Q1*\nA1", "*Q2*\nA2" ], attachments.map { |attachment| attachment[:blocks].first.dig(:text, :text) }
+    assert_equal "Q1: A1", attachments.first[:fallback]
   end
 
-  test "update_standup_update sends text and section blocks" do
-    @client.expects(:update_message).with do |channel, ts, text, blocks|
-      channel == "team" && ts == "9.9" && text.include?("*Q1*\nA1") &&
-        blocks.map { |block| block.dig(:text, :text) } == [ "*Ann's Standup Update:*", "*Q1*\nA1" ]
+  test "post_standup_update splits long answers across blocks" do
+    attachments = nil
+    @client.expects(:send_message)
+      .with { |_channel, _text, **options| attachments = options[:attachments]; true }
+      .returns({ "channel" => "C1", "ts" => "9.9" })
+
+    adapter.post_standup_update("team", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: "x" * 7_000 } ])
+
+    texts = attachments.first[:blocks].map { |block| block.dig(:text, :text) }
+    assert_equal 3, texts.size
+    assert texts.all? { |text| text.length <= ChatPlatform::SlackAdapter::SECTION_TEXT_LIMIT }
+    assert_equal "*Q1*\n#{"x" * 7_000}", texts.join
+  end
+
+  test "update_standup_update edits the heading and answers in place" do
+    @client.expects(:update_message).with do |channel, ts, text, **options|
+      channel == "team" && ts == "9.9" && text == "*Ann* posted an update for *Daily*" &&
+        options[:attachments].map { |attachment| attachment[:blocks].first.dig(:text, :text) } == [ "*Q1*\nA1" ]
     end
 
-    adapter.update_standup_update("team", "9.9", display_name: "Ann", answers: [ { question: "Q1", answer: "A1" } ])
+    adapter.update_standup_update("team", "9.9", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: "A1" } ])
+  end
+
+  test "send_standup_kickoff falls back to a friendly greeting without a profile" do
+    @client.stubs(:get_user_info).returns(nil)
+    blocks = nil
+    @client.expects(:send_message).with { |_user, _text, sent_blocks| blocks = sent_blocks; true }.returns({ "channel" => "D1", "ts" => "1" })
+
+    adapter.send_standup_kickoff("U1", standup_name: "Daily", channel: "team", intro: "", question: "Q1", question_count: 1)
+
+    assert_equal "Hi there! 👋 It's time for *Daily* in #team.", blocks.third.dig(:text, :text)
+    assert_equal "Starting *Daily* · 1 question · Reply `skip` to pass on one", blocks.first[:elements].first[:text]
+  end
+
+  test "channel_mention links channel IDs and falls back to the name" do
+    assert_equal "<#C0123ABC>", adapter.channel_mention("C0123ABC", name: "team")
+    assert_equal "#team", adapter.channel_mention("team")
+  end
+
+  test "send_action renders a section with a button" do
+    @client.expects(:send_message).with("D1", "You skipped *Daily*.", [
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "You skipped *Daily*." },
+        accessory: { type: "button", text: { type: "plain_text", text: "Restart" }, action_id: "standup_restart", value: "5" }
+      }
+    ]).returns({ "channel" => "D1", "ts" => "1" })
+
+    adapter.send_action("D1", "You skipped *Daily*.", button: { text: "Restart", value: 5 }, action_id: "standup_restart")
   end
 
   test "post_report sends a standup summary" do

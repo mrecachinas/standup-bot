@@ -29,12 +29,15 @@ class StandupReminderJob < ApplicationJob
     standup = response.standup
     answered = response.answers&.size || 0
     total = standup.questions.size
+    chat = chat_for(standup)
+    fmt = chat.formatter
+    question = standup.questions[answered]
 
-    chat_for(standup).send_direct_message(
+    reminder = "⏰ #{fmt.bold(standup.name)} is still waiting on you (#{answered} of #{total} answered). " \
+      "Reply here to pick up where you left off, or #{fmt.code("skip")} to pass on this one."
+    chat.send_direct_message(
       response.platform_user_id,
-      "Friendly reminder: your #{standup.name} standup is still in progress " \
-        "(#{answered}/#{total} questions answered). Reply in this DM to continue, " \
-        "or type `skip` to skip the current question."
+      [ reminder, (StandupFormatter.format_question(question, formatter: fmt) if question.present?) ].compact.join("\n\n")
     )
 
     response.update!(

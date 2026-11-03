@@ -12,7 +12,7 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
   test "standup start enqueues a manual standup" do
     standup_date = @participant.standup_date_for(Time.current).iso8601
 
-    assert_enqueued_with(job: StandupMessageJob, args: [ @participant.platform_user_id, @standup.id, standup_date ]) do
+    assert_enqueued_with(job: StandupMessageJob, args: [ @participant.platform_user_id, @standup.id, standup_date, { restart: true } ]) do
       post slack_standup_command_url, params: { user_id: @participant.platform_user_id, text: "start" }
     end
 
@@ -72,6 +72,11 @@ class SlackSlashCommandsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "skipped", response.reload.status
     assert_equal @standup.questions.size, response.answers.size
+
+    button = JSON.parse(self.response.body)["blocks"].first["accessory"]
+    assert_equal({ "type" => "plain_text", "text" => "Restart" }, button["text"])
+    assert_equal "standup_restart", button["action_id"]
+    assert_equal @standup.id.to_s, button["value"]
   end
 
   test "standup skip uses participant timezone date" do

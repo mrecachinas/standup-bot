@@ -4,6 +4,7 @@
 class StandupCommandHandler
   Reply = ChatPlatform::Reply
   DEFAULT_AWAY_DAYS = 7
+  RESTART_ACTION_ID = "standup_restart".freeze
   DIRECT_MESSAGE_COMMANDS = {
     "help" => "Show this help message",
     "report" => "Generate a standup report",
@@ -60,8 +61,8 @@ class StandupCommandHandler
     if participants.one?
       participant = participants.first
       standup = participant.standup
-      StandupMessageJob.perform_later(user_id, standup.id, current_standup_date(participant).iso8601)
-      Reply.text("Starting #{standup.name} now. Check your DMs.")
+      StandupMessageJob.perform_later(user_id, standup.id, current_standup_date(participant).iso8601, restart: true)
+      Reply.text("Starting #{fmt.bold(standup.name)} now. Check your DMs.")
     else
       selection("Which standup would you like to start?", participants, "standup_start_selection")
     end
@@ -89,7 +90,11 @@ class StandupCommandHandler
       StandupResponseService.skip_remaining_questions(response, notify: false)
     end
 
-    Reply.text("Skipped remaining questions for #{pending_responses.count} standup(s).")
+    standups = pending_responses.map(&:standup).uniq
+    return restartable_reply("You skipped", standups.first) if standups.one?
+
+    names = standups.map { |standup| fmt.bold(standup.name) }.to_sentence
+    Reply.text("You skipped #{names}. You can restart them anytime with #{fmt.code("#{base_command} start")}.")
   end
 
   def report
@@ -151,8 +156,9 @@ class StandupCommandHandler
     response = StandupResponse.latest_pending_for(platform, user_id)
     return Reply.text("You don't have an active standup to skip questions for.") unless response
 
+    # The next question (or the wrap-up message) is the acknowledgement.
     StandupResponseService.skip_question(response)
-    Reply.text("Question skipped. Moving on to the next one.")
+    Reply.none
   end
 
   def cancel
@@ -160,7 +166,7 @@ class StandupCommandHandler
     return Reply.text("You don't have an active standup to cancel.") unless response
 
     response.update!(status: "cancelled")
-    Reply.text("Your standup has been cancelled.")
+    restartable_reply("You cancelled", response.standup)
   end
 
   def away(days)
@@ -190,8 +196,16 @@ class StandupCommandHandler
   # Someone picked a standup from a selection reply.
   def start_selected(standup_id)
     with_selected_participant(standup_id) do |standup, participant|
-      StandupMessageJob.perform_later(user_id, standup.id, participant.standup_date_for(Time.current).iso8601)
-      Reply.text("Starting #{standup.name} now. Check your DMs.")
+      StandupMessageJob.perform_later(user_id, standup.id, participant.standup_date_for(Time.current).iso8601, restart: true)
+      Reply.text("Starting #{fmt.bold(standup.name)} now. Check your DMs.")
+    end
+  end
+
+  # Someone clicked Restart on a skipped or cancelled standup.
+  def restart(standup_id)
+    with_selected_participant(standup_id) do |standup, participant|
+      StandupMessageJob.perform_later(user_id, standup.id, participant.standup_date_for(Time.current).iso8601, restart: true)
+      Reply.text("Restarting #{fmt.bold(standup.name)}…")
     end
   end
 
@@ -225,7 +239,15 @@ class StandupCommandHandler
   end
 
   def report_queued_reply(standup)
-    Reply.text("Generating report for #{standup.name}. It will be posted to #{chat.channel_reference(standup.platform_channel, name: standup.platform_channel_name)} shortly.")
+    Reply.text("Generating report for #{standup.name}. It will be posted to #{chat.channel_mention(standup.platform_channel, name: standup.platform_channel_name)} shortly.")
+  end
+
+  def restartable_reply(verb, standup)
+    Reply.action(
+      "#{verb} #{fmt.bold(standup.name)}. You can restart it anytime.",
+      button: { text: "Restart", value: standup.id },
+      action_id: RESTART_ACTION_ID
+    )
   end
 
   def selection(text, participants, action_id)

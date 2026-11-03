@@ -15,6 +15,7 @@ class NonResponseHandlingTest < ActiveSupport::TestCase
     @platform_user_id = "U12345"
 
     @mock_slack_client = stub_slack_client
+    @mock_slack_client.stubs(:get_user_info).returns(nil)
   end
 
   test "user gets new standup after not completing previous one" do
@@ -22,7 +23,7 @@ class NonResponseHandlingTest < ActiveSupport::TestCase
     Timecop.freeze(Time.new(2025, 4, 6, 9, 0, 0, "+00:00")) do
       # Day 1: User gets standup but doesn't complete it
       @mock_slack_client.expects(:send_message)
-        .with(@platform_user_id, is_a(String))
+        .with(@platform_user_id, is_a(String), is_a(Array))
         .returns({ channel: "D12345", ts: "1234567890.123456" })
         .once
 
@@ -40,7 +41,7 @@ class NonResponseHandlingTest < ActiveSupport::TestCase
     Timecop.freeze(Time.new(2025, 4, 7, 9, 0, 0, "+00:00")) do
       # Day 2: User gets a new standup
       @mock_slack_client.expects(:send_message)
-        .with(@platform_user_id, is_a(String))
+        .with(@platform_user_id, is_a(String), is_a(Array))
         .returns({ channel: "D12345", ts: "1234567890.123457" })
         .once
 
@@ -65,7 +66,7 @@ class NonResponseHandlingTest < ActiveSupport::TestCase
     Timecop.freeze(Time.new(2025, 4, 8, 9, 0, 0, "+00:00")) do
       # Day 3: User gets another new standup
       @mock_slack_client.expects(:send_message)
-        .with(@platform_user_id, is_a(String))
+        .with(@platform_user_id, is_a(String), is_a(Array))
         .returns({ channel: "D12345", ts: "1234567890.123458" })
         .once
 
@@ -87,7 +88,7 @@ class NonResponseHandlingTest < ActiveSupport::TestCase
     Timecop.freeze(Time.new(2025, 4, 6, 9, 0, 0, "+00:00")) do
       # Morning: User gets standup
       @mock_slack_client.expects(:send_message)
-        .with(@platform_user_id, is_a(String))
+        .with(@platform_user_id, is_a(String), is_a(Array))
         .returns({ channel: "D12345", ts: "1234567890.123456" })
         .once
 
@@ -126,7 +127,7 @@ class NonResponseHandlingTest < ActiveSupport::TestCase
     Timecop.freeze(Time.new(2025, 4, 7, 9, 0, 0, "+00:00")) do
       # Day 2: User gets a new standup
       @mock_slack_client.expects(:send_message)
-        .with(@platform_user_id, is_a(String))
+        .with(@platform_user_id, is_a(String), is_a(Array))
         .returns({ channel: "D12345", ts: "1234567890.123457" })
         .once
 

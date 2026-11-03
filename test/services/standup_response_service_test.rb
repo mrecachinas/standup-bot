@@ -133,8 +133,8 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     @mock_slack_client.expects(:update_message).with(
       @standup.platform_channel,
       "1234567890.123456",
-      is_a(String),
-      is_a(Array)
+      "*Test User* posted an update for *#{@standup.name}*",
+      has_entry(:attachments, is_a(Array))
     ).returns({ "ok" => true })
 
     StandupResponseService.repost_response(completed_response)

@@ -31,16 +31,10 @@ class SlackInbound
 
       handler = StandupCommandHandler.new(chat: chat, user_id: user_id)
       reply = command.to_sym == :standup_status ? handler.status : handler.run(text)
-      return ephemeral(reply.text, status: reply.status) unless reply.selection?
+      blocks = chat.reply_blocks(reply)
+      return ephemeral(reply.text, status: reply.status) unless blocks
 
-      Response.new(
-        body: {
-          response_type: "ephemeral",
-          text: reply.text,
-          blocks: chat.selection_blocks(reply.text, reply.options, action_id: reply.action_id)
-        },
-        status: :ok
-      )
+      Response.new(body: { response_type: "ephemeral", text: reply.text, blocks: blocks }, status: :ok)
     end
 
     # Returns a Response to show the user, or nil when there's nothing to say.
@@ -70,6 +64,8 @@ class SlackInbound
         interaction_reply(handler.report_selected(standup_id).text)
       when "standup_start_selection"
         interaction_reply(handler.start_selected(standup_id).text)
+      when StandupCommandHandler::RESTART_ACTION_ID
+        interaction_reply(handler.restart(standup_id).text)
       else
         Rails.logger.info "Ignoring unsupported Slack action_id=#{action['action_id']}"
         interaction_reply("That Slack action is not supported yet.")

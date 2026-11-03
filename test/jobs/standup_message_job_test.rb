@@ -14,6 +14,9 @@ class StandupMessageJobTest < ActiveJob::TestCase
     StandupResponse.where(platform_user_id: @platform_user_id, standup_id: @standup.id).delete_all
 
     @mock_slack_client = stub_slack_client
+    @mock_slack_client.stubs(:get_user_info).returns(
+      { "name" => "mrecachinas", "profile" => { "display_name" => "", "real_name" => "Michael Recachinas" } }
+    )
 
     # Setup test data
     @standup.questions = [ "What did you do yesterday?", "What are you doing today?", "Any blockers?" ]
@@ -27,7 +30,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
   test "sends standup message to slack user" do
     # Expect the message to be sent to Slack
     @mock_slack_client.expects(:send_message)
-      .with(@platform_user_id, is_a(String))
+      .with(@platform_user_id, is_a(String), is_a(Array))
       .returns(@message_response)
 
     # Verify that a standup response is created
@@ -45,25 +48,73 @@ class StandupMessageJobTest < ActiveJob::TestCase
     assert_empty response.answers
   end
 
-  test "formats the message with intro and first question" do
-    # Verify the message includes the intro and first question
-    formatted_question = StandupFormatter.format_question(
-      @standup.questions.first,
-      1,
-      @standup.questions.size
-    )
-
-    expected_message = [
-      @standup.intro,
-      "",
-      formatted_question
-    ].join("\n")
-
+  test "opens with a greeting that names the standup and channel, then the first question" do
+    @standup.update!(platform_channel: "C0123ABC", intro: "Please share what you've been working on.")
+    sent = nil
     @mock_slack_client.expects(:send_message)
-      .with(@platform_user_id, expected_message)
+      .with { |*args| sent = args; true }
       .returns(@message_response)
 
     StandupMessageJob.perform_now(@platform_user_id, @standup.id)
+
+    _user_id, fallback, blocks = sent
+    greeting = "Hi Michael! 👋 It's time for *Daily Standup* in <#C0123ABC>. Please share what you've been working on."
+    assert_equal "#{greeting}\n\n*What did you do yesterday?*", fallback
+    assert_equal %w[context divider section section], blocks.map { |block| block[:type] }
+    assert_equal "Starting *Daily Standup* · 3 questions · Reply `skip` to pass on one", blocks.first[:elements].first[:text]
+    assert_equal greeting, blocks.third.dig(:text, :text)
+    assert_equal "*What did you do yesterday?*", blocks.fourth.dig(:text, :text)
+  end
+
+  test "says so when it wraps up an unfinished run from an earlier day" do
+    StandupResponse.create!(
+      platform_user_id: @platform_user_id,
+      standup_id: @standup.id,
+      status: "pending",
+      standup_date: Date.new(2025, 4, 6),
+      answers: []
+    )
+    sent = nil
+    @mock_slack_client.expects(:send_message)
+      .with { |*args| sent = args; true }
+      .returns(@message_response)
+
+    StandupMessageJob.perform_now(@platform_user_id, @standup.id, "2025-04-07")
+
+    assert_equal "⏰ Your previous *Daily Standup* wasn't finished, so I've wrapped it up.", sent.third.first.dig(:text, :text)
+    assert_equal "skipped", StandupResponse.find_by(standup_date: Date.new(2025, 4, 6), platform_user_id: @platform_user_id).status
+  end
+
+  test "restart replaces a skipped run for the same day" do
+    StandupResponse.create!(
+      platform_user_id: @platform_user_id,
+      standup_id: @standup.id,
+      status: "skipped",
+      standup_date: Date.new(2025, 4, 7),
+      answers: [ { "question" => "What did you do yesterday?", "answer" => "(skipped)" } ]
+    )
+    @mock_slack_client.expects(:send_message).returns(@message_response)
+
+    StandupMessageJob.perform_now(@platform_user_id, @standup.id, "2025-04-07", restart: true)
+
+    response = StandupResponse.find_by!(platform_user_id: @platform_user_id, standup_id: @standup.id, standup_date: Date.new(2025, 4, 7))
+    assert_equal "pending", response.status
+    assert_empty response.answers
+  end
+
+  test "restart leaves a completed run alone" do
+    StandupResponse.create!(
+      platform_user_id: @platform_user_id,
+      standup_id: @standup.id,
+      status: "completed",
+      standup_date: Date.new(2025, 4, 7),
+      answers: []
+    )
+    @mock_slack_client.expects(:send_message).never
+
+    assert_no_difference "StandupResponse.count" do
+      StandupMessageJob.perform_now(@platform_user_id, @standup.id, "2025-04-07", restart: true)
+    end
   end
 
   test "silently discards job when standup not found" do
@@ -77,7 +128,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
   test "handles slack client errors" do
     # Set up the expectation that send_message will be called and raise an error
     @mock_slack_client.expects(:send_message)
-      .with(@platform_user_id, is_a(String))
+      .with(@platform_user_id, is_a(String), is_a(Array))
       .raises(StandardError.new("Slack API Error"))
       .once  # Explicitly state we expect this to be called only once
 
@@ -108,7 +159,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
 
     # Expect the message to be sent to Slack
     @mock_slack_client.expects(:send_message)
-      .with(@platform_user_id, is_a(String))
+      .with(@platform_user_id, is_a(String), is_a(Array))
       .returns(@message_response)
 
     # Perform the job
