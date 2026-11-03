@@ -18,9 +18,14 @@ if [ ! -f public/app/index.html ]; then
   exit 1
 fi
 
-# config/database.yml derives the Solid Queue database from DATABASE_URL
-# (nerdbot_e2e_queue by default), so this reset never touches the development
-# queue. No job worker runs here, so enqueued jobs simply wait.
+# The queue database must follow DATABASE_URL (nerdbot_e2e_queue by default;
+# see config/database.yml), because the reset below drops it. A developer's
+# QUEUE_DATABASE_URL or QUEUE_DB_NAME would otherwise win (Rails merges
+# QUEUE_DATABASE_URL into the queue config itself), so clear them. No job
+# worker runs here: enqueued jobs simply wait, and nothing recurring runs.
+unset QUEUE_DATABASE_URL QUEUE_DB_NAME SOLID_QUEUE_IN_PUMA
+export SOLID_QUEUE_SKIP_RECURRING=1
+
 echo "==> Resetting the e2e database..."
 DISABLE_DATABASE_ENVIRONMENT_CHECK=1 bin/rails db:drop db:create db:schema:load db:fixtures:load
 
