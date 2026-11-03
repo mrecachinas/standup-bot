@@ -37,7 +37,7 @@ describe("EditStandupPage", () => {
     expect(screen.queryByRole("navigation", { name: "Templates" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Slack" })).toBeNull();
 
-    expect(screen.getByLabelText(/Post summaries to/)).toHaveValue("eng-standup");
+    await waitFor(() => expect(screen.getByLabelText(/Post summaries to/)).toHaveValue("eng-standup"));
     expect(screen.getAllByRole("textbox", { name: /^Question \d$/ })).toHaveLength(3);
     // People live on the People tab once a standup exists.
     expect(screen.queryByRole("list", { name: "People in this standup" })).toBeNull();
@@ -76,7 +76,7 @@ describe("EditStandupPage", () => {
     expect(await screen.findByText("Team daily was updated.")).toBeInTheDocument();
     const [body] = bodiesFor(fetchMock, "/api/standups/7", "PATCH");
     expect(body.standup).not.toHaveProperty("platform");
-    expect(body.standup).not.toHaveProperty("platform_channel_name");
+    expect(body.standup.platform_channel_name).toBeNull();
     expect(body.standup).toMatchObject({
       name: "Team daily",
       platform_channel: "eng-standup",
@@ -85,6 +85,33 @@ describe("EditStandupPage", () => {
     });
     expect(body.standup).not.toHaveProperty("participants");
     expect(body.standup).not.toHaveProperty("participant_handles");
+  });
+
+  it("shows a picked Slack channel by name, and typing a new name unlinks it", async () => {
+    const user = userEvent.setup();
+    const payload = editFormFixture({
+      standup: standupFixture({ platform_channel: "C0STANDUP", platform_channel_name: "standup-bot-test" }),
+      channel: { input: "search", prefix: "#", value: "C0STANDUP", name: "standup-bot-test", choices: [], placeholder: "Search channels or type a name", hint: null },
+    });
+    const fetchMock = setup(
+      (url, init) =>
+        url === "/api/standups/7" && init.method === "PATCH" ? jsonResponse({ standup: standupFixture(), notice: "Daily standup was updated." }) : undefined,
+      payload,
+    );
+    renderApp("/manager/standups/7/edit");
+
+    const input = await screen.findByRole("combobox", { name: /Post summaries to/ });
+    await waitFor(() => expect(input).toHaveValue("standup-bot-test"));
+    expect(screen.getByText(/Linked to/)).toHaveTextContent("Linked to #standup-bot-test (C0STANDUP).");
+
+    await user.clear(input);
+    await user.type(input, "eng-standup");
+    expect(screen.queryByText(/Linked to/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(bodiesFor(fetchMock, "/api/standups/7", "PATCH")).toHaveLength(1));
+    const [body] = bodiesFor(fetchMock, "/api/standups/7", "PATCH");
+    expect(body.standup).toMatchObject({ platform_channel: "eng-standup", platform_channel_name: null });
   });
 
   it("picks a Teams channel and keeps its name", async () => {

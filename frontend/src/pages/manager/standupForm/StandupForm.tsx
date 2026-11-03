@@ -24,6 +24,7 @@ import { fieldMessage } from "../../../lib/fieldErrors";
 import { pluralize } from "../../../lib/format";
 import { useMutation } from "../../../hooks/useMutation";
 import { paths } from "../../../paths";
+import { ChannelPicker } from "./ChannelPicker";
 import { FieldError } from "./FieldError";
 import { formatClock, formParams, initialFormState, scheduleParams, scheduleSentence, type FormState } from "./formState";
 import { PeoplePicker } from "./PeoplePicker";
@@ -442,6 +443,19 @@ function ChannelField({
   onChange: (changes: Partial<FormState>) => void;
 }) {
   const { channel } = payload;
+
+  if (channel.input === "search") {
+    return (
+      <ChannelPicker
+        platform={payload.platform.key}
+        channel={state.platformChannel}
+        channelName={state.platformChannelName}
+        placeholder={channel.placeholder}
+        error={error}
+        onChange={onChange}
+      />
+    );
+  }
 
   return (
     <FormControl required>

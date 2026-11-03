@@ -96,7 +96,8 @@ module Api
       render json: schedule_preview.as_json
     end
 
-    # Channels for the editor's Teams channel picker. Only admins see private channels.
+    # Channels for the editor's channel pickers: Teams' list and Slack's
+    # search (`query`). Only admins see private channels.
     def channel_options
       platform = params[:platform].presence || "teams"
       unless ChatPlatform.supported?(platform)
@@ -104,8 +105,9 @@ module Api
         return
       end
 
-      result = discover_channels(platform)
-      render json: { platform: platform.to_s, records: Array(result.records), success: result.success?, message: result.message }
+      result = discover_channels(platform, query: params[:query].to_s.strip.delete_prefix("#").presence)
+      records = Array(result.records).map { |record| record.to_h.slice("id", "name", "label", "is_private", "is_member") }
+      render json: { platform: platform.to_s, records: records, success: result.success?, message: result.message, action: result.action }
     end
 
     def destroy
@@ -229,8 +231,8 @@ module Api
       @enabled_platform_keys ||= ChatPlatform.enabled.map { |adapter| adapter.key.to_s }.presence || [ ChatPlatform::DEFAULT.to_s ]
     end
 
-    def discover_channels(platform)
-      ChatIntegrationService.for(platform).discover_channels(limit: ChatIntegrationService::MAX_LIMIT, include_private: principal.admin?)
+    def discover_channels(platform, query: nil)
+      ChatIntegrationService.for(platform).discover_channels(query: query, limit: ChatIntegrationService::MAX_LIMIT, include_private: principal.admin?)
     end
 
     # Whoever creates a standup usually takes part in it, so start with them

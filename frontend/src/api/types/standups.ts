@@ -168,13 +168,33 @@ export interface StandupTemplate {
 }
 
 export interface ChannelField {
-  input: "select" | "text" | "prefixed_text";
+  /** "search": Slack's search-as-you-type picker (GET /api/standups/channel_options?query=). */
+  input: "select" | "text" | "prefixed_text" | "search";
   value: string | null;
   name: string | null;
   choices: { id: string; label: string }[];
   placeholder: string;
   hint: string | null;
   prefix?: string;
+}
+
+/** A channel from GET /api/standups/channel_options. */
+export interface ChannelOption {
+  id: string;
+  label: string;
+  name?: string;
+  is_private?: boolean;
+  is_member?: boolean;
+}
+
+/** GET /api/standups/channel_options?platform=…&query=… */
+export interface ChannelOptionsPayload {
+  platform: string;
+  records: ChannelOption[];
+  success: boolean;
+  message: string | null;
+  /** A next step, e.g. why private channels weren't listed. */
+  action: string | null;
 }
 
 export interface ParticipantRow {
@@ -231,7 +251,7 @@ export interface StandupFormParams {
   name: string;
   platform?: PlatformKey;
   platform_channel: string;
-  platform_channel_name?: string;
+  platform_channel_name?: string | null;
   intro: string;
   outro: string;
   reminder_enabled: boolean;
