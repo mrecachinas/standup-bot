@@ -1,7 +1,8 @@
 class SlackIntegrationService < ChatIntegrationService
   CREDENTIALS = [
     { key: :bot_token, label: "Bot token", env: "SLACK_BOT_TOKEN", required: true, secret: true },
-    { key: :signing_secret, label: "Signing secret", env: "SLACK_SIGNING_SECRET", required: true, secret: true },
+    { key: :signing_secret, label: "Signing secret", env: "SLACK_SIGNING_SECRET", required: true, secret: true, connection_mode: "http" },
+    { key: :app_token, label: "App-level token", env: "SLACK_APP_TOKEN", required: true, secret: true, connection_mode: "socket" },
     { key: :client_id, label: "Client ID", env: "SLACK_CLIENT_ID", required: false },
     { key: :client_secret, label: "Client secret", env: "SLACK_CLIENT_SECRET", required: false, secret: true }
   ].freeze
@@ -13,8 +14,15 @@ class SlackIntegrationService < ChatIntegrationService
 
   private
 
+  # The signing secret is only used for HTTP request URLs and the app-level
+  # token only for Socket Mode, so show whichever SLACK_CONNECTION_MODE needs.
+  def credential_definitions
+    mode = SlackConfig.connection_mode(config)
+    CREDENTIALS.select { |credential| credential[:connection_mode].nil? || credential[:connection_mode] == mode }
+  end
+
   def installed_message
-    "Slack app bot token is configured."
+    "Slack app bot token is configured. Receiving Slack traffic over #{SlackConfig.connection_mode_label(config)}."
   end
 
   def missing_installation_message
@@ -65,6 +73,6 @@ class SlackIntegrationService < ChatIntegrationService
   end
 
   def sanitized_error_message(error)
-    super.gsub(/xox[baprs]-[A-Za-z0-9-]+/, "[FILTERED]")
+    super.gsub(/(?:xox[baprs]|xapp)-[A-Za-z0-9-]+/, "[FILTERED]")
   end
 end

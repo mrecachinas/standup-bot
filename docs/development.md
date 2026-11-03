@@ -81,7 +81,7 @@ bin/rails standups:validate                   # check config/standups/*.yml
 ## Troubleshooting
 
 **Slack events aren't arriving.**
-Make sure your request URL is publicly reachable (use ngrok locally) and that `SLACK_SIGNING_SECRET` matches the app's signing secret. Requests that fail verification are logged and rejected.
+In HTTP mode, make sure your request URL is publicly reachable (use ngrok locally) and that `SLACK_SIGNING_SECRET` matches the app's signing secret. Requests that fail verification are logged and rejected. In Socket Mode, check that `bin/slack-socket-mode` is running (or `SLACK_SOCKET_MODE_IN_PUMA` is set), that its logs say "Slack Socket Mode connected", and that Socket Mode is turned on in the Slack app's settings. Locally, Socket Mode avoids the tunnel entirely: set `SLACK_CONNECTION_MODE=socket` and `SLACK_APP_TOKEN`, and `bin/dev` starts the client.
 
 **The bot doesn't respond to DMs.**
 Check that the app is subscribed to the `message.im` event, has the `im:history` and `im:write` scopes, and is installed in the workspace. Also check that the job worker (`bin/jobs`) is running, since DMs are handled in the background.

@@ -85,6 +85,26 @@ class HealthCheckServiceTest < ActiveSupport::TestCase
     Rails.application.config.slack = original_config
   end
 
+  test "slack status in socket mode needs the app-level token, not the signing secret" do
+    original_config = Rails.application.config.slack
+    Rails.application.config.slack = { bot_token: "xoxb-configured", connection_mode: "socket", app_token: "xapp-configured" }
+    StandupMetrics.stubs(:last_seen).returns(nil)
+    StandupMetrics.stubs(:last_seen).with(SlackSocketMode::Client::CONNECTED_METRIC).returns("2026-11-02T12:00:00Z")
+
+    check = HealthCheckService.platform_status(:slack)
+
+    assert_equal "ok", check[:status]
+    assert_equal "socket", check[:connection_mode]
+    assert_equal true, check[:app_token_configured]
+    assert_equal false, check[:signing_secret_configured]
+    assert_equal "2026-11-02T12:00:00Z", check[:socket_last_connected_at]
+
+    Rails.application.config.slack = { bot_token: "xoxb-configured", connection_mode: "socket", signing_secret: "signing-secret" }
+    assert_equal "warn", HealthCheckService.platform_status(:slack)[:status]
+  ensure
+    Rails.application.config.slack = original_config
+  end
+
   test "slack status warns when signing secret is missing" do
     original_config = Rails.application.config.slack
     Rails.application.config.slack = { bot_token: "xoxb-configured", signing_secret: nil }

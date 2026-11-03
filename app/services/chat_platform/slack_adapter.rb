@@ -14,7 +14,7 @@ module ChatPlatform
     end
 
     def configured?
-      config_value(:bot_token).present? && config_value(:signing_secret).present?
+      SlackConfig.configured?
     end
 
     def formatter
@@ -136,11 +136,6 @@ module ChatPlatform
 
     def profile_value(profile, key)
       profile[key] || profile[key.to_sym] if profile.respond_to?(:[])
-    end
-
-    def config_value(key)
-      config = Rails.application.config.slack || {}
-      config[key] || config[key.to_s]
     end
   end
 end

@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 # Runs Rails and the Vite dev server together. Open http://localhost:5173;
 # Vite proxies /api and /auth to Rails on port 3000.
-# Pass --rails-only to run just the Rails server.
+# Pass --rails-only to run just the Rails server. With
+# SLACK_CONNECTION_MODE=socket, also runs the Slack Socket Mode client.
 
 if ARGV.delete("--rails-only")
   exec "./bin/rails", "server", *ARGV
@@ -16,6 +17,9 @@ pids = [
   spawn("./bin/rails", "server", "-p", "3000", *ARGV),
   spawn("npm", "run", "dev", chdir: frontend)
 ]
+if ENV["SLACK_CONNECTION_MODE"].to_s.strip.downcase == "socket" && !ENV["SLACK_SOCKET_MODE_IN_PUMA"]
+  pids << spawn("./bin/slack-socket-mode")
+end
 
 stop = lambda do |_signal|
   pids.each do |pid|

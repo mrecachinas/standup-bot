@@ -36,7 +36,7 @@ class ChatIntegrationService
   end
 
   def configuration_status
-    credentials = self.class::CREDENTIALS.to_h do |credential|
+    credentials = credential_definitions.to_h do |credential|
       [ credential[:key], credential_status(credential[:key], credential[:label], required: credential[:required]) ]
     end
     ready = credentials.values.select { |credential| credential[:required] }.all? { |credential| credential[:configured] }
@@ -151,6 +151,12 @@ class ChatIntegrationService
   private
 
   attr_reader :client, :config
+
+  # The credentials to show, in display order. Subclasses can narrow this when
+  # some only apply to certain configurations.
+  def credential_definitions
+    self.class::CREDENTIALS
+  end
 
   def installed_message
     "#{label} credentials are configured."

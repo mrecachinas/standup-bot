@@ -7,6 +7,8 @@ Standup Bot ships as a single Docker image. The image build compiles the web con
 
 Both run `bin/rails db:prepare` on startup, so migrations are applied automatically. If you'd rather not run a separate worker, set `SOLID_QUEUE_IN_PUMA=1` to run jobs inside the web process.
 
+If Slack can't reach your app over the internet, use [Socket Mode](slack-setup.md#run-the-socket-mode-client) (`SLACK_CONNECTION_MODE=socket`). Then a third process, `bin/slack-socket-mode`, holds an outbound connection to Slack instead of Slack calling the web server. Set `SLACK_SOCKET_MODE_IN_PUMA=1` to run it inside the web process instead.
+
 ```mermaid
 flowchart LR
     Slack[Slack] -->|HTTPS| Web
@@ -24,7 +26,7 @@ flowchart LR
 
 - PostgreSQL (Compose uses version 16). Point `DATABASE_URL` at the main database and `CACHE_DATABASE_URL` and `QUEUE_DATABASE_URL` at the other two. They can all be on the same server.
 - `RAILS_MASTER_KEY` (or `SECRET_KEY_BASE`)
-- `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` for Slack, and/or `TEAMS_APP_ID`, `TEAMS_APP_PASSWORD`, and `TEAMS_TENANT_ID` for [Microsoft Teams](teams-setup.md)
+- `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` for Slack (or `SLACK_CONNECTION_MODE=socket` and `SLACK_APP_TOKEN` instead of the signing secret for Socket Mode), and/or `TEAMS_APP_ID`, `TEAMS_APP_PASSWORD`, and `TEAMS_TENANT_ID` for [Microsoft Teams](teams-setup.md)
 - `APP_HOSTS` set to your public hostname
 
 See [Configuration](configuration.md) for everything else. Once the app is running, create your first admin by setting `MANAGER_ADMIN_EMAIL` and `MANAGER_ADMIN_TOKEN` and running `bin/rails db:seed`, or [use the Rails console](configuration.md#manager-accounts).
@@ -43,13 +45,16 @@ docker run -d -p 80:80 \
 
 # and the worker, using the same image and environment
 docker run -d -e RAILS_MASTER_KEY=... -e DATABASE_URL=... ... standup-bot bin/jobs
+
+# in Socket Mode, also the Slack connection
+docker run -d -e SLACK_CONNECTION_MODE=socket -e SLACK_APP_TOKEN=xapp-... ... standup-bot bin/slack-socket-mode
 ```
 
 [`docker-compose.yml`](../docker-compose.yml) is a working example of the full setup (web, worker, and Postgres) that you can adapt.
 
 ## Kamal
 
-[`config/deploy.yml`](../config/deploy.yml) defines `web` and `job` roles. Fill in your servers, registry, and hostname, put the secrets in `.kamal/secrets`, and run:
+[`config/deploy.yml`](../config/deploy.yml) defines `web` and `job` roles, plus a commented-out `slack_socket_mode` role for Socket Mode. Fill in your servers, registry, and hostname, put the secrets in `.kamal/secrets`, and run:
 
 ```bash
 bin/kamal setup    # first time

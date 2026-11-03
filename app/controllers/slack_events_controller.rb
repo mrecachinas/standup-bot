@@ -12,15 +12,10 @@ class SlackEventsController < ApplicationController
     payload = parse_interaction_payload
     return if performed?
 
-    case payload["type"]
-    when "block_actions"
-      handle_block_actions(payload)
-    when "view_submission"
-      head :ok
-    else
-      Rails.logger.info "Ignoring unsupported Slack interaction type=#{payload['type']}"
-      head :ok
-    end
+    response = SlackInbound.interaction(payload)
+    return head :ok unless response
+
+    render json: response.body, status: response.status
   end
 
   def events
@@ -37,14 +32,7 @@ class SlackEventsController < ApplicationController
       return
     end
 
-    event_type = event_params[:type]
-    subtype = event_params[:subtype]
-    user_id = event_params[:user] || event_params.dig(:message, :user)
-    channel = event_params[:channel]
-
-    Rails.logger.info "Received Slack event=#{event_type} subtype=#{subtype} from user=#{user_id} in channel=#{channel}"
-
-    SlackEventProcessorJob.perform_later(event_params.to_h)
+    SlackInbound.enqueue_event(params.require(:event))
 
     # Slack retries events that aren't acknowledged within 3 seconds.
     head :ok
@@ -54,15 +42,6 @@ class SlackEventsController < ApplicationController
 
   def valid_slack_challenge?(challenge)
     SLACK_CHALLENGE_PATTERN.match?(challenge)
-  end
-
-  def event_params
-    # Allow deeper nested parameters for message_changed events
-    params.require(:event).permit(
-      :type, :user, :text, :channel, :ts, :subtype,
-      message: [ :type, :user, :text, :ts, :edited, { edited: [ :user, :ts ] } ],
-      previous_message: [ :type, :user, :text, :ts, :edited, { edited: [ :user, :ts ] } ]
-    )
   end
 
   def parse_interaction_payload
@@ -87,35 +66,5 @@ class SlackEventsController < ApplicationController
       text: "Sorry, I couldn't understand that Slack interaction."
     }, status: :bad_request
     nil
-  end
-
-  def handle_block_actions(payload)
-    action = Array(payload["actions"]).first
-
-    if action.blank?
-      render_interaction_response("No Slack action was provided.")
-      return
-    end
-
-    handler = StandupCommandHandler.new(chat: ChatPlatform.for(:slack), user_id: payload.dig("user", "id"))
-    standup_id = action.dig("selected_option", "value") || action["value"]
-
-    case action["action_id"]
-    when "standup_selection"
-      render_interaction_response(handler.report_selected(standup_id).text)
-    when "standup_start_selection"
-      render_interaction_response(handler.start_selected(standup_id).text)
-    else
-      Rails.logger.info "Ignoring unsupported Slack action_id=#{action['action_id']}"
-      render_interaction_response("That Slack action is not supported yet.")
-    end
-  end
-
-  def render_interaction_response(text)
-    render json: {
-      response_type: "ephemeral",
-      replace_original: false,
-      text: text
-    }
   end
 end

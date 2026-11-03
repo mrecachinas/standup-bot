@@ -8,8 +8,11 @@ class SlackAppManifest
   # "Sign in with Slack" (OpenID Connect) for the web console.
   USER_SCOPES = %w[openid email profile].freeze
 
-  def initialize(app_url:, app_name: DEFAULT_APP_NAME, description: DEFAULT_DESCRIPTION)
-    @app_url = normalize_app_url(app_url)
+  # In Socket Mode, Slack doesn't call request URLs, so app_url is only
+  # needed for "Sign in with Slack" and may be omitted.
+  def initialize(app_url:, app_name: DEFAULT_APP_NAME, description: DEFAULT_DESCRIPTION, socket_mode: false)
+    @socket_mode = socket_mode
+    @app_url = app_url.blank? && socket_mode ? nil : normalize_app_url(app_url)
     @app_name = app_name.to_s.strip.presence || DEFAULT_APP_NAME
     @description = description.to_s.strip.presence || DEFAULT_DESCRIPTION
   end
@@ -28,24 +31,12 @@ class SlackAppManifest
         },
         "slash_commands" => slash_commands
       },
-      "oauth_config" => {
-        "redirect_urls" => [ app_url_for("/auth/slack/callback") ],
-        "scopes" => {
-          "bot" => BOT_SCOPES,
-          "user" => USER_SCOPES
-        }
-      },
+      "oauth_config" => oauth_config,
       "settings" => {
-        "event_subscriptions" => {
-          "request_url" => app_url_for("/slack/events"),
-          "bot_events" => [ "message.im" ]
-        },
-        "interactivity" => {
-          "is_enabled" => true,
-          "request_url" => app_url_for("/slack/interactions")
-        },
+        "event_subscriptions" => request_url("/slack/events").merge("bot_events" => [ "message.im" ]),
+        "interactivity" => { "is_enabled" => true }.merge(request_url("/slack/interactions")),
         "org_deploy_enabled" => false,
-        "socket_mode_enabled" => false,
+        "socket_mode_enabled" => @socket_mode,
         "token_rotation_enabled" => false
       }
     }
@@ -61,19 +52,37 @@ class SlackAppManifest
     [
       {
         "command" => "/standup",
-        "url" => app_url_for("/slack/commands/standup"),
+        **request_url("/slack/commands/standup", key: "url"),
         "description" => "Start, skip, report, view history, and get help for standups.",
         "usage_hint" => "[start|status|skip|report|history|help]",
         "should_escape" => false
       },
       {
         "command" => "/standup-status",
-        "url" => app_url_for("/slack/commands/standup-status"),
+        **request_url("/slack/commands/standup-status", key: "url"),
         "description" => "Check today's standup status.",
         "usage_hint" => "",
         "should_escape" => false
       }
     ]
+  end
+
+  # Sign in with Slack needs a redirect URL, so it's left out when there isn't one.
+  def oauth_config
+    return { "scopes" => { "bot" => BOT_SCOPES } } if @app_url.nil?
+
+    {
+      "redirect_urls" => [ app_url_for("/auth/slack/callback") ],
+      "scopes" => {
+        "bot" => BOT_SCOPES,
+        "user" => USER_SCOPES
+      }
+    }
+  end
+
+  # Socket Mode delivers everything over the WebSocket, so there are no request URLs.
+  def request_url(path, key: "request_url")
+    @socket_mode ? {} : { key => app_url_for(path) }
   end
 
   def app_url_for(path)

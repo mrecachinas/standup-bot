@@ -9,7 +9,10 @@ Standup Bot is configured with environment variables. You can set up standups th
 | Variable | Required | Description |
 | --- | --- | --- |
 | `SLACK_BOT_TOKEN` | Yes, to use Slack | Bot User OAuth Token (`xoxb-…`) |
-| `SLACK_SIGNING_SECRET` | Yes, to use Slack | Used to verify that requests really come from Slack |
+| `SLACK_CONNECTION_MODE` | No | How Slack reaches the app: `http` (default, public request URLs) or `socket` ([Socket Mode](slack-setup.md#run-the-socket-mode-client), no public URL needed) |
+| `SLACK_SIGNING_SECRET` | Yes, in `http` mode | Used to verify that requests really come from Slack |
+| `SLACK_APP_TOKEN` | Yes, in `socket` mode | App-level token (`xapp-…`) with the `connections:write` scope |
+| `SLACK_SOCKET_MODE_IN_PUMA` | No | In `socket` mode, set it to hold the Socket Mode connection in the web process instead of running `bin/slack-socket-mode` |
 | `SLACK_CLIENT_ID` | No | Slack app client ID. Needed for "Sign in with Slack" |
 | `SLACK_CLIENT_SECRET` | No | Slack app client secret. Needed for "Sign in with Slack" |
 | `SLACK_TEAM_ID` | No | Workspace (`T…`) allowed to use "Sign in with Slack". Defaults to the bot token's workspace |

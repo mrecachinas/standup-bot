@@ -45,6 +45,16 @@ flowchart LR
 
 Requests from Slack are verified with the signing secret, and requests from Teams with the Bot Framework JWT (`Microsoft::BotFrameworkAuth`). Both are then handed off to background jobs, so the app can respond quickly.
 
+Slack traffic can also arrive over [Socket Mode](slack-setup.md#run-the-socket-mode-client) (`SLACK_CONNECTION_MODE=socket`), where the app holds an outbound WebSocket instead of exposing request URLs. `SlackSocketMode::Client` (run by `bin/slack-socket-mode` or the `slack_socket_mode` Puma plugin) keeps the connection open, and `SlackSocketMode::Dispatcher` acks each envelope. Both transports call `SlackInbound`, so events, slash commands, and interactions behave the same either way:
+
+```mermaid
+flowchart LR
+    HTTP[Slack controllers<br/>signing secret] --> IN[SlackInbound]
+    WS[SlackSocketMode::Client<br/>app-level token] --> D[SlackSocketMode::Dispatcher] --> IN
+    IN --> J[SlackEventProcessorJob]
+    IN --> CMD[StandupCommandHandler]
+```
+
 ## Chat platform adapters
 
 Standup logic doesn't talk to Slack or Teams directly. Each standup has a `platform`, and everything goes through that platform's adapter, so Slack and Teams standups run side by side in one deployment.

@@ -36,6 +36,13 @@ plugin :tmp_restart
 # Run the Solid Queue supervisor inside of Puma for single-server deployments
 plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
 
+# Receive Slack traffic over Socket Mode inside Puma instead of running
+# bin/slack-socket-mode. Only does anything when SLACK_CONNECTION_MODE=socket.
+if ENV["SLACK_SOCKET_MODE_IN_PUMA"]
+  require_relative "../lib/puma/plugin/slack_socket_mode"
+  plugin :slack_socket_mode
+end
+
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.
 pidfile ENV["PIDFILE"] if ENV["PIDFILE"]

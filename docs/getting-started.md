@@ -37,12 +37,14 @@ To stop, run `docker compose down`. To also wipe the database, run `docker compo
 ```yaml
     SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
     SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+    SLACK_CONNECTION_MODE: ${SLACK_CONNECTION_MODE:-http}
+    SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:-}
     TEAMS_APP_ID: ${TEAMS_APP_ID:-}
     TEAMS_APP_PASSWORD: ${TEAMS_APP_PASSWORD:-}
     TEAMS_TENANT_ID: ${TEAMS_TENANT_ID:-}
 ```
 
-Then export the values in your shell and run `docker compose up` again. With native Rails (below), just set the environment variables before running `script/server` and `bin/jobs`.
+Then export the values in your shell and run `docker compose up` again. If you're using [Socket Mode](slack-setup.md#run-the-socket-mode-client), add `--profile slack-socket-mode` so Compose also starts the Slack connection. With native Rails (below), just set the environment variables before running `script/server` and `bin/jobs`.
 
 ## Option 2: Native Rails with MySQL
 
