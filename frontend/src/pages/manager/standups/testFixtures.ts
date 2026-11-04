@@ -218,7 +218,7 @@ export function formFixture(overrides: Partial<StandupFormPayload> = {}): Standu
     platform_options: [slackPlatform, teamsPlatform],
     show_platform_picker: true,
     platform_locked: false,
-    channel: { input: "prefixed_text", prefix: "#", value: "", name: null, choices: [], placeholder: "eng-standup", hint: null },
+    channel: { input: "search", prefix: "#", value: "", name: null, choices: [], placeholder: "Search channels or type a name", hint: null },
     channel_options: null,
     question_rows: ["What did you get done yesterday?", "What are you working on today?", "Is anything blocking you?", ""],
     question_suggestions: [
@@ -295,7 +295,7 @@ export function editFormFixture(overrides: Partial<StandupFormPayload> = {}): St
     template_key: null,
     show_platform_picker: false,
     platform_locked: true,
-    channel: { input: "prefixed_text", prefix: "#", value: "eng-standup", name: null, choices: [], placeholder: "eng-standup", hint: null },
+    channel: { input: "search", prefix: "#", value: "eng-standup", name: null, choices: [], placeholder: "Search channels or type a name", hint: null },
     question_rows: ["What did you do yesterday?", "What will you do today?", ""],
     participant_rows: [
       {

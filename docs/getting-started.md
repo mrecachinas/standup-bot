@@ -1,9 +1,10 @@
 # Getting started
 
-There are two ways to run Standup Bot locally:
+There are three ways to run Standup Bot locally:
 
 - **Docker Compose** runs the whole app in containers. It's the fastest way to try things out, and you don't need Ruby installed.
 - **Native Rails** runs the app directly on your machine against MySQL. Use this when you're working on the code.
+- **Dev Container** gives you the native Rails setup inside a container, with Ruby, Node, and MySQL already installed. Use this to work on the code without installing anything locally.
 
 ## Option 1: Docker Compose
 
@@ -44,7 +45,7 @@ To stop, run `docker compose down`. To also wipe the database, run `docker compo
     TEAMS_TENANT_ID: ${TEAMS_TENANT_ID:-}
 ```
 
-Then export the values in your shell and run `docker compose up` again. If you're using [Socket Mode](slack-setup.md#run-the-socket-mode-client), add `--profile slack-socket-mode` so Compose also starts the Slack connection. With native Rails (below), just set the environment variables before running `script/server` and `bin/jobs`.
+Then export the values in your shell and run `docker compose up` again. If you're using [Socket Mode](slack-setup.md#run-the-socket-mode-client), add `--profile slack-socket-mode` so Compose also starts the Slack connection. With native Rails (below), just set the environment variables before running `script/server`.
 
 ## Option 2: Native Rails with MySQL
 
@@ -63,13 +64,12 @@ script/server      # start MySQL if needed, prepare and seed the database, start
 
 Open <http://localhost:5173>. `script/server` seeds the same `admin@example.com` / `local-manager-token` admin as Docker Compose, and the sign-in form is pre-filled in development.
 
-Rails handles web requests, but scheduling, sending DMs, and posting summaries all happen in background jobs. To run them, start the job worker in a second terminal:
+Rails handles web requests, but scheduling, sending DMs, and posting summaries all happen in background jobs. `script/server` starts the job worker (`bin/jobs`) alongside Rails, and it runs the same hourly scheduling and 15-minute reminder schedule as production. Jobs live in a second MySQL database, `nerdbot_development_queue`, which `bin/rails db:prepare` creates for you.
 
-```bash
-bin/jobs
-```
+> [!WARNING]
+> Leaving `script/server` or `bin/dev` running against a real Slack or Teams workspace sends real scheduled standup DMs and reminders to the people in your active standups. The nightly cleanup job also prunes old responses from your dev database. To turn off the schedule locally, start with `SOLID_QUEUE_SKIP_RECURRING=1 script/server`. See [Development](development.md#running-the-app) for details.
 
-If you'd rather set things up by hand, `bin/setup` installs gems and npm packages, prepares the database, and starts `bin/dev`. You can also run `bundle install`, `(cd frontend && npm ci)`, `bin/rails db:prepare`, and `bin/dev` yourself. See [Development](development.md#running-the-app) for more on `bin/dev`.
+If you'd rather set things up by hand, `bin/setup` installs gems and npm packages, prepares the database, and starts `bin/dev`. You can also run `BUNDLE_FROZEN=true bundle install`, `(cd frontend && npm ci)`, `bin/rails db:prepare`, and `bin/dev` yourself. See [Development](development.md#running-the-app) for more on `bin/dev`.
 
 ### Database settings
 
@@ -78,6 +78,12 @@ By default, development and test connect to MySQL on `127.0.0.1:3306` as `root` 
 ```bash
 docker compose up -d --wait mysql
 ```
+
+## Option 3: Dev Container
+
+Open the repository in VS Code and choose **Dev Containers: Reopen in Container**. The [`.devcontainer`](../.devcontainer) setup also works with the [`devcontainer` CLI](https://github.com/devcontainers/cli). It builds a Ruby and Node container alongside a MySQL 8 container, then runs `bin/setup --skip-server` to install gems and npm packages and prepare the databases.
+
+Once it's up, use the same commands as native Rails from a terminal inside the container: `script/server`, `bin/jobs`, `script/test`, and so on. VS Code forwards the console on port 5173 and Rails on port 3000. For the end-to-end tests, run `npx playwright install --with-deps chromium` in `frontend/` once.
 
 ## Next steps
 

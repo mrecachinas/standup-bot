@@ -78,7 +78,8 @@ module ChatPlatform
       raise NotImplementedError
     end
 
-    def list_channels(query: nil, limit: 100)
+    # Returns channel records, or a ChannelList when some couldn't be listed.
+    def list_channels(query: nil, limit: 100, include_private: true)
       raise NotImplementedError
     end
 

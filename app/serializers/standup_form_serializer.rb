@@ -147,8 +147,9 @@ class StandupFormSerializer
     @question_rows ||= Array(@standup.questions).map(&:to_s).reject(&:blank?) + [ "" ]
   end
 
-  # Slack takes a #name; Teams picks from discovered channels, or falls back
-  # to a typed ID when discovery isn't available.
+  # Slack searches channels as you type (stored by ID, with a typed #name as
+  # a fallback); Teams picks from discovered channels, or falls back to a
+  # typed ID when discovery isn't available.
   def channel
     if @standup.chat_platform.key == :teams
       choices = teams_channel_choices
@@ -162,12 +163,12 @@ class StandupFormSerializer
       }
     else
       {
-        input: "prefixed_text",
+        input: "search",
         prefix: "#",
         value: @standup.platform_channel.to_s.delete_prefix("#"),
         name: @standup.platform_channel_name,
         choices: [],
-        placeholder: "eng-standup",
+        placeholder: "Search channels or type a name",
         hint: nil
       }
     end

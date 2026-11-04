@@ -201,7 +201,7 @@ class StandupResponseHistory
     responses_for_date = responses_by_date.fetch(date, {})
     participant_entries = participant_records_for_history.filter_map do |participant|
       response = responses_for_date[participant.platform_user_id]
-      expected = participant.available_on?(date)
+      expected = expected_on?(participant, date, response)
       next unless expected || response || participant_id.present?
 
       build_entry(date, participant_option(participant), expected, response)
@@ -220,6 +220,26 @@ class StandupResponseHistory
     end
 
     (participant_entries + unknown_entries).sort_by { |entry| [ entry.display_name.to_s.downcase, entry.platform_user_id ] }
+  end
+
+  # Nobody is expected before the standup existed or they joined. On the day
+  # they joined, a past run only counts if they got a prompt, since they may
+  # have joined after it went out.
+  def expected_on?(participant, date, response)
+    return false unless participant.available_on?(date)
+
+    first_date = first_expected_date_for(participant)
+    return true if first_date.nil? || date > first_date
+    return false if date < first_date
+
+    response.present? || date >= @today
+  end
+
+  def first_expected_date_for(participant)
+    @first_expected_dates ||= {}
+    return @first_expected_dates[participant.platform_user_id] if @first_expected_dates.key?(participant.platform_user_id)
+
+    @first_expected_dates[participant.platform_user_id] = participant.first_expected_date
   end
 
   def build_entry(date, participant, expected, response)

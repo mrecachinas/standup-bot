@@ -392,11 +392,12 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
 
     @manager.link_identity!(:slack, "UMGRSYNC")
     slack_client = stub_slack_client
-    slack_client.expects(:channel_members).with("sync-channel").returns([ "UMGRSYNC", existing.platform_user_id ])
-    slack_client.expects(:channel_member_profiles).with("sync-channel").returns([
-      { "platform_user_id" => existing.platform_user_id, "display_name" => "Synced User", "cached_timezone" => "America/Los_Angeles" },
-      { "platform_user_id" => "USYNC3", "display_name" => "New Sync", "cached_timezone" => "UTC" }
-    ])
+    slack_client.stubs(:channel_members).with("sync-channel").returns([ "UMGRSYNC", existing.platform_user_id, "USYNC3", "UBOTSYNC", "USLACKBOT" ])
+    slack_client.stubs(:get_user_info).with("UMGRSYNC").returns(slack_user("m.grsync", deleted: true))
+    slack_client.stubs(:get_user_info).with(existing.platform_user_id).returns(slack_user("synced.user", display_name: "Synced User", tz: "America/Los_Angeles"))
+    slack_client.stubs(:get_user_info).with("USYNC3").returns(slack_user("new.sync", real_name: "New Sync", tz: "UTC"))
+    slack_client.stubs(:get_user_info).with("UBOTSYNC").returns(slack_user("standup_bot", is_bot: true))
+    slack_client.expects(:get_user_info).with("USLACKBOT").never
     sign_in(@manager, "manager-access-token")
 
     assert_difference "StandupParticipant.count", 1 do
@@ -413,14 +414,28 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal "Synced User", existing.reload.display_name
     assert_equal "America/Los_Angeles", existing.cached_timezone
     assert_not missing.reload.active
-    assert standup.standup_participants.exists?(platform_user_id: "USYNC3")
+    assert_equal "New Sync", standup.standup_participants.find_by!(platform_user_id: "USYNC3").display_name
+    assert_not standup.standup_participants.exists?(platform_user_id: "UBOTSYNC")
+    assert_not standup.standup_participants.exists?(platform_user_id: "USLACKBOT")
+    assert_not standup.standup_participants.exists?(platform_user_id: "UMGRSYNC")
+  end
+
+  test "an admin is told when Slack can't find the channel" do
+    slack_client = stub_slack_client
+    slack_client.expects(:channel_members).with("standup-bot-test")
+      .raises(ChatPlatform::ChannelAccessError, "Slack couldn't find #standup-bot-test.")
+
+    post sync_api_standup_participants_path(@owned_standup), params: { channel: "standup-bot-test" }, headers: token_headers, as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal [ "Slack couldn't find #standup-bot-test." ], response.parsed_body["errors"]
   end
 
   test "sync surfaces Slack lookup errors without auditing" do
     @manager.link_identity!(:slack, "UMGRSYNC")
     slack_client = stub_slack_client
-    slack_client.expects(:channel_members).with("empty-channel").returns([ "UMGRSYNC" ])
-    slack_client.expects(:channel_member_profiles).with("empty-channel").returns([])
+    slack_client.stubs(:channel_members).with("empty-channel").returns([ "UMGRSYNC" ])
+    slack_client.stubs(:get_user_info).with("UMGRSYNC").returns(slack_user("bot", is_bot: true))
     sign_in(@manager, "manager-access-token")
 
     assert_no_difference "AuditLog.count" do
@@ -431,11 +446,31 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     assert_includes response.parsed_body["errors"], "No Slack members were returned for that channel."
   end
 
+  test "managers get the same answer for missing channels and ones they're not in" do
+    @manager.link_identity!(:slack, "UOUTSIDER")
+    slack_client = stub_slack_client
+    slack_client.stubs(:channel_members).with("secret-channel").returns([ "USOMEONE" ])
+    slack_client.stubs(:channel_members).with("no-such-channel")
+      .raises(ChatPlatform::ChannelAccessError, "Slack couldn't find #no-such-channel.")
+    slack_client.expects(:get_user_info).never
+    sign_in(@manager, "manager-access-token")
+
+    answers = %w[secret-channel no-such-channel].map do |channel|
+      assert_no_difference [ "StandupParticipant.count", "AuditLog.count" ] do
+        post sync_api_standup_participants_path(@owned_standup), params: { channel: channel }, as: :json
+      end
+      assert_response :unprocessable_entity
+      response.parsed_body["errors"]
+    end
+
+    assert_equal [ [ "You can only sync people from a channel you're in." ] ] * 2, answers
+  end
+
   test "managers can only sync people from channels they're in" do
     @manager.link_identity!(:slack, "UOUTSIDER")
     slack_client = stub_slack_client
-    slack_client.expects(:channel_members).with("secret-channel").returns([ "USOMEONE" ])
-    slack_client.expects(:channel_member_profiles).never
+    slack_client.expects(:channel_members).with("secret-channel").once.returns([ "USOMEONE" ])
+    slack_client.expects(:get_user_info).never
     sign_in(@manager, "manager-access-token")
 
     assert_no_difference "StandupParticipant.count" do
@@ -448,7 +483,7 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
 
   test "sync reports platform failures" do
     slack_client = stub_slack_client
-    slack_client.expects(:channel_member_profiles).raises(StandardError, "boom")
+    slack_client.expects(:channel_members).raises(StandardError, "boom")
 
     post sync_api_standup_participants_path(@owned_standup), headers: token_headers, as: :json
 
@@ -470,5 +505,11 @@ class Api::ParticipantsConsoleTest < ActionDispatch::IntegrationTest
     assert standup.standup_participants.exists?(platform_user_id: "2f2f2f2f-1111-2222-3333-444444444444")
     assert_equal "Synced Microsoft Teams channel: 1 added, 0 updated, 0 unchanged.", response.parsed_body["notice"]
     assert_equal "teams_sync", AuditLog.where(action: "standup_participant.sync").last.metadata["source"]
+  end
+
+  private
+
+  def slack_user(name, display_name: nil, real_name: nil, tz: nil, deleted: false, is_bot: false)
+    { "name" => name, "tz" => tz, "profile" => { "display_name" => display_name, "real_name" => real_name }, "deleted" => deleted, "is_bot" => is_bot }
   end
 end

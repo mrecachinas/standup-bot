@@ -55,6 +55,7 @@ Then go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New
 | `channels:read` | Look up channels to post summaries to |
 | `chat:write` | Send messages as the bot |
 | `commands` | Receive slash commands |
+| `groups:read` | Search and sync private channels (admins only); without it, only public channels are listed |
 | `im:history` | Receive participants' DM replies |
 | `im:write` | Start DMs with participants |
 | `users:read` | Look up people and their timezones |
@@ -71,6 +72,8 @@ Then go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New
 | `/standup-status` | `https://your-domain/slack/commands/standup-status` |
 
 **Socket Mode** (under **Settings → Socket Mode**): on for Socket Mode, off for HTTP mode.
+
+**App Home** (under **Features → App Home**): turn on the **Messages Tab** and tick **Allow users to send Slash commands and messages from the messages tab**, so participants can reply to the bot in its DM.
 
 </details>
 
@@ -122,6 +125,8 @@ Anyone in the workspace can sign in with Slack, except guests (single- and multi
 - People in at least one standup also get **My standups**, where they can see their check-ins, their past answers, and set time away.
 
 Because anyone can sign in, some Slack lookups are limited for non-admins. Channel search only shows public channels, and "Sync from a Slack channel" only works for channels the person is in. Admins can do both for any channel.
+
+Private channels need the `groups:read` scope. If your app was created from an older manifest, add the scope under **OAuth & Permissions** and reinstall the app. Until then, channel search lists public channels only and says so. Summaries can still go to a private channel if you enter its ID and invite the bot, but syncing its members needs the scope.
 
 Email and access token sign-in still works.
 

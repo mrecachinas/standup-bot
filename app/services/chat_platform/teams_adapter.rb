@@ -158,8 +158,9 @@ module ChatPlatform
       end
     end
 
-    def list_channels(query: nil, limit: 100)
+    def list_channels(query: nil, limit: 100, include_private: true)
       records = all_channels
+      records = records.reject { |record| record["is_private"] } unless include_private
       records = records.select { |record| record["label"].downcase.include?(query.to_s.downcase) } if query.present?
       records.first(limit)
     end

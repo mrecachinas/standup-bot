@@ -13,7 +13,7 @@ class SlackAppManifestTest < ActiveSupport::TestCase
     assert_equal false, manifest.dig("settings", "socket_mode_enabled")
 
     scopes = manifest.dig("oauth_config", "scopes", "bot")
-    %w[channels:read chat:write commands im:history im:write users:read].each do |scope|
+    %w[channels:read chat:write commands groups:read im:history im:write users:read].each do |scope|
       assert_includes scopes, scope
     end
 
@@ -41,6 +41,19 @@ class SlackAppManifestTest < ActiveSupport::TestCase
     manifest = SlackAppManifest.new(app_url: nil, socket_mode: true).to_h
 
     assert_equal({ "scopes" => { "bot" => SlackAppManifest::BOT_SCOPES } }, manifest["oauth_config"])
+  end
+
+  test "lets participants message the bot from its Messages tab" do
+    manifest = SlackAppManifest.new(app_url: nil, socket_mode: true).to_h
+
+    assert_equal true, manifest.dig("features", "app_home", "messages_tab_enabled")
+    assert_equal false, manifest.dig("features", "app_home", "messages_tab_read_only_enabled")
+  end
+
+  test "doesn't send empty slash command usage hints, which Slack rejects" do
+    commands = SlackAppManifest.new(app_url: nil, socket_mode: true).to_h.dig("features", "slash_commands")
+
+    assert commands.none? { |command| command.key?("usage_hint") && command["usage_hint"].blank? }
   end
 
   test "requires absolute http url" do

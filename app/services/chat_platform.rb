@@ -9,6 +9,10 @@ module ChatPlatform
 
   UnknownPlatform = Class.new(ArgumentError)
 
+  # A channel the app couldn't find or read. The message is written for
+  # people and is safe to show in the console.
+  ChannelAccessError = Class.new(StandardError)
+
   class RateLimitedError < StandardError
     attr_reader :retry_after
 

@@ -2,6 +2,10 @@ class SlackClient
   MAX_RATE_LIMIT_RETRIES = 3
   CHANNEL_ID_PATTERN = /\A[CGD][A-Z0-9]+\z/
   CHANNEL_TYPES = "public_channel,private_channel".freeze
+  PUBLIC_CHANNEL_TYPES = "public_channel".freeze
+  PRIVATE_CHANNEL_SCOPE = "groups:read".freeze
+  PRIVATE_CHANNELS_HIDDEN_NOTICE = "Private channels aren't listed because the Slack app doesn't have the " \
+    "#{PRIVATE_CHANNEL_SCOPE} scope. Add it under OAuth & Permissions and reinstall the app to include them.".freeze
   PAGE_SIZE = 200
 
   def initialize
@@ -104,13 +108,18 @@ class SlackClient
     normalize_hash_response(response, %w[ok team team_id user user_id bot_id url])
   end
 
-  def list_channels(query: nil, limit: 100)
-    response = with_rate_limit_handling("list_channels") do
-      @client.conversations_list(exclude_archived: true, limit: limit, types: CHANNEL_TYPES)
+  # Private channels need the groups:read scope. Installs from older
+  # manifests don't have it, so fall back to public channels and say so.
+  def list_channels(query: nil, limit: 100, include_private: true)
+    response, private_listed = with_private_channel_fallback(include_private) do |types|
+      with_rate_limit_handling("list_channels") do
+        @client.conversations_list(exclude_archived: true, limit: limit, types: types)
+      end
     end
 
     channels = Array(response["channels"]).filter_map { |channel| normalize_channel(channel) }
-    filter_records(channels, query, "id", "name", "label")
+    notice = PRIVATE_CHANNELS_HIDDEN_NOTICE if include_private && !private_listed
+    ChatPlatform::ChannelList.new(filter_records(channels, query, "id", "name", "label"), notice: notice)
   end
 
   def list_users(query: nil, limit: 100)
@@ -122,34 +131,21 @@ class SlackClient
     filter_records(users, query, "id", "name", "display_name", "real_name", "label")
   end
 
+  # Raises ChatPlatform::ChannelAccessError rather than returning an empty
+  # list, so callers can tell people what went wrong.
   def channel_members(channel)
+    channel_id = resolve_channel_id(channel)
     members = []
-    @client.conversations_members(channel: resolve_channel_id(channel), limit: PAGE_SIZE) do |page|
+    @client.conversations_members(channel: channel_id, limit: PAGE_SIZE) do |page|
       members.concat(page.members)
     end
     members
   rescue Slack::Web::Api::Errors::ChannelNotFound
     Rails.logger.warn "Slack channel not found: #{channel}"
-    []
-  rescue Slack::Web::Api::Errors::TooManyRequestsError
-    raise
-  rescue Faraday::Error => e
-    Rails.logger.error "Error fetching Slack channel members: #{e.class} - #{e.message}"
-    []
-  end
-
-  def channel_member_profiles(channel)
-    channel_members(channel).filter_map do |slack_id|
-      info = get_user_info(slack_id)
-      next unless info
-
-      {
-        "platform_user_id" => slack_id,
-        "display_name" => info["name"].presence || slack_id,
-        "cached_timezone" => info["tz"].presence,
-        "avatar_url" => info["avatar_url"]
-      }.compact
-    end
+    raise ChatPlatform::ChannelAccessError, channel_not_found_message(channel)
+  rescue Slack::Web::Api::Errors::MissingScope
+    raise ChatPlatform::ChannelAccessError,
+      "The Slack app can't read that channel's members. Add the #{PRIVATE_CHANNEL_SCOPE} scope for private channels, then try again."
   end
 
   def send_standup_selection(channel, text, options, action_id: "standup_selection")
@@ -275,12 +271,43 @@ class SlackClient
     name = channel.to_s.strip.delete_prefix("#")
     return name if name.match?(CHANNEL_ID_PATTERN)
 
-    @client.conversations_id(
-      channel: "##{name}",
-      id_types: CHANNEL_TYPES,
-      id_exclude_archived: true,
-      id_limit: PAGE_SIZE
-    )["channel"]["id"]
+    response, private_listed = with_private_channel_fallback do |types|
+      @client.conversations_id(
+        channel: "##{name}",
+        id_types: types,
+        id_exclude_archived: true,
+        id_limit: PAGE_SIZE
+      )
+    rescue Slack::Web::Api::Errors::ChannelNotFound
+      nil
+    end
+
+    channel_id = response&.dig("channel", "id")
+    return channel_id if channel_id.present?
+
+    message = channel_not_found_message(name)
+    message += " Private channels can't be found until the Slack app has the #{PRIVATE_CHANNEL_SCOPE} scope." unless private_listed
+    raise ChatPlatform::ChannelAccessError, message
+  end
+
+  def channel_not_found_message(channel)
+    channel = channel.to_s.strip.delete_prefix("#")
+    label = channel.match?(CHANNEL_ID_PATTERN) ? channel : "##{channel}"
+    "Slack couldn't find #{label}. Check the channel, and invite the bot if it's private."
+  end
+
+  # Yields the conversation types to request, falling back to public channels
+  # when the token lacks the private-channel scope. Returns the block's result
+  # and whether private channels were included.
+  def with_private_channel_fallback(include_private = true)
+    return [ yield(PUBLIC_CHANNEL_TYPES), false ] unless include_private
+
+    begin
+      [ yield(CHANNEL_TYPES), true ]
+    rescue Slack::Web::Api::Errors::MissingScope
+      Rails.logger.warn "Slack app is missing the #{PRIVATE_CHANNEL_SCOPE} scope; listing public channels only"
+      [ yield(PUBLIC_CHANNEL_TYPES), false ]
+    end
   end
 
   def with_rate_limit_handling(operation)

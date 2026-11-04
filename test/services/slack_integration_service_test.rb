@@ -58,7 +58,7 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
 
   test "discovery returns channels from Slack client" do
     channels = [ { "id" => "C123", "name" => "general", "label" => "#general" } ]
-    @client.expects(:list_channels).with(query: "gen", limit: 50).returns(channels)
+    @client.expects(:list_channels).with(query: "gen", limit: 50, include_private: true).returns(channels)
 
     result = service.discover_channels(query: "gen", limit: 50)
 
@@ -133,6 +133,18 @@ class SlackIntegrationServiceTest < ActiveSupport::TestCase
 
     assert result.success?
     assert_equal({ "channel" => "C123", "ts" => "123.456" }, result.metadata)
+  end
+
+  test "discovery says when private channels were left out" do
+    channels = ChatPlatform::ChannelList.new([ { "id" => "C123", "name" => "general", "label" => "#general" } ], notice: "Private channels aren't listed.")
+    @client.expects(:list_channels).with(query: nil, limit: 100, include_private: true).returns(channels)
+
+    result = service.discover_channels
+
+    assert result.success?
+    assert_equal [ "C123" ], result.records.map { |record| record["id"] }
+    assert_equal "Found 1 Slack channel(s).", result.message
+    assert_equal "Private channels aren't listed.", result.action
   end
 
   test "private channels only show up in discovery for admins" do

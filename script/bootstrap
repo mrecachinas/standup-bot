@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "==> Installing dependencies..."
-bundle install
+BUNDLE_FROZEN=true bundle install
 
 echo "==> Installing frontend dependencies..."
 (cd frontend && npm ci)

@@ -107,7 +107,7 @@ The console uses these too, and so can scripts with an access token, except wher
 | `GET /api/standups/new`, `GET /api/standups/:id/edit` | Form data for the standup editor |
 | `POST /api/standups/preview` | Upcoming send times for a draft schedule |
 | `PATCH /api/standups/:id/pause`, `/resume` | Pause or resume a standup |
-| `GET /api/standups/channel_options` | Teams channels to pick from |
+| `GET /api/standups/channel_options` | Channels for the editor's picker: Teams' list, or a Slack search with `?platform=slack&query=` (private channels only for admins) |
 | `GET /api/people` | Search people on a chat platform |
 | `/api/standups/:id/participants/...` | Also `PATCH`, `bulk_import`, `sync`, and `?view=console` |
 | `/api/standups/:id/managers` | Make someone a manager, or remove them |

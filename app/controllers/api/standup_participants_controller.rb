@@ -92,6 +92,8 @@ module Api
         "#{@standup.platform}_sync",
         notice: import_notice("Synced #{@standup.chat_platform.label} channel", result)
       )
+    rescue ChatPlatform::ChannelAccessError => error
+      render json: { errors: [ error.message ], summary: nil }, status: :unprocessable_entity
     rescue StandardError => error
       label = @standup.chat_platform.label
       Rails.logger.warn "Unable to sync #{label} channel #{channel}: #{error.class} - #{error.message}"
@@ -152,9 +154,13 @@ module Api
 
     # Non-admins can only pull in members of channels they belong to, so the
     # bot can't be used to list the members of someone else's private channel.
+    # A channel that can't be found gets the same answer as one they're not
+    # in, so non-admins can't probe for private channel names or IDs.
     def channel_member?(channel)
       user_id = current_user&.platform_user_id_for(@standup.platform)
       user_id.present? && ChatPlatform.for_standup(@standup).channel_member_ids(channel).include?(user_id)
+    rescue ChatPlatform::ChannelAccessError
+      false
     end
 
     def lookup_requested?

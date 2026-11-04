@@ -202,8 +202,10 @@ export function formParams(state: FormState, payload: StandupFormPayload, handle
     name: state.name.trim(),
     ...(payload.mode === "new" ? { platform: payload.platform.key } : {}),
     platform_channel: state.platformChannel.trim(),
-    // Only the Teams picker knows a channel's name; typed channels leave it alone.
+    // Pickers know a channel's name; plain typed channels leave it alone. A
+    // Slack name typed instead of picked clears the old one.
     ...(payload.channel.input === "select" ? { platform_channel_name: state.platformChannelName } : {}),
+    ...(payload.channel.input === "search" ? { platform_channel_name: state.platformChannelName.trim() || null } : {}),
     intro: state.intro,
     outro: state.outro,
     reminder_enabled: state.reminderEnabled,

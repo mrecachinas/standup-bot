@@ -4,7 +4,7 @@ require "yaml"
 class SlackAppManifest
   DEFAULT_APP_NAME = "Standup Bot"
   DEFAULT_DESCRIPTION = "Automates daily standups by collecting Slack DM responses and posting team summaries."
-  BOT_SCOPES = %w[channels:read chat:write commands im:history im:write users:read].freeze
+  BOT_SCOPES = %w[channels:read chat:write commands groups:read im:history im:write users:read].freeze
   # "Sign in with Slack" (OpenID Connect) for the web console.
   USER_SCOPES = %w[openid email profile].freeze
 
@@ -25,6 +25,12 @@ class SlackAppManifest
         "background_color" => "#2c2d30"
       },
       "features" => {
+        # Participants answer in the bot's DM, so the Messages tab must accept input.
+        "app_home" => {
+          "home_tab_enabled" => false,
+          "messages_tab_enabled" => true,
+          "messages_tab_read_only_enabled" => false
+        },
         "bot_user" => {
           "display_name" => @app_name,
           "always_online" => false
@@ -60,8 +66,8 @@ class SlackAppManifest
       {
         "command" => "/standup-status",
         **request_url("/slack/commands/standup-status", key: "url"),
+        # No usage_hint: Slack rejects manifests with an empty one.
         "description" => "Check today's standup status.",
-        "usage_hint" => "",
         "should_escape" => false
       }
     ]

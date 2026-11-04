@@ -137,4 +137,33 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
     assert expired.missed?
     assert_equal "Missed", expired.status_label
   end
+
+  test "people aren't expected before they joined" do
+    @standup.standup_responses.delete_all
+    newcomer = @standup.standup_participants.create!(platform_user_id: "UJOINED01", display_name: "New Person", active: true)
+    newcomer.update_column(:created_at, Time.zone.local(2025, 4, 8, 12, 0, 0))
+
+    history = StandupResponseHistory.new(
+      standup: @standup,
+      params: { start_date: "2025-04-06", end_date: "2025-04-09" },
+      today: Date.new(2025, 4, 10)
+    )
+    newcomer_entries = history.days.flat_map(&:entries).select { |entry| entry.platform_user_id == "UJOINED01" }
+
+    assert_equal [ Date.new(2025, 4, 9) ], newcomer_entries.map(&:date)
+    assert newcomer_entries.all?(&:missed?)
+    assert_equal 9, history.summary[:expected]
+    assert_equal 9, history.summary[:missed]
+  end
+
+  test "a standup created today shows today's run as upcoming and nothing missed" do
+    standup = Standup.create!(name: "Brand new", platform_channel: "brand-new", questions: [ "Update?" ], schedule_type: "daily", created_at: Time.zone.local(2025, 4, 10, 15, 0, 0))
+    standup.standup_participants.create!(platform_user_id: "UNEW00001", display_name: "New Person", active: true, created_at: standup.created_at)
+
+    history = StandupResponseHistory.new(standup: standup, today: Date.new(2025, 4, 10))
+
+    assert_equal [ Date.new(2025, 4, 10) ], history.days.map(&:date)
+    assert history.days.first.entries.all?(&:upcoming?)
+    assert_equal 0, history.summary[:expected]
+  end
 end
