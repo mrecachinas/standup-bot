@@ -63,4 +63,23 @@ class StandupUpdateJobTest < ActiveJob::TestCase
     end
     assert_empty @dms
   end
+
+  test "a retried sign-off still says where the update went" do
+    @run.update!(platform_message_id: "post.1")
+    ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update)
+
+    StandupUpdateJob.perform_now(@run, announce: true)
+
+    assert_match(/Your update has been posted to #daily-standup\./, @dms.sole.last)
+    assert @run.reload.signed_off_at.present?
+  end
+
+  test "signs off only once" do
+    @run.update!(platform_message_id: "post.1", signed_off_at: Time.current)
+    ChatPlatform::SlackAdapter.any_instance.stubs(:update_standup_update)
+
+    StandupUpdateJob.perform_now(@run, announce: true)
+
+    assert_empty @dms
+  end
 end

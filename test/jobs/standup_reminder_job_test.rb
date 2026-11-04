@@ -118,4 +118,17 @@ class StandupReminderJobTest < ActiveJob::TestCase
       assert_equal 0, response.reload.reminder_count
     end
   end
+
+  test "a reminder claimed by a worker that stopped before sending is tried again later" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      # Claimed an interval ago, never sent: the count wasn't used up.
+      response = StandupResponse.create!(standup: @standup, platform_user_id: "UABANDON", status: "pending", answers: [],
+        created_at: 3.hours.ago, last_reminder_at: 61.minutes.ago, reminder_count: 0, standup_date: Date.current)
+      @mock_slack_client.expects(:send_message).with("UABANDON", anything).once
+
+      StandupReminderJob.perform_now
+
+      assert_equal 1, response.reload.reminder_count
+    end
+  end
 end

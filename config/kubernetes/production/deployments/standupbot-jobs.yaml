@@ -39,7 +39,9 @@ spec:
       containers:
         - name: jobs
           image: your-standupbot-image:tag
-          command: ["./bin/jobs"]
+          # args, not command, keeps the image's entrypoint, which runs
+          # db:prepare before the worker starts.
+          args: ["./bin/jobs"]
           envFrom:
             - secretRef:
                 name: standupbot-secrets

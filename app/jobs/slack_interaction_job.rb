@@ -9,8 +9,13 @@ class SlackInteractionJob < ApplicationJob
   limits_concurrency key: ->(payload) { ApplicationJob.inbound_concurrency_key(:slack, payload.dig("user", "id")) },
     group: INBOUND_CONCURRENCY_GROUP, duration: INBOUND_CONCURRENCY_DURATION
 
+  # A click redelivered by Slack (its ack was lost) is handled once, by the
+  # action's timestamp, like messages (ProcessedChatMessage).
   def perform(payload)
-    response = SlackInbound.interaction(payload)
+    response = nil
+    ProcessedChatMessage.process_once(platform: :slack, platform_user_id: payload.dig("user", "id").to_s, message_id: interaction_id(payload)) do
+      response = SlackInbound.interaction(payload)
+    end
     return unless response
 
     url = payload["response_url"]
@@ -27,6 +32,11 @@ class SlackInteractionJob < ApplicationJob
   end
 
   private
+
+  def interaction_id(payload)
+    action_ts = Array(payload["actions"]).first&.dig("action_ts")
+    "interaction:#{action_ts}" if action_ts.present?
+  end
 
   def http
     Faraday.new(request: { timeout: 10, open_timeout: 5 })

@@ -77,4 +77,15 @@ class Microsoft::HttpClientTest < ActiveSupport::TestCase
     assert_equal "Request_ResourceNotFound", error.code
     assert error.not_found?
   end
+
+  test "5xx responses and unreachable hosts are transient, so jobs retry them" do
+    @stubs.get("https://graph.example/busy") { [ 503, {}, '{"error":{"code":"ServiceUnavailable","message":"Busy"}}' ] }
+    @stubs.get("https://graph.example/missing") { [ 404, {}, "{}" ] }
+    @stubs.get("https://graph.example/down") { raise Faraday::ConnectionFailed, "down" }
+
+    assert_raises(Microsoft::TransientApiError) { @client.get("https://graph.example/busy") }
+    assert_raises(Microsoft::TransientApiError) { @client.get("https://graph.example/down") }
+    error = assert_raises(Microsoft::ApiError) { @client.get("https://graph.example/missing") }
+    assert_not_kind_of Microsoft::TransientApiError, error
+  end
 end

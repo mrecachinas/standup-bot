@@ -53,4 +53,19 @@ class SlackInteractionJobTest < ActiveJob::TestCase
       SlackInteractionJob.perform_now(payload)
     end
   end
+
+  test "a click Slack delivers twice is handled once" do
+    standup = standups(:daily)
+    payload = {
+      "type" => "block_actions",
+      "user" => { "id" => @participant.platform_user_id },
+      "response_url" => "https://hooks.slack.com/actions/T1/123/abc",
+      "actions" => [ { "action_id" => "standup_selection", "action_ts" => "1800000000.000100", "selected_option" => { "value" => standup.id.to_s } } ]
+    }
+    @http.expects(:post).once
+
+    assert_enqueued_jobs 1, only: StandupCollectionJob do
+      2.times { SlackInteractionJob.perform_now(payload) }
+    end
+  end
 end

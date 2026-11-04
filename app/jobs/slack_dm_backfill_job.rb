@@ -1,12 +1,13 @@
-# Runs SlackDmBackfill over every pending Slack run from the last day. Queued
+# Runs SlackDmBackfill over every pending Slack run from the last week. Queued
 # when the Socket Mode client reconnects after a gap no connection covered, or
 # by hand (bin/rails slack:backfill_dms) after an outage in HTTP mode.
 class SlackDmBackfillJob < ApplicationJob
   queue_as :default
   limits_concurrency key: "run", on_conflict: :discard, duration: 30.minutes
 
-  # Runs older than this are past saving; they expire anyway.
-  LOOKBACK = 1.day
+  # As far back as handled messages are remembered, so every still-pending
+  # run can be recovered safely.
+  LOOKBACK = ProcessedChatMessage::RETENTION
 
   def perform
     backfill = SlackDmBackfill.new

@@ -24,4 +24,11 @@ class ApplicationJobTest < ActiveJob::TestCase
 
     3.times { assert_raises(ArgumentError) { FailingJob.perform_now } }
   end
+
+  test "a cache failure doesn't hide the job's own error or stop the notice" do
+    Rails.cache.stubs(:increment).raises(ActiveRecord::ConnectionNotEstablished, "cache database down")
+    ChatPlatform::SlackAdapter.any_instance.expects(:send_message).with("C-ADMIN", regexp_matches(/bad input/)).once
+
+    assert_raises(ArgumentError) { FailingJob.perform_now }
+  end
 end

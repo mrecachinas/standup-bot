@@ -2,8 +2,7 @@
 # (an outage longer than Slack's redeliveries, which stop about 5 minutes on)
 # by reading the DM's history, and handles each as if it had just arrived.
 # Messages already handled (ProcessedChatMessage) or recorded in any of the
-# person's runs are skipped, as is anything from before the run's latest
-# recorded answer, so running it is always safe.
+# person's runs are skipped, so running it is always safe.
 class SlackDmBackfill
   # Slack's clock and ours can disagree by a little.
   CLOCK_SKEW = 5.seconds
@@ -17,8 +16,10 @@ class SlackDmBackfill
   def call(standup_response)
     return 0 unless eligible?(standup_response)
 
+    # Replayed into this run, whatever has happened since: during an outage
+    # the person saw no new prompts, so later messages continue their answer.
     missed_messages(standup_response).count do |message|
-      handler.handle(inbound_message(standup_response, message))
+      handler.handle(inbound_message(standup_response, message), target: standup_response.reload)
     end
   end
 
@@ -34,8 +35,9 @@ class SlackDmBackfill
       standup_response.prompted_at.present? && standup_response.standup.platform == "slack"
   end
 
-  # The person's plain messages after the latest recorded answer (or the run's
-  # start), oldest first, that haven't been handled.
+  # The person's plain messages since the run started, oldest first, that
+  # haven't been handled. Starting from the run's start rather than its latest
+  # answer means a reply missed before a later one was handled is still found.
   def missed_messages(standup_response)
     user_id = standup_response.platform_user_id
     client.dm_history(standup_response.dm_channel, oldest: oldest_ts(standup_response))
@@ -46,10 +48,7 @@ class SlackDmBackfill
   end
 
   def oldest_ts(standup_response)
-    answered = Array(standup_response.answers).flat_map { |answer| [ answer["message_id"], *Array(answer["parts"]).map { |part| part["message_id"] } ] }
-      .filter_map { |ts| ts.to_d if ts.to_s.match?(/\A\d+(\.\d+)?\z/) }
-      .max
-    format("%.6f", answered || (standup_response.created_at - CLOCK_SKEW).to_f)
+    format("%.6f", (standup_response.created_at - CLOCK_SKEW).to_f)
   end
 
   def inbound_message(standup_response, message)

@@ -13,6 +13,7 @@ class TeamsActivitiesControllerTest < ActionDispatch::IntegrationTest
     {
       "type" => "message",
       "id" => "1",
+      "timestamp" => "2026-11-03T14:00:00.123Z",
       "text" => "Did things",
       "serviceUrl" => TEAMS_SERVICE_URL,
       "channelId" => "msteams",
@@ -37,6 +38,7 @@ class TeamsActivitiesControllerTest < ActionDispatch::IntegrationTest
     queued = enqueued_jobs.last[:args].first
     assert_equal "Did things", queued["text"]
     assert_not queued.key?("attachments")
+    assert_equal "2026-11-03T14:00:00.123Z", queued["timestamp"], "kept for telling quick replies apart"
   end
 
   test "rejects requests without a valid Bot Framework token" do

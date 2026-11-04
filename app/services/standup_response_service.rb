@@ -7,8 +7,11 @@ class StandupResponseService
 
   # Records a message from the person in this run, then sends the next
   # question or, after the last one, posts the update. The answer is saved
-  # under a row lock before anything is sent, so concurrent replies can't
-  # overwrite each other and a failed send can't lose it.
+  # under a row lock, and the sends happen only once that (and the caller's
+  # transaction, such as ProcessedChatMessage.process_once) has committed, in
+  # jobs that retry on their own. So concurrent replies can't overwrite each
+  # other, a failed send can't undo a saved answer, and nothing is sent for
+  # an answer that's rolled back.
   #
   # message_id is the platform's ID for the message: it's kept on the answer so
   # an edit can find it, and a message that's already recorded (a redelivered
@@ -35,13 +38,25 @@ class StandupResponseService
       end
     end
 
-    case outcome
-    when :answered
-      standup_response.status == "completed" ? complete_standup_response(standup_response) : send_next_question(standup_response)
-    when :continued
-      StandupUpdateJob.perform_now(standup_response) if standup_response.status == "completed"
+    after_commit do
+      case outcome
+      when :answered
+        if standup_response.status == "completed"
+          complete_standup_response(standup_response)
+        else
+          StandupPromptJob.perform_now(standup_response, standup_response.answers.size)
+        end
+      when :continued
+        StandupUpdateJob.perform_now(standup_response) if standup_response.status == "completed"
+      end
     end
     %i[answered continued].include?(outcome)
+  end
+
+  # Runs the block once the current transaction commits, or right away
+  # outside one.
+  def self.after_commit(&block)
+    ActiveRecord.after_all_transactions_commit(&block)
   end
 
   def self.skip_question(standup_response, message_id: nil, sent_at: nil)
@@ -50,19 +65,33 @@ class StandupResponseService
 
   # Whether a message sent at sent_at was typed before the bot's latest prompt
   # in this run reached the person, say "foo" and then "bar" before the next
-  # question showed up. Such a message belongs with the answer before it.
+  # question showed up, or while a finished run's sign-off hasn't gone out.
+  # Such a message belongs with an earlier answer.
   def self.continuation?(standup_response, sent_at)
-    sent_at.present? && standup_response.prompted_at.present? && sent_at < standup_response.prompted_at &&
-      %w[pending completed].include?(standup_response.status) && standup_response.answers.present?
+    return false if sent_at.blank? || standup_response.answers.blank?
+    return true if awaiting_sign_off?(standup_response)
+
+    standup_response.prompted_at.present? && sent_at < standup_response.prompted_at &&
+      %w[pending completed].include?(standup_response.status)
   end
 
-  # Adds the message to the last answer, in send order. Each message is kept
-  # as a part, so editing one later changes just its text. A "skip" adds
-  # nothing, and real text replaces a "skip". Returns whether it changed.
+  # A finished run (started since prompts were recorded) whose sign-off
+  # hasn't been delivered yet, say while the channel post is being retried.
+  def self.awaiting_sign_off?(standup_response)
+    standup_response.status == "completed" && standup_response.signed_off_at.nil? && standup_response.prompted_at.present?
+  end
+
+  # Adds the message to the answer to the question that was showing when it
+  # was sent (each answer notes when its question was asked), in send order.
+  # Each message is kept as a part, so editing one later changes just its
+  # text. A "skip" adds nothing, and real text replaces a "skip". Returns
+  # whether it changed.
   def self.continue_answer(standup_response, answer_text, message_id:, sent_at:)
     return false if answer_text == SKIPPED_ANSWER || answer_text.blank?
 
-    answer = standup_response.answers.last
+    answers = standup_response.answers
+    index = answers.rindex { |candidate| (asked_at = parse_time(candidate["asked_at"])) && asked_at <= sent_at } || answers.size - 1
+    answer = answers[index]
     parts = answer_parts(answer)
     parts << { "message_id" => message_id.presence&.to_s, "text" => answer_text, "sent_at" => sent_at&.iso8601(6) }.compact
     answer["parts"] = parts.sort_by.with_index { |part, position| [ parse_time(part["sent_at"]) || Time.zone.at(0), position ] }
@@ -123,7 +152,7 @@ class StandupResponseService
 
     # The job renders the saved answers, so a retry after a failed update
     # still shows the edit.
-    StandupUpdateJob.perform_now(standup_response) if changed && standup_response.status == "completed"
+    after_commit { StandupUpdateJob.perform_now(standup_response) } if changed && standup_response.status == "completed"
     changed
   end
 
@@ -189,7 +218,8 @@ class StandupResponseService
   end
 
   # sent_at, when known, is the platform's send time for the message, kept so
-  # messages that continue the answer can be put in order.
+  # messages that continue the answer can be put in order. asked_at is when
+  # the question reached the person, so a late continuation finds its answer.
   def self.append_answer(standup_response, answer_text, message_id: nil, sent_at: nil)
     standup_response.answers ||= []
     standup_response.answers << {
@@ -197,7 +227,8 @@ class StandupResponseService
       answer: answer_text,
       timestamp: Time.current,
       message_id: message_id.presence&.to_s,
-      sent_at: sent_at&.iso8601(6)
+      sent_at: sent_at&.iso8601(6),
+      asked_at: standup_response.prompted_at&.iso8601(6)
     }.compact
   end
 
@@ -259,9 +290,11 @@ class StandupResponseService
   end
 
   # Notes when the bot's latest prompt in this run reached the person: the
-  # platform's send time when it reports one, or now.
-  def self.prompted!(standup_response, message)
-    standup_response.update!(prompted_at: message.try(:sent_at) || Time.current)
+  # platform's send time when it reports one, or now. signed_off: it was the
+  # sign-off after the run finished.
+  def self.prompted!(standup_response, message, signed_off: false)
+    sent_at = message.try(:sent_at) || Time.current
+    standup_response.update!(prompted_at: sent_at, **({ signed_off_at: sent_at } if signed_off).to_h)
   end
 
   # The name stored for the participant, so posting doesn't need a profile

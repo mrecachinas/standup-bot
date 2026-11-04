@@ -40,7 +40,8 @@ spec:
       containers:
         - name: slack-socket-mode
           image: your-standupbot-image:tag
-          command: ["./bin/slack-socket-mode"]
+          # args, not command, keeps the image's entrypoint.
+          args: ["./bin/slack-socket-mode"]
           env:
             - name: SLACK_SOCKET_MODE_READY_FILE
               value: /tmp/slack-socket-mode.ready

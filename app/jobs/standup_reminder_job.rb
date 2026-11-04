@@ -44,25 +44,31 @@ class StandupReminderJob < ApplicationJob
     false
   end
 
-  # The reminder is claimed before it's sent, so two runs (or a retry) can't
-  # both send it, and given back if sending fails, so the next run tries again.
-  # One person's failure doesn't stop the others' reminders, except a rate
-  # limit, which ends the run for its retry.
+  # The reminder is claimed before it's sent by moving last_reminder_at to now
+  # (only if nobody else has), so two runs or a retry can't both send it. The
+  # count is used up only once it's delivered: a claim left by a worker that
+  # stopped mid-send just delays the next try by the reminder interval. A
+  # failed send gives the claim back. One person's failure doesn't stop the
+  # others' reminders, except a rate limit, which ends the run for its retry.
   def send_reminder(response)
-    count = response.reminder_count.to_i
-    claimed = StandupResponse.pending.where(id: response.id, reminder_count: count)
-      .update_all(reminder_count: count + 1, last_reminder_at: Time.current)
+    previous = response.last_reminder_at
+    claimed = StandupResponse.pending
+      .where(id: response.id, reminder_count: response.reminder_count.to_i, last_reminder_at: previous)
+      .update_all(last_reminder_at: Time.current)
     return unless claimed == 1
 
     begin
       deliver_reminder(response)
     rescue StandardError => error
-      StandupResponse.where(id: response.id).update_all(reminder_count: count, last_reminder_at: response.last_reminder_at)
+      StandupResponse.where(id: response.id).update_all(last_reminder_at: previous)
       raise if rate_limited?(error)
 
       Rails.logger.error "Couldn't remind #{response.platform_user_id} about standup #{response.standup_id}: #{error.class} - #{error.message}"
       StandupMetrics.track("standup.reminder_failed", standup_id: response.standup_id, response_id: response.id, error_class: error.class.name)
+      return
     end
+
+    StandupResponse.where(id: response.id).update_all("reminder_count = reminder_count + 1")
   end
 
   def deliver_reminder(response)

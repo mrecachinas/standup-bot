@@ -116,12 +116,48 @@ class StandupConversationReliabilityTest < ActiveSupport::TestCase
   end
 
   test "a failure while handling leaves the message unhandled, so the retry runs it" do
+    ChatPlatform::SlackAdapter.any_instance.stubs(:send_reply).raises(Faraday::ConnectionFailed, "down")
+
+    assert_raises(Faraday::ConnectionFailed) { @handler.handle(dm("hello?", "100.1", @t0 + 5)) }
+
+    assert_not ProcessedChatMessage.handled?(platform: :slack, platform_user_id: @user_id, message_id: "100.1")
+  end
+
+  test "a failed send after the answer is saved keeps the answer and retries the question" do
     run = pending_run!
     ChatPlatform::SlackAdapter.any_instance.stubs(:send_direct_message).raises(Faraday::ConnectionFailed, "down")
 
-    assert_raises(Faraday::ConnectionFailed) { @handler.handle(dm("foo", "100.1", @t0 + 5)) }
+    assert_enqueued_with(job: StandupPromptJob, args: [ run, 1 ]) do
+      @handler.handle(dm("foo", "100.1", @t0 + 5))
+    end
 
-    assert_empty run.reload.answers
-    assert_not ProcessedChatMessage.handled?(platform: :slack, platform_user_id: @user_id, message_id: "100.1")
+    assert_equal [ "foo" ], run.reload.answers.map { |answer| answer["answer"] }
+    assert ProcessedChatMessage.handled?(platform: :slack, platform_user_id: @user_id, message_id: "100.1")
+  end
+
+  test "a late continuation goes to the question that was showing when it was sent" do
+    run = pending_run!
+    deliver_at(@t0 + 10, @t0 + 30)
+    @handler.handle(dm("foo", "100.1", @t0 + 5))
+    @handler.handle(dm("Today's work", "100.3", @t0 + 20))
+
+    # Sent at +7, before Q2 showed up at +10, but delivered after Q2 was answered.
+    @handler.handle(dm("bar", "100.2", @t0 + 7))
+
+    assert_equal [ "foo\nbar", "Today's work" ], run.reload.answers.map { |answer| answer["answer"] }
+  end
+
+  test "a follow-up while the sign-off is pending continues the last answer" do
+    run = pending_run!(status: "completed", prompted_at: @t0, answers: [
+      { "question" => "What did you do yesterday?", "answer" => "A1", "message_id" => "90.1", "asked_at" => (@t0 - 60).iso8601(6) },
+      { "question" => "What are you doing today?", "answer" => "A2", "message_id" => "90.2", "asked_at" => (@t0 - 30).iso8601(6) },
+      { "question" => "Any blockers?", "answer" => "None", "message_id" => "90.3", "asked_at" => @t0.iso8601(6) }
+    ])
+    run.update_column(:updated_at, @t0 + 5)
+    ChatPlatform::SlackAdapter.any_instance.expects(:post_standup_update).returns(ChatPlatform::MessageRef.new(channel: "C1", id: "post.1"))
+
+    @handler.handle(dm("really none", "100.1", @t0 + 8))
+
+    assert_equal "None\nreally none", run.reload.answers.last["answer"]
   end
 end

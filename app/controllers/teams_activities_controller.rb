@@ -2,7 +2,7 @@
 # valid Bot Framework token, and the work happens in TeamsActivityProcessorJob.
 class TeamsActivitiesController < ApplicationController
   MAX_ACTIVITY_BYTES = 256.kilobytes
-  ACTIVITY_KEYS = %w[type id text value serviceUrl channelId from conversation channelData recipient replyToId].freeze
+  ACTIVITY_KEYS = %w[type id timestamp text value serviceUrl channelId from conversation channelData recipient replyToId].freeze
 
   def create
     return head(:content_too_large) if request.raw_post.bytesize > MAX_ACTIVITY_BYTES

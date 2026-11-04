@@ -39,19 +39,22 @@ class StandupResponse < ApplicationRecord
   # deliveries and Slack's redeliveries (the last one comes about 5 minutes on).
   CONTINUATION_WINDOW = 10.minutes
 
-  # The run a message sent at sent_at continues: one whose latest prompt
-  # reached the person after they sent it (they typed "foo", then "bar" before
-  # the next question showed up), and that has an answer to continue.
+  # The run a message sent at sent_at continues, if any, with an answer to
+  # continue: a finished run whose sign-off hasn't gone out yet (say, while its
+  # post is retried), or one whose latest prompt reached the person after they
+  # sent the message (they typed "foo", then "bar" before the next question
+  # showed up).
   def self.continued_by(platform, platform_user_id, sent_at)
     return if sent_at.blank?
 
-    authorized_for(platform, platform_user_id)
-      .where(status: %w[pending completed])
-      .where(prompted_at: sent_at..(sent_at + CONTINUATION_WINDOW))
-      .where.not(prompted_at: sent_at)
-      .order(prompted_at: :desc)
-      .limit(5)
-      .find { |response| response.answers.present? }
+    runs = authorized_for(platform, platform_user_id).where(status: %w[pending completed]).where.not(prompted_at: nil)
+    awaiting_sign_off = runs.where(status: "completed", signed_off_at: nil)
+      .where(updated_at: (sent_at - CONTINUATION_WINDOW)..)
+      .order(updated_at: :desc).limit(5)
+    prompted_after = runs.where(prompted_at: sent_at..(sent_at + CONTINUATION_WINDOW)).where.not(prompted_at: sent_at)
+      .order(prompted_at: :desc).limit(5)
+
+    (awaiting_sign_off.to_a + prompted_after.to_a).uniq.find { |response| response.answers.present? }
   end
 
   # Edits are only matched against this person's recent responses, newest

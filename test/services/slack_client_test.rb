@@ -277,4 +277,13 @@ class SlackClientTest < ActiveSupport::TestCase
     assert_equal "Alice", users.first["label"]
     assert_equal "America/New_York", users.first["tz"]
   end
+
+  test "dm_history follows pagination" do
+    @mock_api_client.expects(:conversations_history).with(channel: "D1", oldest: "1.0", limit: 200, cursor: nil)
+      .returns({ "messages" => [ { "ts" => "3.0" } ], "response_metadata" => { "next_cursor" => "page2" } })
+    @mock_api_client.expects(:conversations_history).with(channel: "D1", oldest: "1.0", limit: 200, cursor: "page2")
+      .returns({ "messages" => [ { "ts" => "2.0" } ], "response_metadata" => { "next_cursor" => "" } })
+
+    assert_equal [ "3.0", "2.0" ], @slack_client.dm_history("D1", oldest: "1.0").map { |message| message["ts"] }
+  end
 end

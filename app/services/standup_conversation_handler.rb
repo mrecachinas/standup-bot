@@ -12,15 +12,17 @@ class StandupConversationHandler
   NOTHING_PENDING = "There's no standup waiting on you right now, so I didn't save that.".freeze
 
   # Each message is handled once, even when it's delivered again or picked up
-  # from DM history (see ProcessedChatMessage.process_once).
-  def handle(message)
+  # from DM history (see ProcessedChatMessage.process_once). target: the run a
+  # message replayed from DM history belongs to, since the usual routing
+  # assumes it arrived just now.
+  def handle(message, target: nil)
     return handle_edit(message) if message.edited?
 
     text = StandupResponseService.normalize_answer_text(message.text)
     return if message.user_id.blank? || text.blank?
 
     ProcessedChatMessage.process_once(platform: platform, platform_user_id: message.user_id, message_id: message.message_id) do
-      handle_new(message, text)
+      handle_new(message, text, target: target)
     end
   end
 
@@ -28,13 +30,14 @@ class StandupConversationHandler
 
   attr_reader :chat
 
-  def handle_new(message, text)
+  def handle_new(message, text, target: nil)
     reply = StandupCommandHandler.new(chat: chat, user_id: message.user_id).direct_message(text, message_id: message.message_id)
     return chat.send_reply(message.conversation, reply) if reply
 
     # A message typed before the bot's latest prompt showed up continues the
     # answer before it; anything else answers the current question.
-    standup_response = StandupResponse.continued_by(platform, message.user_id, message.sent_at) ||
+    standup_response = target ||
+      StandupResponse.continued_by(platform, message.user_id, message.sent_at) ||
       StandupResponse.latest_pending_for(platform, message.user_id)
     unless standup_response
       chat.send_reply(message.conversation, ChatPlatform::Reply.text("#{NOTHING_PENDING} #{start_hint}"))

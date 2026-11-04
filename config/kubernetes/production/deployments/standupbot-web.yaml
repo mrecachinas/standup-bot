@@ -33,7 +33,8 @@ spec:
         # if standups are managed in the console.
         - name: import-standups
           image: your-standupbot-image:tag
-          command: ["./bin/rails", "db:prepare", "standups:import"]
+          # args, not command, so the image's entrypoint (jemalloc) still runs.
+          args: ["./bin/rails", "db:prepare", "standups:import"]
           envFrom:
             - secretRef:
                 name: standupbot-secrets
@@ -43,9 +44,9 @@ spec:
       containers:
         - name: web
           image: your-standupbot-image:tag
-          # Puma directly (TLS and compression are the ingress's job); the
-          # entrypoint runs db:prepare first.
-          command: ["./bin/rails", "server"]
+          # Puma directly (TLS and compression are the ingress's job). args,
+          # not command, keeps the image's entrypoint, which runs db:prepare.
+          args: ["./bin/rails", "server"]
           ports:
             - name: http
               containerPort: 3000

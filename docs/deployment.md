@@ -63,7 +63,7 @@ bin/kamal deploy
 
 ## Kubernetes
 
-[`config/kubernetes/production/`](../config/kubernetes/production/) has example manifests. Replace the image, fill in the `standupbot-secrets` Secret (`RAILS_MASTER_KEY`, the three database URLs, and the Slack or Teams credentials), and adjust `standupbot-config`.
+[`config/kubernetes/production/`](../config/kubernetes/production/) has example manifests. Replace the image, fill in the `standupbot-secrets` Secret (`RAILS_MASTER_KEY`, the three database URLs, and the Slack or Teams credentials), and adjust `standupbot-config`. The containers set `args`, not `command`, so the image's entrypoint (which prepares the database) still runs.
 
 | Manifest | Runs | Notes |
 | --- | --- | --- |

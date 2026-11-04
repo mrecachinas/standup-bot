@@ -123,6 +123,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_020100) do
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false
     t.datetime "prompted_at"
+    t.datetime "signed_off_at"
     t.index ["platform_user_id", "status"], name: "index_standup_responses_on_platform_user_id_and_status"
     t.index ["standup_id", "platform_user_id", "standup_date"], name: "idx_standup_responses_on_standup_user_date", unique: true
   end

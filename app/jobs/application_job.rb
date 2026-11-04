@@ -19,6 +19,8 @@ class ApplicationJob < ActiveJob::Base
            Faraday::ConnectionFailed, Faraday::TimeoutError,
            # Slack timeouts, 5xx, and unparseable responses, plus its own internal_error.
            Slack::Web::Api::Errors::ServerError, Slack::Web::Api::Errors::InternalError,
+           # Teams: Microsoft unreachable or a 5xx.
+           Microsoft::TransientApiError,
            wait: :polynomially_longer, attempts: 3
 
   discard_on ActiveRecord::RecordNotFound
@@ -66,11 +68,16 @@ class ApplicationJob < ActiveJob::Base
     end
   end
 
+  # The first failure of a kind in the window claims it atomically (an
+  # increment in the shared cache), so concurrent failures across workers send
+  # one notice. Best effort: if the cache fails, the notice goes out and the
+  # original error is what's raised.
   def admin_notice_muted?(exception, context)
     key = [ "admin-notice", self.class.name, exception.class.name, context ].compact.join("/")
-    return true if Rails.cache.exist?(key)
-
-    Rails.cache.write(key, true, expires_in: ADMIN_NOTICE_INTERVAL)
+    count = Rails.cache.increment(key, 1, expires_in: ADMIN_NOTICE_INTERVAL)
+    count.present? && count > 1
+  rescue StandardError => cache_error
+    Rails.logger.warn "Couldn't check admin notice throttling: #{cache_error.class} - #{cache_error.message}"
     false
   end
 end

@@ -13,7 +13,8 @@ class SlackDmBackfillTest < ActiveSupport::TestCase
   end
 
   def history(*messages)
-    @client.expects(:dm_history).with("D1", oldest: "1800000010.000100").returns(messages)
+    # From the run's start, not its latest answer, so an earlier missed reply is still found.
+    @client.expects(:dm_history).with("D1", oldest: "1799999995.000000").returns(messages)
   end
 
   test "handles replies sent after the latest recorded answer, oldest first, and skips the rest" do
@@ -63,5 +64,21 @@ class SlackDmBackfillTest < ActiveSupport::TestCase
 
     assert_equal 0, @backfill.call(@run)
     assert_equal [ "A1" ], @run.reload.answers.map { |answer| answer["answer"] }
+  end
+
+  test "replays messages from a long outage into the run, as continuations once the next prompt goes out" do
+    @run.update!(answers: @run.answers + [ { "question" => "What are you doing today?", "answer" => "A2", "message_id" => "1800000012.000100" } ])
+    history(
+      { "type" => "message", "user" => @user_id, "text" => "no blockers", "ts" => "1800003600.000100" },
+      { "type" => "message", "user" => @user_id, "text" => "really", "ts" => "1800003610.000100" }
+    )
+    # The sign-off goes out now, long after both were sent.
+    @client.stubs(:send_message).returns({ "channel" => "D1", "ts" => "1800009000.000100" })
+    @client.stubs(:update_message)
+
+    assert_equal 2, @backfill.call(@run)
+
+    assert_equal "completed", @run.reload.status
+    assert_equal "no blockers\nreally", @run.answers.last["answer"]
   end
 end
