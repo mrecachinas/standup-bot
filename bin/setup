@@ -13,7 +13,8 @@ FileUtils.chdir APP_ROOT do
   # Add necessary setup steps to this file.
 
   puts "== Installing dependencies =="
-  system("bundle check") || system!("bundle install")
+  frozen = { "BUNDLE_FROZEN" => "true" }
+  system(frozen, "bundle check") || system!(frozen, "bundle install")
   system!("npm", "ci", chdir: "frontend")
 
   # puts "\n== Copying sample files =="
