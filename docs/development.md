@@ -25,10 +25,10 @@ bin/rails test test/services/                 # or call Rails directly if the DB
 Production runs PostgreSQL, so CI also runs the suite there. To do the same locally, point the test environment at a PostgreSQL server:
 
 ```bash
-TEST_DB_ADAPTER=postgresql DB_HOST=localhost bin/rails db:test:prepare test
+RAILS_ENV=test TEST_DB_ADAPTER=postgresql DB_HOST=localhost bin/rails db:test:prepare test
 ```
 
-`DB_USER` defaults to your login name and `DB_PORT` to 5432. On macOS, also set `PGGSSENCMODE=disable`, or the forked test workers can crash in libpq. Watch out for PostgreSQL-only differences, such as `DISTINCT` over tables with `json` columns (`standups`, `standup_responses`), which PostgreSQL can't compare. Use a subquery instead.
+Keep `RAILS_ENV=test`. Without it, `db:test:prepare` connects to the development database (MySQL) first and fails if MySQL isn't running. `DB_USER` defaults to your login name and `DB_PORT` to 5432. On macOS, also set `PGGSSENCMODE=disable`, or the forked test workers can crash in libpq. Watch out for PostgreSQL-only differences, such as `DISTINCT` over tables with `json` columns (`standups`, `standup_responses`), which PostgreSQL can't compare. Use a subquery instead.
 
 The console has its own checks, run from `frontend/`:
 
