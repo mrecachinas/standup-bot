@@ -23,6 +23,7 @@ module Api
     def show
       payload = { standup: serialize_standup(@standup, include_counts: true) }
       if included?("overview")
+        @default_preview_timezone = participant_preview_timezone(@standup)
         payload[:overview] = StandupOverviewSerializer.new(@standup, preview_timezone: preview_timezone_param).as_json
       end
       render json: payload
@@ -255,6 +256,22 @@ module Api
         active: true,
         destroy: false
       } ]
+    end
+
+    # A standup sent in each person's local time previews in the timezone most
+    # of its people are in, rather than UTC.
+    def participant_preview_timezone(standup)
+      return unless standup.respect_timezone
+
+      iana_name = standup.standup_participants
+        .where(active: true)
+        .where.not(cached_timezone: [ nil, "" ])
+        .group(:cached_timezone)
+        .order(Arel.sql("COUNT(*) DESC"), :cached_timezone)
+        .limit(1)
+        .pluck(:cached_timezone)
+        .first
+      rails_time_zone_name(iana_name)
     end
 
     def rails_time_zone_name(iana_name)

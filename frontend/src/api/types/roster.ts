@@ -185,6 +185,9 @@ export interface HistoryAnswer {
   timestamp: string | null;
   answered_at: string | null;
   answered_at_label: string | null;
+  /** Changed after the run was finished. */
+  edited: boolean;
+  edited_at: string | null;
 }
 
 export interface HistoryEntry {

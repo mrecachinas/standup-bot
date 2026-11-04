@@ -87,6 +87,14 @@ class ChatPlatform::TeamsAdapterTest < ActiveSupport::TestCase
     adapter.update_standup_update(TEAMS_CHANNEL, "7", display_name: "Tess", standup_name: "Daily", answers: [ { question: "Q1", answer: "A2" } ])
   end
 
+  test "marks an edited standup update (edited)" do
+    @connector.expects(:update_activity).with(
+      has_entries(activity_id: "7", activity: has_entries(text: "**Tess** posted an update for **Daily** _(edited)_\n\n**Q1**\nA2"))
+    )
+
+    adapter.update_standup_update(TEAMS_CHANNEL, "7", display_name: "Tess", standup_name: "Daily", answers: [ { question: "Q1", answer: "A2" } ], edited: true)
+  end
+
   test "edits a standup update to a skipped note when no answers are left" do
     @connector.expects(:update_activity).with(has_entries(activity_id: "7", activity: has_entries(text: "**Tess** skipped **Daily**")))
 

@@ -67,4 +67,40 @@ class ParticipantReactivationJobTest < ActiveJob::TestCase
       ParticipantReactivationJob.perform_now(@platform_user_id)
     end
   end
+
+  test "a job for an earlier date doesn't end a later away period, and checks again on that date" do
+    @mock_slack_client.expects(:send_message).never
+    # Away until the 10th, then back early and away again (or a manager moved the date) until the 20th.
+    @participant1.update!(vacation_until: Date.new(2026, 11, 20), cached_timezone: "America/New_York", cached_timezone_updated_at: Time.current)
+
+    assert_enqueued_with(
+      job: ParticipantReactivationJob,
+      args: [ @platform_user_id, [ @participant1.id ], "slack", "2026-11-20" ],
+      at: Time.find_zone("America/New_York").local(2026, 11, 20)
+    ) do
+      ParticipantReactivationJob.perform_now(@platform_user_id, [ @participant1.id ], "slack", "2026-11-10")
+    end
+
+    assert_not @participant1.reload.active?
+    assert_equal Date.new(2026, 11, 20), @participant1.vacation_until
+  end
+
+  test "a job leaves rows paused without an away date alone" do
+    @mock_slack_client.expects(:send_message).never
+    @participant1.update!(vacation_until: nil)
+
+    ParticipantReactivationJob.perform_now(@platform_user_id, [ @participant1.id ], "slack", "2026-11-10")
+
+    assert_not @participant1.reload.active?
+  end
+
+  test "a job reactivates rows whose away period it ends" do
+    @mock_slack_client.expects(:send_message).once
+    @participant1.update!(vacation_until: Date.new(2026, 11, 10))
+
+    ParticipantReactivationJob.perform_now(@platform_user_id, [ @participant1.id ], "slack", "2026-11-10")
+
+    assert @participant1.reload.active?
+    assert_nil @participant1.vacation_until
+  end
 end

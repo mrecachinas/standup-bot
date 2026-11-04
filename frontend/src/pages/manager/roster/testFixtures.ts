@@ -237,6 +237,8 @@ export function historyPayload(overrides: Partial<ResponsesHistoryPayload["histo
                   timestamp: "1730281500.000100",
                   answered_at: "2026-10-30T09:45:00Z",
                   answered_at_label: "October 30, 2026 09:45",
+                  edited: true,
+                  edited_at: "2026-10-30T10:15:00Z",
                 },
                 {
                   question: "Any blockers?",
@@ -245,6 +247,8 @@ export function historyPayload(overrides: Partial<ResponsesHistoryPayload["histo
                   timestamp: null,
                   answered_at: null,
                   answered_at_label: null,
+                  edited: false,
+                  edited_at: null,
                 },
               ],
               empty_message: null,

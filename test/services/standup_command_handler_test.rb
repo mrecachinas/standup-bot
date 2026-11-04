@@ -185,4 +185,92 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
     assert_nil @participant.reload.vacation_until
     assert @participant.active?
   end
+
+  test "history lists runs by their standup date in the person's timezone" do
+    in_new_york!
+    standup = @participant.standup
+
+    # 8:30 PM on November 3 in New York, already November 4 in UTC.
+    Timecop.freeze(Time.utc(2026, 11, 4, 1, 30)) do
+      StandupResponse.create!(standup: standup, platform_user_id: @participant.platform_user_id, status: "completed",
+        answers: [ { "question" => "Q1", "answer" => "Shipped" } ], standup_date: Date.new(2026, 11, 3))
+      StandupResponse.create!(standup: standups(:weekdays), platform_user_id: @participant.platform_user_id, status: "completed",
+        answers: [ { "question" => "Q1", "answer" => "Old" } ], standup_date: Date.new(2026, 10, 27))
+
+      text = @handler.run("history").text
+
+      assert_includes text, "• Nov 3: #{standup.name} — completed (1 answer(s))"
+      assert_not_includes text, "Oct 27"
+    end
+  end
+
+  test "away counts days from the person's own date and wakes them at the start of the return day" do
+    in_new_york!
+
+    Timecop.freeze(Time.utc(2026, 11, 4, 1, 30)) do
+      assert_enqueued_with(job: ParticipantReactivationJob, at: Time.find_zone("America/New_York").local(2026, 11, 10)) do
+        assert_match(/until Tuesday, November 10\./, @handler.direct_message("away").text)
+      end
+    end
+
+    assert_equal Date.new(2026, 11, 10), @participant.reload.vacation_until
+    assert_equal "2026-11-10", enqueued_jobs.last["arguments"].last
+  end
+
+  test "kickoff_menu names each choice and the run" do
+    menu = StandupCommandHandler.kickoff_menu(7, Date.new(2026, 11, 3))
+
+    assert_equal StandupCommandHandler::KICKOFF_MENU_ACTION_ID, menu[:action_id]
+    assert_equal "Not today?", menu[:placeholder]
+    assert_equal [ "Skip today", "I'm out today", "I'm out for a week" ], menu[:options].map { |option| option[:text] }
+    assert_equal [ "skip:7:2026-11-03", "away_1:7:2026-11-03", "away_7:7:2026-11-03" ], menu[:options].map { |option| option[:value] }
+  end
+
+  test "the kickoff menu's skip choice skips that run and offers a restart" do
+    standup, date, response = pending_run_today!
+
+    reply = @handler.kickoff_choice("skip:#{standup.id}:#{date.iso8601}")
+
+    assert_equal "You skipped **#{standup.name}**. You can restart it anytime.", reply.text
+    assert_equal({ text: "Restart", value: standup.id }, reply.button)
+    assert_equal "skipped", response.reload.status
+
+    response.update!(status: "completed")
+    assert_equal "You've already finished **#{standup.name}** for today. ✅", @handler.kickoff_choice("skip:#{standup.id}:#{date.iso8601}").text
+  end
+
+  test "the kickoff menu's out-of-office choices skip today's runs and mark the person away" do
+    standup, date, response = pending_run_today!
+
+    reply = @handler.kickoff_choice("away_1:#{standup.id}:#{date.iso8601}")
+
+    assert_equal "skipped", response.reload.status
+    assert_not @participant.reload.active?
+    assert_equal date + 1, @participant.vacation_until
+    assert_match(/\AEnjoy your time off! 🌴 I skipped \*\*#{Regexp.escape(standup.name)}\*\* for today\. Your standups resume on .+\. Type `back` anytime to return early\.\z/, reply.text)
+  end
+
+  test "the kickoff menu ignores values it doesn't recognize" do
+    standup = @participant.standup
+
+    [ "dance:#{standup.id}:2026-11-03", "skip:#{standup.id}:not-a-date", "skip" ].each do |value|
+      assert_equal "That option isn't available anymore.", @handler.kickoff_choice(value).text
+    end
+  end
+
+  private
+
+  def in_new_york!
+    StandupParticipant.where(platform_user_id: @participant.platform_user_id)
+      .update_all(cached_timezone: "America/New_York", cached_timezone_updated_at: Time.current)
+  end
+
+  def pending_run_today!
+    StandupParticipant.where(platform_user_id: @participant.platform_user_id)
+      .update_all(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+    standup = @participant.standup
+    date = @participant.reload.standup_date_for(Time.current)
+    response = StandupResponse.create!(standup: standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: date)
+    [ standup, date, response ]
+  end
 end

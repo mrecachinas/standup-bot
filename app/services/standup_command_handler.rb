@@ -5,6 +5,14 @@ class StandupCommandHandler
   Reply = ChatPlatform::Reply
   DEFAULT_AWAY_DAYS = 7
   RESTART_ACTION_ID = "standup_restart".freeze
+  # The "Not today?" menu on a run's first message.
+  KICKOFF_MENU_ACTION_ID = "standup_kickoff_menu".freeze
+  KICKOFF_MENU_PLACEHOLDER = "Not today?".freeze
+  KICKOFF_CHOICES = {
+    "skip" => "Skip today",
+    "away_1" => "I'm out today",
+    "away_7" => "I'm out for a week"
+  }.freeze
   DIRECT_MESSAGE_COMMANDS = {
     "help" => "Show this help message",
     "report" => "Generate a standup report",
@@ -111,19 +119,20 @@ class StandupCommandHandler
 
   def history(days)
     days = days.clamp(1, 90)
+    # Runs are dated in the person's timezone, so an evening run isn't listed under tomorrow's UTC date.
     responses = StandupResponse
       .on_platform(platform)
       .includes(:standup)
       .where(platform_user_id: user_id)
-      .where("standup_responses.created_at >= ?", days.days.ago)
-      .order("standup_responses.created_at DESC")
+      .where("standup_responses.standup_date > ?", user_today - days.days)
+      .order(standup_date: :desc, created_at: :desc)
       .limit(10)
 
     return Reply.text("No standup responses found in the last #{days} day(s).") if responses.empty?
 
     lines = responses.map do |response|
       answered = Array(response.answers).count { |answer| answer["answer"].present? && answer["answer"] != StandupResponseService::SKIPPED_ANSWER }
-      "• #{response.created_at.to_fs(:month_day)}: #{response.standup.name} — #{response.status} (#{answered} answer(s))"
+      "• #{response.standup_date.to_fs(:month_day)}: #{response.standup.name} — #{response.status} (#{answered} answer(s))"
     end
 
     Reply.text("#{fmt.bold("Recent standups (last #{days} day(s)):")}\n#{lines.join("\n")}")
@@ -169,14 +178,10 @@ class StandupCommandHandler
   end
 
   def away(days)
-    participant_ids = active_participants.map(&:id)
-    return Reply.text("You're not currently part of any active standups.") if participant_ids.empty?
+    participants = active_participants.to_a
+    return Reply.text("You're not currently part of any active standups.") if participants.empty?
 
-    return_date = Date.current + days.days
-    StandupParticipant.where(id: participant_ids).update_all(active: false, vacation_until: return_date)
-    # Reactivate exactly these rows, not ones the person paused some other way.
-    ParticipantReactivationJob.set(wait_until: return_date.noon).perform_later(user_id, participant_ids, platform.to_s)
-
+    return_date = mark_away(participants, days)
     Reply.text("You've been marked as away from standups until #{return_date.to_fs(:weekday_month_day)}. Type #{fmt.code("back")} anytime to return early.")
   end
 
@@ -184,7 +189,7 @@ class StandupCommandHandler
     # Inactive rows (from `away`) plus rows paused with a current away date (set on the web)
     participant_ids = StandupParticipant
       .in_active_standups(platform, user_id)
-      .where("standup_participants.active = ? OR standup_participants.vacation_until >= ?", false, Date.current)
+      .where("standup_participants.active = ? OR standup_participants.vacation_until >= ?", false, user_today)
       .pluck(:id)
     return Reply.text("You're already active in all your standups.") if participant_ids.empty?
 
@@ -203,6 +208,27 @@ class StandupCommandHandler
   def restart(standup_id)
     with_selected_participant(standup_id) do |standup, participant|
       start_run(participant, "Restarting #{fmt.bold(standup.name)}…")
+    end
+  end
+
+  # Menu options for a run's first message. Each value names the choice and
+  # the run (standup and date), so a menu from an earlier run can't act on a newer one.
+  def self.kickoff_menu(standup_id, standup_date)
+    options = KICKOFF_CHOICES.map do |choice, text|
+      { text: text, value: [ choice, standup_id, standup_date.iso8601 ].join(":") }
+    end
+    { action_id: KICKOFF_MENU_ACTION_ID, placeholder: KICKOFF_MENU_PLACEHOLDER, options: options }
+  end
+
+  # Someone picked from the "Not today?" menu on a run's first message.
+  def kickoff_choice(value)
+    choice, standup_id, date = value.to_s.split(":", 3)
+    standup_date = parse_date(date)
+    return Reply.text("That option isn't available anymore.") unless KICKOFF_CHOICES.key?(choice) && standup_date
+
+    with_selected_participant(standup_id) do |standup, _participant|
+      response = StandupResponse.find_by(platform_user_id: user_id, standup_id: standup.id, standup_date: standup_date)
+      choice == "skip" ? skip_run(standup, response) : out_of_office(choice.delete_prefix("away_").to_i)
     end
   end
 
@@ -233,6 +259,45 @@ class StandupCommandHandler
     return Reply.text("You are not a participant in that standup.") unless participant
 
     yield standup, participant
+  end
+
+  def skip_run(standup, response)
+    case response&.status
+    when "pending"
+      StandupResponseService.skip_remaining_questions(response, notify: false)
+      restartable_reply("You skipped", standup)
+    when "completed"
+      Reply.text("You've already finished #{fmt.bold(standup.name)} for today. ✅")
+    when "skipped", "cancelled"
+      restartable_reply("You skipped", standup)
+    else
+      Reply.text("#{fmt.bold(standup.name)} isn't waiting on you right now.")
+    end
+  end
+
+  # Skips the runs waiting on the person today, in any standup, and marks them
+  # away until `days` from now, the same as the `away` command.
+  def out_of_office(days)
+    participants = active_participants.to_a
+    return Reply.text("You're not currently part of any active standups.") if participants.empty?
+
+    skipped = participants.flat_map { |participant| pending_responses_for(participant).to_a }
+    skipped.each { |response| StandupResponseService.skip_remaining_questions(response, notify: false) }
+    return_date = mark_away(participants, days)
+
+    names = skipped.map { |response| fmt.bold(response.standup.name) }.uniq
+    text = [
+      "Enjoy your time off! 🌴",
+      ("I skipped #{names.to_sentence} for today." if names.any?),
+      "Your standups resume on #{return_date.to_fs(:weekday_month_day)}. Type #{fmt.code("back")} anytime to return early."
+    ].compact.join(" ")
+    Reply.text(text)
+  end
+
+  def parse_date(value)
+    Date.iso8601(value.to_s)
+  rescue Date::Error
+    nil
   end
 
   def report_queued_reply(standup)
@@ -301,6 +366,32 @@ class StandupCommandHandler
 
   def current_standup_date(participant)
     participant.standup_date_for(Time.current)
+  end
+
+  # The person's own timezone (as their standups see it), so dates in replies
+  # and away periods follow their calendar rather than UTC's.
+  def user_time_zone
+    @user_time_zone ||= begin
+      participant = active_participants.first || StandupParticipant.on_platform(platform).find_by(platform_user_id: user_id)
+      participant&.standup_time_zone || Time.zone
+    end
+  end
+
+  def user_today
+    Time.current.in_time_zone(user_time_zone).to_date
+  end
+
+  # Deactivates these rows until return_date and reactivates them at the start
+  # of that day in the person's timezone, before that day's standups go out.
+  def mark_away(participants, days)
+    return_date = user_today + days.days
+    participant_ids = participants.map(&:id)
+    StandupParticipant.where(id: participant_ids).update_all(active: false, vacation_until: return_date)
+    # Reactivate exactly these rows, not ones the person paused some other way.
+    ParticipantReactivationJob
+      .set(wait_until: return_date.in_time_zone(user_time_zone))
+      .perform_later(user_id, participant_ids, platform.to_s, return_date.iso8601)
+    return_date
   end
 
   def status_line(standup, response)

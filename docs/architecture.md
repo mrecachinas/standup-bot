@@ -148,12 +148,12 @@ Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custo
 | Job | When it runs | What it does |
 | --- | --- | --- |
 | `SchedulingJob` | Every hour | Finds standups due in the next window and queues a `StandupMessageJob` for each participant at their local time |
-| `StandupMessageJob` | When queued | Opens the DM and sends the intro and first question |
+| `StandupMessageJob` | When queued | Opens the DM and sends the intro and first question, with a "Not today?" menu on Slack |
 | `SlackEventProcessorJob` | On each Slack event | Handles DM commands and records answers. Each answer keeps the ID of the message it came from, so editing that message updates the right answer (and its channel post) |
 | `TeamsActivityProcessorJob` | On each Teams activity | The same for Teams, plus `standup` commands and card choices. It also caches the 1:1 conversation |
 | `StandupReminderJob` | Every 15 minutes | Reminds people who haven't finished, based on each standup's reminder settings |
 | `StandupCollectionJob` | On demand | Gathers completed responses into a report (for `/standup report` or the console) |
-| `ParticipantReactivationJob` | When someone's `away` period ends | Puts the participant back in rotation |
+| `ParticipantReactivationJob` | At the start of the day someone's `away` period ends, in their timezone | Puts the participant back in rotation, unless they've since started a later away period |
 | `DataCleanupJob` | Daily at 3am | Expires stale pending responses and deletes data older than the retention window |
 
 Recurring schedules are defined in [`config/recurring.yml`](../config/recurring.yml). If you set `ADMIN_CHANNEL` (Slack) or `TEAMS_ADMIN_CHANNEL` (Teams), failed jobs post a message there.

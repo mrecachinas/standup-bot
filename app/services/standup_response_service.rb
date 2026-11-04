@@ -23,7 +23,9 @@ class StandupResponseService
   # Replaces one recorded answer after the participant edits their message.
   # Editing to "skip" marks the answer skipped. A finished run's channel post
   # is updated (or posted, if every answer was skipped before); unfinished,
-  # skipped, or cancelled runs just keep the new text.
+  # skipped, or cancelled runs just keep the new text. Edits after the run is
+  # finished keep the original answer time and record edited_at, which marks
+  # the channel post "(edited)" and shows in the console.
   def self.edit_answer(standup_response, index, text)
     answer_text = normalize_answer_text(text)
     answer_text = SKIPPED_ANSWER if skip_text?(answer_text)
@@ -31,7 +33,11 @@ class StandupResponseService
     return false if answer_text.blank? || answer["answer"] == answer_text
 
     answer["answer"] = answer_text
-    answer["timestamp"] = Time.current
+    if standup_response.status == "completed"
+      answer["edited_at"] = Time.current
+    else
+      answer["timestamp"] = Time.current
+    end
 
     # Update the channel post before saving. If the update fails (e.g. a rate
     # limit the job retries), the old answer is still stored, so the retried
@@ -118,7 +124,8 @@ class StandupResponseService
       message_id,
       display_name: display_name,
       standup_name: standup_response.standup.name,
-      answers: answers
+      answers: answers,
+      edited: edited?(standup_response)
     )
   end
 
@@ -172,7 +179,8 @@ class StandupResponseService
       standup_response.standup.platform_channel,
       display_name: display_name,
       standup_name: standup_response.standup.name,
-      answers: answers
+      answers: answers,
+      edited: edited?(standup_response)
     )
 
     if message&.id.present?
@@ -190,5 +198,11 @@ class StandupResponseService
 
       { question: answer["question"] || answer[:question], answer: text }
     end
+  end
+
+  # Whether any answer changed after the run was finished, including answers
+  # since edited to "skip" that no longer show. Marks the post "(edited)".
+  def self.edited?(standup_response)
+    Array(standup_response.answers).any? { |answer| (answer["edited_at"] || answer[:edited_at]).present? }
   end
 end

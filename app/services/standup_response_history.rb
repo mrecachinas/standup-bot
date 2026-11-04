@@ -14,12 +14,27 @@ class StandupResponseHistory
     end
   end
 
-  Answer = Struct.new(:question, :text, :timestamp, keyword_init: true) do
+  Answer = Struct.new(:question, :text, :timestamp, :edited_at, keyword_init: true) do
     def timestamp_time
-      return timestamp.in_time_zone if timestamp.respond_to?(:in_time_zone)
-      return if timestamp.blank?
+      parse_time(timestamp)
+    end
 
-      Time.zone.parse(timestamp.to_s)
+    # Set when the answer was changed after the run was finished.
+    def edited?
+      edited_at.present?
+    end
+
+    def edited_at_time
+      parse_time(edited_at)
+    end
+
+    private
+
+    def parse_time(value)
+      return value.in_time_zone if value.respond_to?(:in_time_zone)
+      return if value.blank?
+
+      Time.zone.parse(value.to_s)
     rescue ArgumentError, TypeError
       nil
     end
@@ -74,18 +89,22 @@ class StandupResponseHistory
       response.status.to_s.titleize
     end
 
+    # When the last answer came in for a finished run; otherwise when the run
+    # started. The row itself is created when the prompt goes out.
     def submitted_at
-      response&.created_at
+      return response&.created_at unless answered?
+
+      answers.filter_map(&:timestamp_time).max || response.created_at
     end
 
     def updated_at
       response&.updated_at
     end
 
+    # Answering each question updates the row too, so only an answer edited
+    # after the run was finished counts.
     def updated_after_create?
-      return false unless response&.created_at && response&.updated_at
-
-      response.updated_at > response.created_at + 1.second
+      answers.any?(&:edited?)
     end
   end
 
@@ -279,7 +298,8 @@ class StandupResponseHistory
     Answer.new(
       question: answer_value(answer, "question").to_s,
       text: answer_value(answer, "answer").to_s,
-      timestamp: answer_value(answer, "timestamp")
+      timestamp: answer_value(answer, "timestamp"),
+      edited_at: answer_value(answer, "edited_at")
     )
   end
 

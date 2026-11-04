@@ -259,12 +259,35 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
       response.standup.platform_channel, "post.1",
       display_name: "John Doe", standup_name: response.standup.name,
-      answers: [ { question: "Q1", answer: "Shipped" }, { question: "Q2", answer: "Pairing" } ]
+      answers: [ { question: "Q1", answer: "Shipped" }, { question: "Q2", answer: "Pairing" } ],
+      edited: true
     )
 
     assert StandupResponseService.edit_answer(response, 1, "Pairing")
 
-    assert_equal [ "Shipped", "Pairing" ], response.reload.answers.map { |answer| answer["answer"] }
+    answers = response.reload.answers
+    assert_equal [ "Shipped", "Pairing" ], answers.map { |answer| answer["answer"] }
+    assert answers[1]["edited_at"].present?
+    assert_nil answers[0]["edited_at"]
+  end
+
+  test "edit_answer keeps the original answer time after the run is finished" do
+    response = completed_response_for_edit!
+    answered_at = response.answers[1]["timestamp"]
+    ChatPlatform::SlackAdapter.any_instance.stubs(:update_standup_update)
+
+    StandupResponseService.edit_answer(response, 1, "Pairing")
+
+    assert_equal answered_at, response.reload.answers[1]["timestamp"]
+  end
+
+  test "edit_answer on an unfinished run doesn't mark the answer edited" do
+    response = completed_response_for_edit!
+    response.update!(status: "pending", platform_message_id: nil)
+
+    StandupResponseService.edit_answer(response, 1, "Pairing")
+
+    assert_nil response.reload.answers[1]["edited_at"]
   end
 
   test "edit_answer keeps the old answer when the channel update fails, so a retry can apply the edit" do
@@ -280,7 +303,8 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
       response.standup.platform_channel, "post.1",
       display_name: "John Doe", standup_name: response.standup.name,
-      answers: [ { question: "Q1", answer: "Shipped" } ]
+      answers: [ { question: "Q1", answer: "Shipped" } ],
+      edited: true
     )
 
     assert StandupResponseService.edit_answer(response, 1, "skip")

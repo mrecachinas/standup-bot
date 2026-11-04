@@ -202,6 +202,26 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert overview["completion"].key?("label")
   end
 
+  test "the overview previews a local-time standup in the timezone most of its people are in" do
+    sign_in(@manager, "manager-access-token")
+    @owned_standup.standup_participants.create!(platform_user_id: "UNEWYORK1", display_name: "Nia", active: true)
+    active = @owned_standup.standup_participants.where(active: true).order(:id).to_a
+    active.first.update!(cached_timezone: "Europe/London")
+    active.drop(1).each { |participant| participant.update!(cached_timezone: "America/New_York") }
+    # Inactive people don't count, even when there are more of them.
+    @owned_standup.standup_participants.where(active: false).update_all(cached_timezone: "Asia/Tokyo")
+    @owned_standup.standup_participants.create!(platform_user_id: "UTOKYO2", display_name: "Kai", active: false, cached_timezone: "Asia/Tokyo")
+
+    get api_standup_path(@owned_standup), params: { include: "overview" }
+
+    assert_equal "Eastern Time (US & Canada)", response.parsed_body.dig("overview", "upcoming", "preview_timezone")
+
+    @owned_standup.update!(respect_timezone: false)
+    get api_standup_path(@owned_standup), params: { include: "overview" }
+
+    assert_equal "UTC", response.parsed_body.dig("overview", "upcoming", "preview_timezone")
+  end
+
   test "the overview of a paused standup says so" do
     sign_in(@admin, "admin-access-token")
 

@@ -64,6 +64,9 @@ class StandupMessageJobTest < ActiveJob::TestCase
     assert_equal "Starting *Daily Standup* · 3 questions · Reply `skip` to pass on one", blocks.first[:elements].first[:text]
     assert_equal greeting, blocks.third.dig(:text, :text)
     assert_equal "*What did you do yesterday?*", blocks.fourth.dig(:text, :text)
+    # The "Not today?" menu names this run, so it can't act on a later one.
+    date = @participant.standup_date_for(Time.current).iso8601
+    assert_equal "skip:#{@standup.id}:#{date}", blocks.third.dig(:accessory, :options).first[:value]
   end
 
   test "says so when it wraps up an unfinished run from an earlier day" do

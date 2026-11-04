@@ -4,6 +4,8 @@ module ChatPlatform
   # plain hashes with "id" and "label" keys for discovery records.
   class Adapter
     UNKNOWN_USER = "Unknown User".freeze
+    # Marks an update whose answers changed after it was posted, like Slack's own "(edited)".
+    EDITED_NOTE = "(edited)".freeze
 
     def key
       raise NotImplementedError
@@ -33,13 +35,15 @@ module ChatPlatform
     end
 
     # answers: [{ question:, answer: }] with skipped and blank answers removed.
-    def post_standup_update(channel, display_name:, standup_name:, answers:)
+    # edited: an answer was changed after the update was posted, which marks
+    # the heading "(edited)", like an edited chat message.
+    def post_standup_update(channel, display_name:, standup_name:, answers:, edited: false)
       raise NotImplementedError
     end
 
     # answers can be empty when the person has since skipped everything; the
     # post then just says they skipped, so retracted answers don't stay up.
-    def update_standup_update(channel, message_id, display_name:, standup_name:, answers:)
+    def update_standup_update(channel, message_id, display_name:, standup_name:, answers:, edited: false)
       raise NotImplementedError
     end
 
@@ -59,7 +63,10 @@ module ChatPlatform
 
     # The first message of a standup run: a greeting and the first question.
     # Platforms with richer layouts override this; the default is plain text.
-    def send_standup_kickoff(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, wrapped_up_previous: false)
+    # menu: { action_id:, placeholder:, options: [{ text:, value: }] } for a
+    # "Not today?" dropdown, on platforms that show one; the plain-text default
+    # leaves it out (people can still type `skip` or `away`).
+    def send_standup_kickoff(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, wrapped_up_previous: false, menu: nil)
       parts = standup_kickoff_parts(
         user_id,
         standup_name: standup_name, channel: channel, channel_name: channel_name, intro: intro,
@@ -180,18 +187,22 @@ module ChatPlatform
       }
     end
 
-    def standup_update_heading(display_name, standup_name, answers)
-      return "#{formatter.bold(display_name)} skipped #{formatter.bold(standup_name)}" if answers.empty?
-
-      "#{formatter.bold(display_name)} posted an update for #{formatter.bold(standup_name)}"
+    def standup_update_heading(display_name, standup_name, answers, edited: false)
+      heading =
+        if answers.empty?
+          "#{formatter.bold(display_name)} skipped #{formatter.bold(standup_name)}"
+        else
+          "#{formatter.bold(display_name)} posted an update for #{formatter.bold(standup_name)}"
+        end
+      edited ? "#{heading} #{formatter.italic(EDITED_NOTE)}" : heading
     end
 
     def answer_sections(answers)
       answers.map { |answer| "#{formatter.bold(answer[:question])}\n#{answer[:answer]}" }
     end
 
-    def standup_update_text(display_name, standup_name, answers)
-      heading = standup_update_heading(display_name, standup_name, answers)
+    def standup_update_text(display_name, standup_name, answers, edited: false)
+      heading = standup_update_heading(display_name, standup_name, answers, edited: edited)
       return heading if answers.empty?
 
       [ heading, "", answer_sections(answers).join("\n\n") ].join("\n")

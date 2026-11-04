@@ -64,7 +64,8 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
         {
           "question" => "What did you do yesterday?",
           "answer" => "Edited the response history",
-          "timestamp" => "2025-04-08T09:05:00Z"
+          "timestamp" => "2025-04-08T09:05:00Z",
+          "edited_at" => "2025-04-08T11:00:00Z"
         }
       ],
       standup_date: Date.new(2025, 4, 8),
@@ -79,6 +80,31 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
     )
 
     assert history.days.first.entries.first.updated_after_create?
+  end
+
+  test "answering questions after the prompt doesn't count as an update after submission" do
+    @standup.standup_participants.create!(platform_user_id: "UANSWERED1", display_name: "Answered Person", active: true)
+    response = StandupResponse.create!(
+      standup: @standup,
+      platform_user_id: "UANSWERED1",
+      status: "completed",
+      answers: [
+        { "question" => "What did you do yesterday?", "answer" => "Reviewed PRs", "timestamp" => "2025-04-08T09:20:00Z" },
+        { "question" => "What will you do today?", "answer" => "Ship it", "timestamp" => "2025-04-08T09:25:00Z" }
+      ],
+      standup_date: Date.new(2025, 4, 8),
+      created_at: Time.zone.local(2025, 4, 8, 9, 0, 0)
+    )
+    response.update_column(:updated_at, Time.zone.local(2025, 4, 8, 9, 25, 0))
+
+    entry = StandupResponseHistory.new(
+      standup: @standup,
+      params: { start_date: "2025-04-08", end_date: "2025-04-08", participant: "UANSWERED1" },
+      today: Date.new(2025, 4, 10)
+    ).days.first.entries.first
+
+    assert_not entry.updated_after_create?
+    assert_equal Time.zone.local(2025, 4, 8, 9, 25, 0), entry.submitted_at
   end
 
   test "schedule exceptions remove skipped dates from expected history" do

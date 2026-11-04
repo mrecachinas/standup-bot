@@ -47,7 +47,8 @@ class StandupMessageJob < ApplicationJob
         intro: standup.intro,
         question: standup.questions.first,
         question_count: standup.questions.size,
-        wrapped_up_previous: wrapped_up.to_i.positive?
+        wrapped_up_previous: wrapped_up.to_i.positive?,
+        menu: StandupCommandHandler.kickoff_menu(standup.id, resolved_standup_date)
       )
       message_channel = message&.channel.presence || platform_user_id
 
