@@ -45,31 +45,39 @@ class StandupConversationHandler
     end
 
     StandupResponseService.edit_answer(standup_response, index, message.text)
+    # Keeps a message ID stored by legacy_answer_for when the text didn't change.
+    standup_response.save! if standup_response.changed?
   end
 
   # Answers recorded before message IDs were stored can only be found by the
   # text they had before the edit. To keep unrelated chatter from overwriting
-  # an old answer, a match must be unambiguous, recorded no earlier than the
-  # edited message was sent, and not a "(skipped)" filler, since those can come
-  # from skipping a whole standup rather than from a message.
+  # an old answer, a candidate must belong to a run that had started by the
+  # time the edited message was sent, be recorded no earlier than that send
+  # time, and not be a "(skipped)" filler, since those can come from skipping a
+  # whole standup rather than from a message. Exactly one candidate across all
+  # runs may match. The match then stores the message ID so later edits of the
+  # same message find it directly.
   def legacy_answer_for(message)
     return if message.sent_at.blank?
 
     previous_answer = StandupResponseService.normalize_answer_text(message.previous_text).strip
     return if previous_answer.blank?
 
-    StandupResponse.editable_for(platform, message.user_id).each do |standup_response|
-      indexes = Array(standup_response.answers).each_index.select do |index|
-        legacy_match?(standup_response.answers[index], previous_answer, message.sent_at)
-      end
-      next if indexes.empty?
-      return [ standup_response, indexes.first ] if indexes.one?
+    matches = StandupResponse.editable_for(platform, message.user_id).flat_map do |standup_response|
+      next [] if standup_response.created_at > message.sent_at + LEGACY_CLOCK_SKEW
 
-      Rails.logger.warn "Edited message matches #{indexes.size} answers in standup response #{standup_response.id}, skipping"
+      Array(standup_response.answers).each_index.filter_map do |index|
+        [ standup_response, index ] if legacy_match?(standup_response.answers[index], previous_answer, message.sent_at)
+      end
+    end
+    unless matches.one?
+      Rails.logger.warn "Edited message matches #{matches.size} answers, skipping" if matches.many?
       return
     end
 
-    nil
+    standup_response, index = matches.first
+    standup_response.answers[index]["message_id"] = message.message_id if message.message_id.present?
+    [ standup_response, index ]
   end
 
   def legacy_match?(answer, previous_answer, sent_at)
@@ -77,7 +85,7 @@ class StandupConversationHandler
     return false unless answer["answer"].to_s.strip == previous_answer
 
     recorded_at = answer_time(answer)
-    recorded_at.present? && sent_at <= recorded_at + LEGACY_CLOCK_SKEW
+    recorded_at.present? && recorded_at >= sent_at - LEGACY_CLOCK_SKEW
   end
 
   def answer_time(answer)

@@ -21,8 +21,8 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
     @handler.handle(inbound(text, edited: true, message_id: message_id, previous_text: previous_text, sent_at: sent_at))
   end
 
-  def answer(question, text, message_id = nil)
-    { "question" => question, "answer" => text, "timestamp" => 1.hour.ago, "message_id" => message_id }.compact
+  def answer(question, text, message_id = nil, recorded_at: 1.hour.ago)
+    { "question" => question, "answer" => text, "timestamp" => recorded_at, "message_id" => message_id }.compact
   end
 
   def response!(status: "completed", standup: @standup, standup_date: Date.current, answers: [], **attributes)
@@ -200,7 +200,8 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   end
 
   test "answers recorded before message IDs are matched by their exact previous text" do
-    older = response!(standup_date: 1.day.ago.to_date, answers: [ answer("Q1", "Fixed bug"), answer("Q2", "Tests") ], platform_message_id: "post.1")
+    older = response!(standup_date: 1.day.ago.to_date, created_at: 2.hours.ago,
+      answers: [ answer("Q1", "Fixed bug"), answer("Q2", "Tests") ], platform_message_id: "post.1")
     StandupResponseService.expects(:repost_response).with(older)
 
     edit("Fixed two bugs", message_id: "100.1", previous_text: "Fixed bug", sent_at: 61.minutes.ago)
@@ -209,7 +210,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   end
 
   test "an ambiguous previous-text match is skipped" do
-    response = response!(answers: [ answer("Q1", "nothing"), answer("Q2", "nothing") ], platform_message_id: "post.1")
+    response = response!(created_at: 2.hours.ago, answers: [ answer("Q1", "nothing"), answer("Q2", "nothing") ], platform_message_id: "post.1")
     StandupResponseService.expects(:repost_response).never
 
     edit("Reviewed PR 264", message_id: "100.2", previous_text: "nothing", sent_at: 61.minutes.ago)
@@ -218,7 +219,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   end
 
   test "a message sent after an old answer was recorded can't edit it" do
-    response = response!(answers: [ answer("Q1", "nothing") ], platform_message_id: "post.1")
+    response = response!(created_at: 2.hours.ago, answers: [ answer("Q1", "nothing") ], platform_message_id: "post.1")
     StandupResponseService.expects(:repost_response).never
 
     # Later chatter that happens to repeat the answer, then gets edited.
@@ -229,13 +230,67 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
 
   test "old skipped answers are never filled in by editing an unrelated skip" do
     # A whole standup skipped with /standup skip leaves fillers with no message.
-    response = response!(status: "skipped", answers: [ answer("Q1", "(skipped)"), answer("Q2", "(skipped)") ])
+    response = response!(status: "skipped", created_at: 3.hours.ago, answers: [ answer("Q1", "(skipped)"), answer("Q2", "(skipped)") ])
     StandupResponseService.expects(:repost_response).never
 
     edit("Shipped", message_id: "900.1", previous_text: "skip", sent_at: 2.hours.ago)
     edit("Shipped", message_id: "900.2", previous_text: "(skipped)", sent_at: 2.hours.ago)
 
     assert_equal [ "(skipped)", "(skipped)" ], answer_texts(response)
+  end
+
+  test "a previous-text match only considers runs that had started when the message was sent" do
+    monday = response!(standup_date: 2.days.ago.to_date, created_at: 2.days.ago,
+      answers: [ answer("Q1", "nothing", recorded_at: 2.days.ago + 1.minute) ], platform_message_id: "post.1")
+    tuesday = response!(standup_date: 1.day.ago.to_date, created_at: 1.day.ago,
+      answers: [ answer("Q1", "nothing", recorded_at: 1.day.ago + 1.minute) ], platform_message_id: "post.2")
+    StandupResponseService.expects(:repost_response).with(monday)
+
+    edit("Reviewed PR 264", message_id: "100.1", previous_text: "nothing", sent_at: 2.days.ago + 1.minute)
+
+    assert_equal [ "Reviewed PR 264" ], answer_texts(monday)
+    assert_equal [ "nothing" ], answer_texts(tuesday)
+  end
+
+  test "chatter sent before a run started can't edit that run's answers" do
+    response = response!(created_at: 30.minutes.ago, answers: [ answer("Q1", "nothing", recorded_at: 20.minutes.ago) ], platform_message_id: "post.1")
+    StandupResponseService.expects(:repost_response).never
+
+    edit("Reviewed PR 264", message_id: "900.1", previous_text: "nothing", sent_at: 40.minutes.ago)
+
+    assert_equal [ "nothing" ], answer_texts(response)
+  end
+
+  test "a previous-text match in more than one run is skipped" do
+    earlier = response!(standup_date: 1.day.ago.to_date, created_at: 3.hours.ago, answers: [ answer("Q1", "nothing") ], platform_message_id: "post.1")
+    later = response!(created_at: 2.hours.ago, answers: [ answer("Q1", "nothing") ], platform_message_id: "post.2")
+    StandupResponseService.expects(:repost_response).never
+
+    edit("Reviewed PR 264", message_id: "100.1", previous_text: "nothing", sent_at: 90.minutes.ago)
+
+    assert_equal [ "nothing" ], answer_texts(earlier)
+    assert_equal [ "nothing" ], answer_texts(later)
+  end
+
+  test "a previous-text match stores the message ID so later edits find it directly" do
+    response = response!(created_at: 2.hours.ago, answers: [ answer("Q1", "Shipped"), answer("Q2", "Tests") ], platform_message_id: "post.1")
+    StandupResponseService.stubs(:repost_response)
+
+    edit("skip", message_id: "100.1", previous_text: "Shipped", sent_at: 61.minutes.ago)
+    assert_equal [ "(skipped)", "Tests" ], answer_texts(response)
+    assert_equal "100.1", response.answers.first["message_id"]
+
+    edit("Shipped more", message_id: "100.1", previous_text: "skip", sent_at: 61.minutes.ago)
+    assert_equal [ "Shipped more", "Tests" ], answer_texts(response)
+  end
+
+  test "a previous-text match stores the message ID even when the text is unchanged" do
+    response = response!(created_at: 2.hours.ago, answers: [ answer("Q1", "Shipped") ], platform_message_id: "post.1")
+    StandupResponseService.expects(:repost_response).never
+
+    edit("Shipped", message_id: "100.1", previous_text: "Shipped ", sent_at: 61.minutes.ago)
+
+    assert_equal [ { "answer" => "Shipped", "message_id" => "100.1" } ], response.reload.answers.map { |a| a.slice("answer", "message_id") }
   end
 
   test "without a send time there's no previous-text fallback" do

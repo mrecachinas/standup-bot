@@ -67,7 +67,7 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
       { "question" => "What did you accomplish yesterday?", "answer" => "I worked on feature X", "timestamp" => Time.current }
     ])
 
-    SlackEventProcessorJob.perform_now(edit_event(ts: "1700.1", text: "I worked on feature X and also fixed bug Y", previous_text: "I worked on feature X"))
+    SlackEventProcessorJob.perform_now(edit_event(ts: 1.minute.ago.to_f.to_s, text: "I worked on feature X and also fixed bug Y", previous_text: "I worked on feature X"))
 
     assert_equal "I worked on feature X and also fixed bug Y", @standup_response.reload.answers.last["answer"]
   end

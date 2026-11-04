@@ -32,9 +32,12 @@ class StandupResponseService
 
     answer["answer"] = answer_text
     answer["timestamp"] = Time.current
-    standup_response.save!
 
+    # Update the channel post before saving. If the update fails (e.g. a rate
+    # limit the job retries), the old answer is still stored, so the retried
+    # edit isn't skipped as unchanged and the post still gets updated.
     repost_response(standup_response) if standup_response.status == "completed"
+    standup_response.save!
     true
   end
 

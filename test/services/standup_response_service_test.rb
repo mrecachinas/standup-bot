@@ -239,6 +239,52 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     StandupResponseService.repost_response(response)
   end
 
+  def completed_response_for_edit!
+    participant = standup_participants(:one)
+    ChatPlatform::SlackAdapter.any_instance.stubs(:display_name_for).returns("John Doe")
+    StandupResponse.create!(
+      standup: participant.standup, platform_user_id: participant.platform_user_id, status: "completed",
+      standup_date: Date.current, platform_message_id: "post.1",
+      answers: [
+        { "question" => "Q1", "answer" => "Shipped", "timestamp" => 1.hour.ago, "message_id" => "100.1" },
+        { "question" => "Q2", "answer" => "Reviewing", "timestamp" => 1.hour.ago, "message_id" => "100.2" }
+      ]
+    )
+  end
+
+  test "edit_answer updates the channel post and saves the new answer" do
+    response = completed_response_for_edit!
+    ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
+      response.standup.platform_channel, "post.1",
+      display_name: "John Doe", standup_name: response.standup.name,
+      answers: [ { question: "Q1", answer: "Shipped" }, { question: "Q2", answer: "Pairing" } ]
+    )
+
+    assert StandupResponseService.edit_answer(response, 1, "Pairing")
+
+    assert_equal [ "Shipped", "Pairing" ], response.reload.answers.map { |answer| answer["answer"] }
+  end
+
+  test "edit_answer keeps the old answer when the channel update fails, so a retry can apply the edit" do
+    response = completed_response_for_edit!
+    ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update)
+      .raises(ChatPlatform::RateLimitedError.new("rate limited"))
+
+    assert_raises(ChatPlatform::RateLimitedError) do
+      StandupResponseService.edit_answer(response, 1, "skip")
+    end
+    assert_equal [ "Shipped", "Reviewing" ], response.reload.answers.map { |answer| answer["answer"] }
+
+    ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
+      response.standup.platform_channel, "post.1",
+      display_name: "John Doe", standup_name: response.standup.name,
+      answers: [ { question: "Q1", answer: "Shipped" } ]
+    )
+
+    assert StandupResponseService.edit_answer(response, 1, "skip")
+    assert_equal [ "Shipped", "(skipped)" ], response.reload.answers.map { |answer| answer["answer"] }
+  end
+
   test "cancel_previous_pending_responses cancels old pending responses" do
     # Use Timecop to control time
     Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
