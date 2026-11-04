@@ -21,9 +21,20 @@ Background jobs work the same way as in production: Solid Queue stores them in a
 >
 > Solid Queue reads this variable in `bin/jobs` and when it runs inside Puma (`SOLID_QUEUE_IN_PUMA=1`). `bin/dev` prints whether recurring jobs are on when it starts. To run one scheduled pass by hand, use `bin/rails runner 'SchedulingJob.perform_later'`.
 
-If you point development at another database with `DATABASE_URL`, the queue database follows it with a `_queue` suffix (for example `nerdbot_mine` and `nerdbot_mine_queue`) unless you set `QUEUE_DATABASE_URL`. The development cache is a file store in `tmp/cache/store`, shared by Rails, the worker, and the Socket Mode client, so the Admin page shows Socket Mode activity. `bin/rails tmp:cache:clear` empties it.
+If you point development at another database with `DATABASE_URL`, the queue database uses the same connection with a `_queue` suffix (for example `nerdbot_mine` and `nerdbot_mine_queue`). `QUEUE_DB_NAME` picks a different name, and `QUEUE_DATABASE_URL` overrides the queue connection entirely ([`lib/development_queue_database.rb`](../lib/development_queue_database.rb) has the rules). The development cache is a file store in `tmp/cache/store`, shared by Rails, the worker, and the Socket Mode client, so the Admin page shows Socket Mode activity. `bin/rails tmp:cache:clear` empties it.
 
 You'll need Node (the version in [`.node-version`](../.node-version)) for the console. `script/bootstrap` installs its packages, and `bin/dev` does too if they're missing.
+
+### Migrations
+
+App migrations live in `db/migrate` and belong to the `primary` database. `bin/rails db:migrate` migrates both databases and updates `db/schema.rb`. It leaves `db/queue_schema.rb` alone: that's Solid Queue's stock schema, which production loads into PostgreSQL, so it isn't regenerated from the MySQL queue database. Because development has two databases, tasks that act on a single migration need the `:primary` suffix:
+
+```bash
+bin/rails db:rollback:primary
+bin/rails db:migrate:redo:primary
+bin/rails db:migrate:up:primary VERSION=20260101000000
+bin/rails db:migrate:down:primary VERSION=20260101000000
+```
 
 ## Tests
 
