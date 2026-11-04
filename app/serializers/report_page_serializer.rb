@@ -27,7 +27,7 @@ class ReportPageSerializer
       report_generations: @report_generations.map { |generation| generation_json(generation) },
       summary: {
         period_days: @summary[:period_days],
-        completion_rate: @summary[:completion_rate],
+        completion_rate: @summary[:expected_responses].to_i.zero? ? nil : @summary[:completion_rate],
         completed_responses: @summary[:completed_responses],
         expected_responses: @summary[:expected_responses]
       }

@@ -277,18 +277,20 @@ class StandupAnalyticsService
   end
 
   # Today's run (or a later one) only counts for people who've been prompted
-  # already, so a run that hasn't gone out yet doesn't show up as missed. Dates
-  # before the standup existed or the person joined never count, and the day
-  # they joined only counts if they got a prompt (they may have joined after
+  # already, so a run that hasn't gone out yet doesn't show up as missed. A
+  # recorded prompt always counts, even before the person's join date, since a
+  # run postponed to a later day keeps its original standup date. Otherwise,
+  # dates before the standup existed or the person joined never count, and the
+  # day they joined only counts if they got a prompt (they may have joined after
   # that day's run went out).
   def expected_on_schedule?(participant, date)
     return false unless scheduled_on?(date) && participant.available_on?(date)
+    return true if prompted_on?(participant, date)
 
     first_date = first_expected_date_for(participant)
     return false if first_date && date < first_date
-    return true if date < today && (first_date.nil? || date > first_date)
 
-    prompted_on?(participant, date)
+    date < today && (first_date.nil? || date > first_date)
   end
 
   def prompted_on?(participant, date)

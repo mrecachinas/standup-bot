@@ -52,6 +52,21 @@ class Api::ReportsTest < ActionDispatch::IntegrationTest
     assert_equal 30, body.dig("summary", "period_days")
   end
 
+  test "a standup with nothing expected yet has no completion rate" do
+    sign_in(@manager, "manager-access-token")
+    now = Time.zone.local(2025, 4, 10, 15, 0, 0)
+    @owned_standup.standup_responses.delete_all
+    @owned_standup.update_column(:created_at, now - 1.hour)
+
+    Timecop.freeze(now) do
+      get api_standup_report_path(@owned_standup), as: :json
+    end
+
+    assert_response :success
+    assert_equal 0, response.parsed_body.dig("summary", "expected_responses")
+    assert_nil response.parsed_body.dig("summary", "completion_rate")
+  end
+
   test "a standup without settings gets defaults for its channel" do
     sign_in(@admin, "admin-access-token")
 

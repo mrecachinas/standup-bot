@@ -339,7 +339,7 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
   test "join dates use the participant's standup timezone" do
     standup = new_daily_standup(created_at: Time.zone.local(2025, 4, 1, 0, 0, 0), respect_timezone: true)
     participant = standup.standup_participants.find_by!(platform_user_id: "UNEW00001")
-    participant.update_columns(cached_timezone: "Asia/Tokyo", cached_timezone_updated_at: 1.year.ago, created_at: Time.zone.local(2025, 4, 8, 20, 0, 0))
+    participant.update_columns(cached_timezone: "Asia/Tokyo", cached_timezone_updated_at: Time.zone.local(2025, 1, 1), created_at: Time.zone.local(2025, 4, 8, 20, 0, 0))
     StandupParticipant.any_instance.expects(:fetch_profile).never
 
     Timecop.freeze(Time.zone.local(2025, 4, 12, 12, 0, 0)) do
@@ -348,6 +348,33 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
       # 20:00 UTC on Apr 8 is already Apr 9 in Tokyo, so Apr 10 and 11 count.
       assert_equal 2, stats["UNEW00001"][:expected]
       assert_equal 5, stats["UNEW00002"][:expected]
+    end
+  end
+
+  test "a prompt from a postponed run counts even if it predates the join date" do
+    standup = new_daily_standup(created_at: Time.zone.local(2025, 4, 1, 0, 0, 0))
+    standup.standup_schedule_exceptions.create!(
+      exception_type: "rescheduled",
+      original_date: Date.new(2025, 4, 8),
+      rescheduled_date: Date.new(2025, 4, 10),
+      rescheduled_time: "11:30",
+      rescheduled_timezone: "UTC"
+    )
+    newcomer = standup.standup_participants.find_by!(platform_user_id: "UNEW00001")
+    newcomer.update_column(:created_at, Time.zone.local(2025, 4, 9, 12, 0, 0))
+    # The postponed run still records its prompt under the original date.
+    standup.standup_responses.create!(platform_user_id: "UNEW00001", status: "expired", standup_date: Date.new(2025, 4, 8), answers: [])
+
+    Timecop.freeze(Time.zone.local(2025, 4, 12, 12, 0, 0)) do
+      analytics = StandupAnalyticsService.new(standup, start_date: "2025-04-07", end_date: "2025-04-11")
+      stats = analytics.participant_stats.index_by { |stat| stat[:platform_user_id] }
+      april_eighth = analytics.run_breakdown.find { |run| run[:date] == Date.new(2025, 4, 8) }
+
+      assert_equal 3, stats["UNEW00001"][:expected]
+      assert_equal 3, stats["UNEW00001"][:missed]
+      assert_equal 2, april_eighth[:expected]
+      assert_equal 2, april_eighth[:missed]
+      assert_equal 8, analytics.summary[:expected_responses]
     end
   end
 
