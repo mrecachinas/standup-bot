@@ -70,13 +70,17 @@ export function ChannelPicker({ platform, channel, channelName: name, onChange, 
 
   const current = result && result.query === query ? result : null;
   const searching = query !== "" && !current;
-  const items: MenuItem[] = (query && result ? result.records : []).map((option) => ({
-    id: option.id,
-    text: channelName(option),
-    leadingVisual: option.is_private ? <LockIcon /> : <HashIcon />,
-    trailingVisual: option.is_member === false ? <span className={styles.channelMeta}>bot not invited</span> : undefined,
-    metadata: option,
-  }));
+  // Only the current query's results, so a stale channel can't be picked while the next search loads.
+  const items: MenuItem[] = (current ? current.records : []).map((option) => {
+    const meta = [option.is_private && "private", option.is_member === false && "bot not invited"].filter(Boolean).join(" · ");
+    return {
+      id: option.id,
+      text: channelName(option),
+      leadingVisual: option.is_private ? <LockIcon aria-hidden /> : <HashIcon aria-hidden />,
+      trailingVisual: meta ? <span className={styles.channelMeta}>{meta}</span> : undefined,
+      metadata: option,
+    };
+  });
 
   const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
     setText(event.target.value);
