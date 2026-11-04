@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { formatDateTime } from "../../lib/format";
 import { jsonResponse, userBootstrap } from "../../test/fixtures";
 import { mockFetch, renderApp } from "../../test/render";
 import { historyPayload } from "./roster/testFixtures";
@@ -43,9 +44,12 @@ describe("StandupResponsesPage", () => {
     expect(john).toHaveTextContent("Answered");
     expect(within(john).getByText("What did you do yesterday?")).toBeInTheDocument();
     expect(within(john).getByText("Shipped the roster page")).toBeInTheDocument();
-    expect(within(john).getByText("Answered at October 30, 2026 09:45")).toBeInTheDocument();
+    // Times show in the viewer's timezone.
+    const answeredAt = formatDateTime(new Date("2026-10-30T09:45:00Z"));
+    const editedAt = formatDateTime(new Date("2026-10-30T10:15:00Z"));
+    expect(within(john).getByText(`Answered at ${answeredAt} · Edited ${editedAt}`)).toBeInTheDocument();
     expect(within(john).getByText("No answer provided.")).toBeInTheDocument();
-    expect(john).toHaveTextContent("Submitted October 30, 2026 09:45 · Last updated October 30, 2026 10:15 · Updated after submission");
+    expect(john).toHaveTextContent(`Submitted ${answeredAt} · Last updated ${editedAt} · Updated after submission`);
     expect(jane).toHaveTextContent("Missed");
     expect(within(jane).getByText("No response submitted for this standup date.")).toBeInTheDocument();
     expect(jane).not.toHaveTextContent("Submitted");

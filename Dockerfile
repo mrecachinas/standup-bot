@@ -3,8 +3,8 @@
 
 # This Dockerfile is production-style. Use it with Docker Compose for local full-app runs,
 # Kamal for deployment, or build'n'run by hand:
-# docker build -t nerdbot .
-# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name nerdbot nerdbot
+# docker build -t standupbot .
+# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name standupbot standupbot
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 

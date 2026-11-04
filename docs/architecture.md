@@ -95,17 +95,19 @@ sequenceDiagram
     participant Ctrl as SlackEventsController
     participant Proc as SlackEventProcessorJob
     participant Svc as StandupResponseService
+    participant Post as StandupUpdateJob
     participant Chan as Team channel
 
     Sched->>Msg: queue a DM for each participant at their local time
     Msg->>User: intro + first question
     User->>Ctrl: reply (message.im event)
     Ctrl->>Proc: enqueue event
-    Proc->>Svc: record answer
+    Proc->>Svc: record answer (saved first)
     Svc->>User: next question
     Note over User,Svc: repeats until every question is answered
-    Svc->>User: outro / thanks
-    Svc->>Chan: post this person's update
+    Svc->>Post: post the update
+    Post->>Chan: this person's update
+    Post->>User: sign-off, and where it was posted
 ```
 
 If someone doesn't reply, `StandupReminderJob` nudges them (by default once, after two hours, and both are configurable per standup). Once they've been silent for `STALE_PENDING_DAYS`, `DataCleanupJob` marks the response as expired. A participant can also type `skip`, `cancel`, or `away` instead of answering (see [DM commands](slack-setup.md#dm-commands)).
@@ -148,15 +150,33 @@ Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custo
 | Job | When it runs | What it does |
 | --- | --- | --- |
 | `SchedulingJob` | Every hour | Finds standups due in the next window and queues a `StandupMessageJob` for each participant at their local time |
-| `StandupMessageJob` | When queued | Opens the DM and sends the intro and first question |
-| `SlackEventProcessorJob` | On each Slack event | Handles DM commands and records answers. Each answer keeps the ID of the message it came from, so editing that message updates the right answer (and its channel post) |
-| `TeamsActivityProcessorJob` | On each Teams activity | The same for Teams, plus `standup` commands and card choices. It also caches the 1:1 conversation |
-| `StandupReminderJob` | Every 15 minutes | Reminds people who haven't finished, based on each standup's reminder settings |
+| `StandupMessageJob` | When queued | Opens the DM and sends the intro and first question, with a "Not today?" menu on Slack |
+| `SlackEventProcessorJob` | On each Slack event (`inbound` queue) | Handles DM commands and records answers. Each answer keeps the ID of the message it came from, so editing that message updates the right answer (and its channel post) |
+| `SlackInteractionJob` | On each Slack button or menu click in Socket Mode (`inbound` queue) | Handles the click and replies through its `response_url` |
+| `TeamsActivityProcessorJob` | On each Teams activity (`inbound` queue) | The same for Teams, plus `standup` commands and card choices. It also caches the 1:1 conversation |
+| `StandupPromptJob` | After each answer is saved (`inbound` queue) | Sends the next question, unless the run has moved on. Retries on rate limits and network errors |
+| `StandupUpdateJob` | When a run finishes or an answer is edited | Posts (or updates) the person's update in the channel, then sends the sign-off. Retries on rate limits and network errors |
+| `StandupUpdateSweepJob` | Every 15 minutes | Finishes runs whose update or sign-off never went out (say, a worker stopped right after the last answer was saved) |
+| `StandupReminderJob` | Every 15 minutes | Reminds people who haven't finished, counting from the latest question, based on each standup's reminder settings. On Slack, it first checks the DM for replies the bot missed |
+| `SlackDmBackfillJob` | When Socket Mode reconnects after an outage, or `bin/rails slack:backfill_dms` | Picks up replies sent while no connection was up, from DM history |
 | `StandupCollectionJob` | On demand | Gathers completed responses into a report (for `/standup report` or the console) |
-| `ParticipantReactivationJob` | When someone's `away` period ends | Puts the participant back in rotation |
+| `ParticipantReactivationJob` | At the start of the day after someone's last day away, in their timezone | Puts the participant back in rotation. If their away date has since moved later, it runs again after the new date |
 | `DataCleanupJob` | Daily at 3am | Expires stale pending responses and deletes data older than the retention window |
 
-Recurring schedules are defined in [`config/recurring.yml`](../config/recurring.yml). If you set `ADMIN_CHANNEL` (Slack) or `TEAMS_ADMIN_CHANNEL` (Teams), failed jobs post a message there.
+Recurring schedules are defined in [`config/recurring.yml`](../config/recurring.yml). If you set `ADMIN_CHANNEL` (Slack) or `TEAMS_ADMIN_CHANNEL` (Teams), failed jobs post a message there, at most once per kind of failure every 15 minutes.
+
+## Reliability
+
+Chat platforms deliver events at least once, people type faster than the bot replies, and processes stop mid-job. The app is built so that none of these loses an answer or records it twice:
+
+- **Each message is handled once.** Slack resends events it doesn't hear back about within 3 seconds (right away, then after a minute and five minutes), and Teams can too. `ProcessedChatMessage.process_once` records each message's ID (or a click's action timestamp) in the same transaction as whatever handling it saves, so a redelivery is skipped, and a failure leaves the message unhandled for the retry. Events and clicks are acknowledged only after they're queued.
+- **One person's messages are handled one at a time, in order.** Inbound jobs share a Solid Queue concurrency key per person, on their own `inbound` queue, so quick replies can't overwrite each other and never wait behind a burst of scheduled sends. Answers are also saved under a row lock.
+- **Messages typed before the next question showed up continue the previous answer.** Each run records when the bot's latest prompt reached the person (`prompted_at`, by Slack's clock), and each answer when its question was asked. If someone sends "foo" and then "bar" before the next question arrives, both are the first answer, even if "bar" is delivered late. Until a finished run's sign-off goes out, follow-ups belong to the last answer. Each message is kept as a part of the answer, so editing one changes just that part. `skip` is the exception: it skips the question coming next.
+- **Answers are saved before anything is sent.** The next question (`StandupPromptJob`) and the channel post (`StandupUpdateJob`) go out only after the answer has committed, and retry on their own if Slack is unavailable, so a failed send can't undo an answer. Posts are made under the run's row lock from the saved answers. The person is told it was posted only once it has been. If the channel can't be posted to (the bot isn't in it, or it's archived), they're told their answers are saved, and the admins are notified. `StandupUpdateSweepJob` finishes any run whose post or sign-off was never sent.
+- **Sends are paced.** When a standup goes out to everyone at once, `StandupMessageJob` sends `STANDUP_SEND_CONCURRENCY` first messages at a time, since Slack allows a workspace several hundred messages a minute. Names come from the stored participant rather than a profile lookup per message. A run is created only once its first message is out, so a reply can't land in a run the person hasn't seen.
+- **Missed replies are recovered.** If no Socket Mode connection was up for longer than Slack keeps redelivering, the first client to reconnect queues `SlackDmBackfillJob`, which reads pending runs' full DM history since they started and replays missed replies into that run. Reminders check history the same way first. Messages already handled, or recorded in any of the person's runs, are skipped. Reminders are claimed before they're sent and counted only once delivered.
+
+See [Kubernetes](deployment.md#kubernetes) for how this plays out across rolling deploys.
 
 ## Web console, personas, and permissions
 

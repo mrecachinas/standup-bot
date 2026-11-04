@@ -3,9 +3,9 @@ import { clsx } from "clsx";
 import { Link as RouterLink } from "react-router";
 import { Button, FormControl, Select, TextInput } from "@primer/react";
 import { GraphIcon } from "@primer/octicons-react";
-import type { HistoryDay, HistoryEntry, HistoryFilters, ResponseHistory } from "../../../api/types/roster";
+import type { HistoryAnswer, HistoryDay, HistoryEntry, HistoryFilters, ResponseHistory } from "../../../api/types/roster";
 import { Avatar, DateTile, Meter, Panel, StatusLabel } from "../../../components";
-import { formatPercent, pluralize } from "../../../lib/format";
+import { formatDateTime, formatPercent, parseApiDate, pluralize } from "../../../lib/format";
 import layout from "../../../styles/layout.module.css";
 import styles from "./roster.module.css";
 
@@ -149,7 +149,12 @@ function HistoryEntryItem({ date, entry }: { date: string; entry: HistoryEntry }
               <div key={`${answer.question}-${index}`} className={styles.answer}>
                 <span className={styles.answerQuestion}>{answer.question}</span>
                 <span className={clsx(styles.answerText, !answer.text && layout.muted)}>{answer.display_text}</span>
-                {answer.timestamp && answer.answered_at_label && <span className={layout.hint}>Answered at {answer.answered_at_label}</span>}
+                {answer.timestamp && answeredAt(answer) && (
+                  <span className={layout.hint}>
+                    Answered at {answeredAt(answer)}
+                    {answer.edited && ` · Edited${answer.edited_at ? ` ${localTime(answer.edited_at)}` : ""}`}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -159,13 +164,24 @@ function HistoryEntryItem({ date, entry }: { date: string; entry: HistoryEntry }
 
         {entry.response_id !== null && (
           <p className={layout.hint}>
-            Submitted {entry.submitted_at_label ?? "Unknown"} · Last updated {entry.updated_at_label ?? "Unknown"}
+            Submitted {localTime(entry.submitted_at, entry.submitted_at_label) ?? "Unknown"} · Last updated{" "}
+            {localTime(entry.updated_at, entry.updated_at_label) ?? "Unknown"}
             {entry.updated_after_create && " · Updated after submission"}
           </p>
         )}
       </div>
     </li>
   );
+}
+
+function answeredAt(answer: HistoryAnswer): string | null {
+  return localTime(answer.answered_at, answer.answered_at_label);
+}
+
+/** A timestamp in the viewer's timezone, falling back to the server's label. */
+function localTime(value: string | null, fallback: string | null = null): string | null {
+  const date = parseApiDate(value);
+  return date ? formatDateTime(date) : fallback;
 }
 
 function slug(value: string): string {

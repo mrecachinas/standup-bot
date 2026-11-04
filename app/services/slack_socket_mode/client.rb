@@ -22,7 +22,8 @@ module SlackSocketMode
       web_client: nil,
       # Fully qualified: in Puma, this client outlives development code
       # reloads, and a relative lookup would hit the unloaded constant.
-      connection_factory: ->(url) { ::SlackSocketMode::Connection.new(url) }
+      connection_factory: ->(url) { ::SlackSocketMode::Connection.new(url) },
+      presence: ::SlackSocketMode::Presence.new
     )
       @app_token = app_token
       @dispatcher = dispatcher
@@ -30,6 +31,7 @@ module SlackSocketMode
       @executor = executor
       @web_client = web_client
       @connection_factory = connection_factory
+      @presence = presence
       @stopped = false
     end
 
@@ -71,6 +73,7 @@ module SlackSocketMode
       @connected
     ensure
       connection&.close
+      @presence.disconnected!
     end
 
     def connection_url
@@ -89,6 +92,8 @@ module SlackSocketMode
           return
         end
 
+        @executor.wrap { @presence.beat! } if @connected
+
         return if check_idle(connection) == :dead
       end
     end
@@ -102,6 +107,7 @@ module SlackSocketMode
         @connected = true
         StandupMetrics.track(CONNECTED_METRIC, connections: data["num_connections"])
         @logger.info "Slack Socket Mode connected (#{data['num_connections'] || 1} connection(s) open)"
+        @executor.wrap { @presence.connected! }
       when "disconnect"
         disconnect(data["reason"])
       else

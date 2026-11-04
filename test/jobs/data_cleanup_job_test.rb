@@ -53,4 +53,13 @@ class DataCleanupJobTest < ActiveJob::TestCase
       assert_equal "pending", fresh_pending.reload.status
     end
   end
+
+  test "forgets handled messages once they can't be delivered again" do
+    old = ProcessedChatMessage.create!(platform: "slack", platform_user_id: "U1", message_id: "1.1", created_at: 8.days.ago)
+    recent = ProcessedChatMessage.create!(platform: "slack", platform_user_id: "U1", message_id: "1.2")
+
+    assert_equal 1, DataCleanupJob.perform_now[:processed_messages_deleted]
+    assert_not ProcessedChatMessage.exists?(old.id)
+    assert ProcessedChatMessage.exists?(recent.id)
+  end
 end

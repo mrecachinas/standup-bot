@@ -8,7 +8,7 @@ class QueueSchemaTaskTest < ActiveSupport::TestCase
 
   test "schema dumps skip the development queue database" do
     queue = ActiveRecord::DatabaseConfigurations::HashConfig.new(
-      "development", "queue", { adapter: "mysql2", database: "nerdbot_development_queue" }
+      "development", "queue", { adapter: "mysql2", database: "standupbot_development_queue" }
     )
     ActiveRecord::Tasks::DatabaseTasks.expects(:with_temporary_pool).never
 
@@ -17,7 +17,7 @@ class QueueSchemaTaskTest < ActiveSupport::TestCase
 
   test "schema dumps still run for the development primary database" do
     primary = ActiveRecord::DatabaseConfigurations::HashConfig.new(
-      "development", "primary", { adapter: "mysql2", database: "nerdbot_development" }
+      "development", "primary", { adapter: "mysql2", database: "standupbot_development" }
     )
     ActiveRecord::Tasks::DatabaseTasks.expects(:with_temporary_pool).with(primary).once
 

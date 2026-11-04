@@ -1,7 +1,9 @@
 # Handles a verified Teams activity: answers and edits in the bot's 1:1 chat,
 # DM commands (skip, away, ...), "standup ..." commands, and card choices.
 class TeamsActivityProcessorJob < ApplicationJob
-  queue_as :default
+  queue_as :inbound
+  limits_concurrency key: ->(activity) { ApplicationJob.inbound_concurrency_key(:teams, activity.dig("from", "aadObjectId").presence&.downcase) },
+    group: INBOUND_CONCURRENCY_GROUP, duration: INBOUND_CONCURRENCY_DURATION
 
   SUBCOMMAND = /start|status|skip|report|help|history(?:\s+\d+)?/i
   PERSONAL_COMMAND = /\A\/?standup(?:\s+(?<command>#{SUBCOMMAND}))?\s*\z/i
@@ -99,6 +101,15 @@ class TeamsActivityProcessorJob < ApplicationJob
 
   def inbound_message(text, edited:)
     # Teams sends the edited message's original activity id with messageUpdate.
-    ChatPlatform::InboundMessage.new(platform: :teams, user_id: user_id, text: text, conversation: conversation_id, edited: edited, message_id: activity["id"])
+    ChatPlatform::InboundMessage.new(
+      platform: :teams, user_id: user_id, text: text, conversation: conversation_id, edited: edited,
+      message_id: activity["id"], sent_at: activity_time
+    )
+  end
+
+  def activity_time
+    Time.zone.parse(activity["timestamp"].to_s) if activity["timestamp"].present?
+  rescue ArgumentError
+    nil
   end
 end

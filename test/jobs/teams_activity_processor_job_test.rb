@@ -52,7 +52,7 @@ class TeamsActivityProcessorJobTest < ActiveJob::TestCase
   test "finishing a standup posts to the channel and names it" do
     response = pending_response!
     ChatPlatform::TeamsAdapter.any_instance.expects(:post_standup_update)
-      .with(TEAMS_CHANNEL, display_name: "Tess Teams", standup_name: @standup.name, answers: [ { question: "Yesterday?", answer: "A1" }, { question: "Today?", answer: "A2" } ])
+      .with(TEAMS_CHANNEL, display_name: "Tess Teams", standup_name: @standup.name, answers: [ { question: "Yesterday?", answer: "A1" }, { question: "Today?", answer: "A2" } ], edited: false)
       .returns(ChatPlatform::MessageRef.new(channel: "19:x;messageid=9", id: "9"))
 
     TeamsActivityProcessorJob.perform_now(activity(text: "A1"))
@@ -108,7 +108,7 @@ class TeamsActivityProcessorJobTest < ActiveJob::TestCase
     TeamsActivityProcessorJob.perform_now(activity(text: "first", id: "act-1"))
     TeamsActivityProcessorJob.perform_now(activity(text: "second", id: "act-2"))
     ChatPlatform::TeamsAdapter.any_instance.expects(:update_standup_update)
-      .with(@standup.platform_channel, "9", has_entry(answers: [ { question: @standup.questions.first, answer: "first, edited" }, { question: @standup.questions.second, answer: "second" } ]))
+      .with(@standup.platform_channel, "9", has_entries(answers: [ { question: @standup.questions.first, answer: "first, edited" }, { question: @standup.questions.second, answer: "second" } ], edited: true))
 
     TeamsActivityProcessorJob.perform_now(activity(text: "first, edited", type: "messageUpdate", id: "act-1"))
 

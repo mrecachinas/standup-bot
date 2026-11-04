@@ -47,17 +47,17 @@ module ChatPlatform
       deliver(target, message_activity(text))
     end
 
-    def post_standup_update(channel, display_name:, standup_name:, answers:)
-      send_message(channel, standup_update_text(display_name, standup_name, answers))
+    def post_standup_update(channel, display_name:, standup_name:, answers:, edited: false)
+      send_message(channel, standup_update_text(display_name, standup_name, answers, edited: edited))
     end
 
-    def update_standup_update(channel, message_id, display_name:, standup_name:, answers:)
+    def update_standup_update(channel, message_id, display_name:, standup_name:, answers:, edited: false)
       channel_id = parse_channel!(channel)[:channel]
       connector.update_activity(
         service_url: Microsoft::Config.service_url,
         conversation_id: "#{channel_id};messageid=#{message_id}",
         activity_id: message_id,
-        activity: message_activity(standup_update_text(display_name, standup_name, answers))
+        activity: message_activity(standup_update_text(display_name, standup_name, answers, edited: edited))
       )
     end
 

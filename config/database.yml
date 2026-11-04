@@ -18,7 +18,7 @@ default: &default
 development:
   primary:
     <<: *default
-    database: nerdbot_development
+    database: standupbot_development
   queue:
     <<: *default
     url: <%= dev_queue&.dig(:url) %>
@@ -39,7 +39,7 @@ test:
 <% else %>
   <<: *default
 <% end %>
-  database: nerdbot_test
+  database: standupbot_test
 
 production:
   primary:
@@ -49,9 +49,9 @@ production:
     url: <%= ENV["DATABASE_URL"] %>
     host: <%= ENV.fetch("DB_HOST", "127.0.0.1") %>
     port: <%= ENV.fetch("DB_PORT", 5432) %>
-    username: <%= ENV.fetch("DB_USER", "nerdbot") %>
+    username: <%= ENV.fetch("DB_USER", "standupbot") %>
     password: <%= ENV.fetch("DB_PASSWORD", "") %>
-    database: <%= ENV.fetch("DB_NAME", "nerdbot_production") %>
+    database: <%= ENV.fetch("DB_NAME", "standupbot_production") %>
   cache:
     adapter: postgresql
     encoding: unicode
@@ -59,9 +59,9 @@ production:
     url: <%= ENV["CACHE_DATABASE_URL"] %>
     host: <%= ENV.fetch("CACHE_DB_HOST", ENV.fetch("DB_HOST", "127.0.0.1")) %>
     port: <%= ENV.fetch("CACHE_DB_PORT", ENV.fetch("DB_PORT", 5432)) %>
-    username: <%= ENV.fetch("CACHE_DB_USER", ENV.fetch("DB_USER", "nerdbot")) %>
+    username: <%= ENV.fetch("CACHE_DB_USER", ENV.fetch("DB_USER", "standupbot")) %>
     password: <%= ENV.fetch("CACHE_DB_PASSWORD", ENV.fetch("DB_PASSWORD", "")) %>
-    database: <%= ENV.fetch("CACHE_DB_NAME", "nerdbot_production_cache") %>
+    database: <%= ENV.fetch("CACHE_DB_NAME", "standupbot_production_cache") %>
     migrations_paths: db/cache_migrate
   queue:
     adapter: postgresql
@@ -70,7 +70,7 @@ production:
     url: <%= ENV["QUEUE_DATABASE_URL"] %>
     host: <%= ENV.fetch("QUEUE_DB_HOST", ENV.fetch("DB_HOST", "127.0.0.1")) %>
     port: <%= ENV.fetch("QUEUE_DB_PORT", ENV.fetch("DB_PORT", 5432)) %>
-    username: <%= ENV.fetch("QUEUE_DB_USER", ENV.fetch("DB_USER", "nerdbot")) %>
+    username: <%= ENV.fetch("QUEUE_DB_USER", ENV.fetch("DB_USER", "standupbot")) %>
     password: <%= ENV.fetch("QUEUE_DB_PASSWORD", ENV.fetch("DB_PASSWORD", "")) %>
-    database: <%= ENV.fetch("QUEUE_DB_NAME", "nerdbot_production_queue") %>
+    database: <%= ENV.fetch("QUEUE_DB_NAME", "standupbot_production_queue") %>
     migrations_paths: db/queue_migrate

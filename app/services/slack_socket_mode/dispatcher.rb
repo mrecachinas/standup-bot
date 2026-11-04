@@ -3,15 +3,13 @@ module SlackSocketMode
   # and acknowledges it. Slack redelivers envelopes that aren't acked within
   # 3 seconds.
   class Dispatcher
-    RESPONSE_URL_HOST = /\A(?:[a-z0-9-]+\.)*slack\.com\z/
-
-    def initialize(http: Faraday.new(request: { timeout: 10, open_timeout: 5 }), logger: Rails.logger)
-      @http = http
+    def initialize(logger: Rails.logger)
       @logger = logger
     end
 
-    # Yields the ack hash to send back over the socket. Events are acked only
-    # after they're enqueued, so Slack redelivers them if that fails.
+    # Yields the ack hash to send back over the socket. Events and clicks are
+    # acked only after they're queued, so Slack redelivers them if that fails
+    # and they aren't lost if the process stops after acking.
     def call(envelope, &ack)
       payload = envelope["payload"] || {}
       ack_with = ->(response = nil) { ack.call({ envelope_id: envelope["envelope_id"], payload: response }.compact) }
@@ -23,8 +21,8 @@ module SlackSocketMode
       when "slash_commands"
         ack_with.call(slash_command_body(payload))
       when "interactive"
+        SlackInteractionJob.perform_later(payload)
         ack_with.call
-        handle_interaction(payload)
       else
         @logger.info "Ignoring unsupported Slack Socket Mode envelope type=#{envelope['type']}"
         ack_with.call
@@ -50,30 +48,6 @@ module SlackSocketMode
     rescue StandardError => error
       @logger.error "Slack slash command #{payload['command']} failed: #{error.class}: #{error.message}"
       { response_type: "ephemeral", text: "Sorry, something went wrong handling that command." }
-    end
-
-    # Unlike HTTP, Socket Mode ignores interaction responses in the ack, so
-    # replies go to the interaction's response_url.
-    def handle_interaction(payload)
-      response = SlackInbound.interaction(payload)
-      return unless response
-
-      url = payload["response_url"]
-      unless trusted_response_url?(url)
-        @logger.warn "Slack interaction has no usable response_url; dropping reply"
-        return
-      end
-
-      @http.post(url, response.body.to_json, "Content-Type" => "application/json")
-    rescue Faraday::Error => error
-      @logger.warn "Couldn't post Slack interaction reply: #{error.class}"
-    end
-
-    def trusted_response_url?(url)
-      uri = URI.parse(url.to_s)
-      uri.is_a?(URI::HTTPS) && RESPONSE_URL_HOST.match?(uri.host.to_s)
-    rescue URI::InvalidURIError
-      false
     end
   end
 end

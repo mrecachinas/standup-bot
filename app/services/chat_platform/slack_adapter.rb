@@ -10,6 +10,11 @@ module ChatPlatform
     # Slack's limit for a section block's text.
     SECTION_TEXT_LIMIT = 3000
 
+    # A Slack ts is the message's send time in epoch seconds.
+    def self.time_from_ts(ts)
+      Time.zone.at(ts.to_d) if ts.to_s.match?(/\A\d+(\.\d+)?\z/)
+    end
+
     def key
       :slack
     end
@@ -36,38 +41,39 @@ module ChatPlatform
 
     # The visible heading is a block; the top-level text keeps the whole update,
     # because notifications and screen readers read that rather than the blocks.
-    def post_standup_update(channel, display_name:, standup_name:, answers:)
+    def post_standup_update(channel, display_name:, standup_name:, answers:, edited: false)
       to_message_ref(
         client.send_message(
           channel,
-          standup_update_text(display_name, standup_name, answers),
-          section_blocks(standup_update_heading(display_name, standup_name, answers)),
+          standup_update_text(display_name, standup_name, answers, edited: edited),
+          section_blocks(standup_update_heading(display_name, standup_name, answers, edited: edited)),
           attachments: answer_attachments(answers)
         )
       )
     end
 
-    def update_standup_update(channel, message_id, display_name:, standup_name:, answers:)
+    def update_standup_update(channel, message_id, display_name:, standup_name:, answers:, edited: false)
       client.update_message(
         channel,
         message_id,
-        standup_update_text(display_name, standup_name, answers),
-        section_blocks(standup_update_heading(display_name, standup_name, answers)),
+        standup_update_text(display_name, standup_name, answers, edited: edited),
+        section_blocks(standup_update_heading(display_name, standup_name, answers, edited: edited)),
         attachments: answer_attachments(answers)
       )
     end
 
-    def send_standup_kickoff(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, wrapped_up_previous: false)
+    def send_standup_kickoff(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, first_name: nil, wrapped_up_previous: false, menu: nil)
       parts = standup_kickoff_parts(
-        user_id,
         standup_name: standup_name, channel: channel, channel_name: channel_name, intro: intro,
-        question: question, question_count: question_count, wrapped_up_previous: wrapped_up_previous
+        question: question, question_count: question_count, first_name: first_name, wrapped_up_previous: wrapped_up_previous
       )
+      greeting_blocks = section_blocks(parts[:greeting])
+      greeting_blocks[0] = greeting_blocks[0].merge(accessory: menu_select(menu)) if menu
       blocks = [
         *(section_blocks(parts[:wrapped_up]) if parts[:wrapped_up]),
         { type: "context", elements: [ { type: "mrkdwn", text: parts[:context] } ] },
         { type: "divider" },
-        *section_blocks(parts[:greeting]),
+        *greeting_blocks,
         *section_blocks(parts[:question])
       ]
       # Screen readers and notifications use this text, so it carries everything,
@@ -270,8 +276,21 @@ module ChatPlatform
       end
     end
 
+    # A dropdown shown beside a section, like the kickoff's "Not today?" menu.
+    def menu_select(menu)
+      {
+        type: "static_select",
+        action_id: menu[:action_id],
+        placeholder: { type: "plain_text", text: menu[:placeholder].to_s },
+        options: menu[:options].map do |option|
+          { text: { type: "plain_text", text: option[:text].to_s }, value: option[:value].to_s }
+        end
+      }
+    end
+
+
     def to_message_ref(response)
-      MessageRef.from_hash(response, id_key: "ts")
+      MessageRef.from_hash(response, id_key: "ts", sent_at: ->(ts) { self.class.time_from_ts(ts) })
     end
 
     def profile_value(profile, key)

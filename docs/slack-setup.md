@@ -165,11 +165,23 @@ Participants can also type these in their DM with the bot:
 | --- | --- |
 | `skip` | Skip the current question |
 | `cancel` | Cancel the current standup |
-| `away [days]` | Mark yourself away (optionally for a number of days) |
+| `away [days]` | Mark yourself away for a number of days (7 by default), starting today in your timezone. Your standups resume the day after, and the console shows the last day you're away. |
 | `back` | Come back from being away |
 | `report` | Get a standup report |
 | `help` | List the commands |
 
+### Not today?
+
+The first message of each standup has a **Not today?** menu:
+
+| Option | What it does |
+| --- | --- |
+| Skip today | Skips this standup for today. The reply has a **Restart** button. |
+| I'm out today | Skips today's standups and marks you away until tomorrow, like `away 1` |
+| I'm out for a week | Skips today's standups and marks you away for a week, like `away` |
+
+Type `back` anytime to return early. Teams shows the first question without the menu; type `skip` or `away` there instead.
+
 ### Editing answers
 
-To change an answer, edit the DM you sent. The bot updates the answer that message recorded, even if it's from an earlier day, an earlier question, or a paused standup, and edits the update it already posted to the channel. Editing a `skip` into real text fills in that answer, and editing an answer to `skip` takes it out of the posted update (if nothing is left, the post just says you skipped). If every answer was skipped and nothing was posted, filling one in posts the update. Edits to commands like `help` or `report` are ignored, and answers to a standup that was skipped or cancelled are saved without posting.
+To change an answer, edit the DM you sent. The bot updates the answer that message recorded, even if it's from an earlier day, an earlier question, or a paused standup, and edits the update it already posted to the channel. Answers changed after the update was posted are marked "(edited)" in the channel, like an edited Slack message, and the console's Responses tab shows when. Editing a `skip` into real text fills in that answer, and editing an answer to `skip` takes it out of the posted update (if nothing is left, the post just says you skipped). If every answer was skipped and nothing was posted, filling one in posts the update. Edits to commands like `help` or `report` are ignored, and answers to a standup that was skipped or cancelled are saved without posting.

@@ -49,7 +49,7 @@ module Microsoft
       rescue RetryRequest
         retry
       rescue Faraday::Error => error
-        raise ApiError, "Couldn't reach Microsoft (#{error.class})"
+        raise TransientApiError, "Couldn't reach Microsoft (#{error.class})"
       end
     end
 
@@ -74,11 +74,15 @@ module Microsoft
       error = body.is_a?(Hash) ? body["error"] : nil
       code = error.is_a?(Hash) ? error["code"] : error || body["errorCode"]
       message = error.is_a?(Hash) ? error["message"] : body["message"]
-      raise ApiError.new("Microsoft API returned #{response.status}#{" (#{code})" if code}: #{message.to_s.truncate(200)}", status: response.status, code: code)
+      raise error_class(response).new("Microsoft API returned #{response.status}#{" (#{code})" if code}: #{message.to_s.truncate(200)}", status: response.status, code: code)
     rescue JSON::ParserError
-      raise ApiError.new("Microsoft API returned #{response.status} with an unreadable body", status: response.status) unless response.success?
+      raise error_class(response).new("Microsoft API returned #{response.status} with an unreadable body", status: response.status) unless response.success?
 
       {}
+    end
+
+    def error_class(response)
+      response.status >= 500 ? TransientApiError : ApiError
     end
 
     def retry_after(response, attempt)

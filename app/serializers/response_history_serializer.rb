@@ -89,7 +89,9 @@ class ResponseHistorySerializer
       display_text: answer.text.presence || "No answer provided.",
       timestamp: answer.timestamp.presence&.to_s,
       answered_at: answered_at&.iso8601,
-      answered_at_label: answered_at&.to_fs(:long) || answer.timestamp.presence&.to_s
+      answered_at_label: answered_at&.to_fs(:long) || answer.timestamp.presence&.to_s,
+      edited: answer.edited?,
+      edited_at: answer.edited_at_time&.iso8601
     }
   end
 

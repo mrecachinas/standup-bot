@@ -50,18 +50,21 @@ In production, the app uses PostgreSQL with three databases: the main one, plus 
 
 The cache and queue databases also accept `CACHE_DB_*` and `QUEUE_DB_*` overrides. Anything you don't set falls back to the matching `DB_*` value.
 
-Development uses MySQL with two databases: the main one and `nerdbot_development_queue` for Solid Queue (there's no separate cache database). If you set `DATABASE_URL`, the queue database uses the same connection with a `_queue` suffix on the database name (or `nerdbot_development_queue` if the URL names no database). `QUEUE_DB_NAME` sets the queue database's name, and `QUEUE_DATABASE_URL` replaces its connection entirely. Test uses a single database and doesn't need a queue database.
+Development uses MySQL with two databases: the main one and `standupbot_development_queue` for Solid Queue (there's no separate cache database). If you set `DATABASE_URL`, the queue database uses the same connection with a `_queue` suffix on the database name (or `standupbot_development_queue` if the URL names no database). `QUEUE_DB_NAME` sets the queue database's name, and `QUEUE_DATABASE_URL` replaces its connection entirely. Test uses a single database and doesn't need a queue database.
 
 ### Operations
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `ADMIN_CHANNEL` | _(unset)_ | Slack channel that gets a message when a background job fails |
+| `ADMIN_CHANNEL` | _(unset)_ | Slack channel that gets a message when a background job fails (at most once per kind of failure every 15 minutes) |
 | `TEAMS_ADMIN_CHANNEL` | _(unset)_ | Teams channel (`TEAM_ID\|CHANNEL_ID`) that gets a message when a background job fails |
 | `RESPONSE_RETENTION_DAYS` | `90` | How long to keep standup responses |
 | `STALE_PENDING_DAYS` | `7` | When unanswered standups are marked expired |
 | `CLEANUP_BATCH_SIZE` | `1000` | Rows per batch in the nightly cleanup job |
-| `JOB_CONCURRENCY` | `1` | Number of job worker processes |
+| `JOB_CONCURRENCY` | `1` | Number of job worker processes for scheduled work. What people send the bot always has its own worker process (`inbound` queue in `config/queue.yml`). |
+| `STANDUP_SEND_CONCURRENCY` | `2` | How many first messages of a standup are sent at once, so a standup going to everyone at the same time stays under Slack's rate limit |
+| `SOLID_QUEUE_SHUTDOWN_TIMEOUT` | `5` | Seconds a stopping worker gives running jobs before putting them back on the queue. Keep it below your orchestrator's grace period. |
+| `SLACK_SOCKET_MODE_READY_FILE` | _(unset)_ | A file `bin/slack-socket-mode` keeps fresh while it's connected to Slack, for readiness probes |
 | `SOLID_QUEUE_IN_PUMA` | _(unset)_ | Set it to run background jobs inside the web process instead of a separate worker |
 | `SOLID_QUEUE_SKIP_RECURRING` | _(unset)_ | Set it to `1` so the worker doesn't run the recurring schedule (scheduled standups, reminders, nightly cleanup). Useful locally to avoid DMing a real workspace. Works with `bin/jobs` and `SOLID_QUEUE_IN_PUMA`. |
 

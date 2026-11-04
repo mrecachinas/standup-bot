@@ -7,12 +7,12 @@ require "uri"
 # 2. DATABASE_URL with the database swapped for QUEUE_DB_NAME, or for the
 #    primary database's name plus "_queue". This keeps e2e and isolated
 #    databases from sharing (or dropping) the main development queue.
-# 3. QUEUE_DB_NAME, or nerdbot_development_queue, on the default connection.
+# 3. QUEUE_DB_NAME, or standupbot_development_queue, on the default connection.
 #
 # Loaded by config/database.yml before the autoloaders are set up, so it's
 # plain Ruby and excluded from autoloading.
 module DevelopmentQueueDatabase
-  DEFAULT_NAME = "nerdbot_development_queue".freeze
+  DEFAULT_NAME = "standupbot_development_queue".freeze
 
   module_function
 

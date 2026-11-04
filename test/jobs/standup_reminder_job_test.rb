@@ -82,4 +82,71 @@ class StandupReminderJobTest < ActiveJob::TestCase
       assert_equal 0, paused_response.reload.reminder_count
     end
   end
+
+  test "a failed reminder is given back for the next run and doesn't stop the others" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      failing = StandupResponse.create!(standup: @standup, platform_user_id: "UFAIL", status: "pending", answers: [], created_at: 2.hours.ago, standup_date: Date.current)
+      other = StandupResponse.create!(standup: @standup, platform_user_id: "UOTHER", status: "pending", answers: [], created_at: 2.hours.ago, standup_date: Date.current)
+      @mock_slack_client.expects(:send_message).with("UFAIL", anything).raises(Slack::Web::Api::Errors::SlackError.new("account_inactive"))
+      @mock_slack_client.expects(:send_message).with("UOTHER", anything).once
+
+      StandupReminderJob.perform_now
+
+      assert_equal 0, failing.reload.reminder_count
+      assert_nil failing.last_reminder_at
+      assert_equal 1, other.reload.reminder_count
+    end
+  end
+
+  test "counts from the latest prompt, so a new question isn't reminded about right away" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      StandupResponse.create!(standup: @standup, platform_user_id: "UPROMPTED", status: "pending", answers: [], created_at: 2.hours.ago, prompted_at: 10.minutes.ago, standup_date: Date.current)
+      @mock_slack_client.expects(:send_message).never
+
+      StandupReminderJob.perform_now
+    end
+  end
+
+  test "skips the reminder when the person's DM had replies the bot missed" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      response = StandupResponse.create!(standup: @standup, platform_user_id: "UMISSED", status: "pending", answers: [], created_at: 2.hours.ago, dm_channel: "D9", standup_date: Date.current)
+      SlackDmBackfill.any_instance.expects(:call).with(response).returns(1)
+      @mock_slack_client.expects(:send_message).never
+
+      StandupReminderJob.perform_now
+
+      assert_equal 0, response.reload.reminder_count
+    end
+  end
+
+  test "a reminder claimed by a worker that stopped before sending is tried again later" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      # Claimed an interval ago, never sent: the count wasn't used up.
+      response = StandupResponse.create!(standup: @standup, platform_user_id: "UABANDON", status: "pending", answers: [],
+        created_at: 3.hours.ago, last_reminder_at: 61.minutes.ago, reminder_count: 0, standup_date: Date.current)
+      @mock_slack_client.expects(:send_message).with("UABANDON", anything).once
+
+      StandupReminderJob.perform_now
+
+      assert_equal 1, response.reload.reminder_count
+    end
+  end
+
+  test "an answer saved while the DM history is checked cancels the reminder" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      response = StandupResponse.create!(standup: @standup, platform_user_id: "URACE", status: "pending", answers: [],
+        created_at: 2.hours.ago, prompted_at: 2.hours.ago, dm_channel: "D9", standup_date: Date.current)
+      SlackDmBackfill.any_instance.expects(:call).with do
+        # Another worker records the answer and sends the next question meanwhile.
+        StandupResponse.find(response.id).update!(answers: [ { "question" => @standup.questions.first, "answer" => "Done" } ], prompted_at: Time.current)
+        true
+      end.returns(0)
+      @mock_slack_client.expects(:send_message).never
+
+      StandupReminderJob.perform_now
+
+      assert_equal 0, response.reload.reminder_count
+      assert_nil response.last_reminder_at
+    end
+  end
 end

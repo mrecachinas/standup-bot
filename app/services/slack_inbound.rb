@@ -76,6 +76,9 @@ class SlackInbound
         interaction_reply(handler.start_selected(standup_id).text)
       when StandupCommandHandler::RESTART_ACTION_ID
         interaction_reply(handler.restart(standup_id).text)
+      when StandupCommandHandler::KICKOFF_MENU_ACTION_ID
+        # The selected value names the choice and the run, not just a standup.
+        interaction_response(handler.kickoff_choice(standup_id))
       else
         Rails.logger.info "Ignoring unsupported Slack action_id=#{action['action_id']}"
         interaction_reply("That Slack action is not supported yet.")
@@ -84,6 +87,14 @@ class SlackInbound
 
     def interaction_reply(text)
       Response.new(body: { response_type: "ephemeral", replace_original: false, text: text }, status: :ok)
+    end
+
+    # Like interaction_reply, keeping any button or menu the reply carries.
+    def interaction_response(reply)
+      response = interaction_reply(reply.text)
+      blocks = chat.reply_blocks(reply)
+      response.body[:blocks] = blocks if blocks
+      response
     end
 
     def ephemeral(text, status: :ok)

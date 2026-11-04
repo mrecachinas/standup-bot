@@ -57,7 +57,7 @@ class StandupCollectionJob < ApplicationJob
 
   def detailed_report_text(responses)
     summary_parts = responses.map do |response|
-      display_name = display_name_for(response.platform_user_id)
+      display_name = StandupResponseService.display_name_for(response)
 
       answers = Array(response.answers).filter_map do |answer|
         next if answer["answer"].blank? || answer["answer"] == "(skipped)"
@@ -76,7 +76,7 @@ class StandupCollectionJob < ApplicationJob
   def summary_report_text(standup, responses, report_date)
     lines = responses.map do |response|
       answered_count = Array(response.answers).count { |answer| answer["answer"].present? && answer["answer"] != "(skipped)" }
-      "• #{display_name_for(response.platform_user_id)}: #{answered_count} answer(s)"
+      "• #{StandupResponseService.display_name_for(response)}: #{answered_count} answer(s)"
     end
 
     [
@@ -84,10 +84,6 @@ class StandupCollectionJob < ApplicationJob
       "#{responses.count} completed response(s).",
       lines.join("\n")
     ].join("\n")
-  end
-
-  def display_name_for(user_id)
-    @chat.display_name_for(user_id)
   end
 
   def bold(text)

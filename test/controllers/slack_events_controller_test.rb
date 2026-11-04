@@ -178,6 +178,29 @@ class SlackEventsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Restarting *#{standup.name}*…", JSON.parse(response.body)["text"]
   end
 
+  test "the kickoff menu's skip choice skips the run and replies with a restart button" do
+    standup = standups(:daily)
+    participant = standup_participants(:one)
+    participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+    date = participant.standup_date_for(Time.current)
+    run = StandupResponse.create!(standup: standup, platform_user_id: participant.platform_user_id, status: "pending", answers: [], standup_date: date)
+    payload = {
+      type: "block_actions",
+      user: { id: participant.platform_user_id },
+      actions: [ { action_id: "standup_kickoff_menu", selected_option: { value: "skip:#{standup.id}:#{date.iso8601}" } } ]
+    }
+
+    post interactions_url, params: { payload: payload.to_json }
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal "ephemeral", body["response_type"]
+    assert_equal false, body["replace_original"]
+    assert_equal "You skipped *#{standup.name}*. You can restart it anytime.", body["text"]
+    assert_equal "standup_restart", body["blocks"].first.dig("accessory", "action_id")
+    assert_equal "skipped", run.reload.status
+  end
+
   test "should reject invalid interaction payload" do
     post interactions_url, params: { payload: "not json" }
 

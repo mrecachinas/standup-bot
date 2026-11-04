@@ -36,7 +36,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   test "records an answer with the message ID for the pending response" do
     response = response!(status: "pending")
 
-    StandupResponseService.expects(:record_answer).with(response, "Did things", message_id: "1700.1")
+    StandupResponseService.expects(:record_answer).with(response, "Did things", has_entries(message_id: "1700.1"))
 
     @handler.handle(inbound("Did things", message_id: "1700.1"))
   end
@@ -110,7 +110,8 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
     ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
       @standup.platform_channel, "post.1",
       display_name: "John Doe", standup_name: @standup.name,
-      answers: [ { question: "Q1", answer: "Shipped" }, { question: "Q2", answer: "Reviewing" } ]
+      answers: [ { question: "Q1", answer: "Shipped" }, { question: "Q2", answer: "Reviewing" } ],
+      edited: true
     )
 
     edit("Reviewing", message_id: "100.2", previous_text: "skip")
@@ -123,7 +124,8 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
     ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
       @standup.platform_channel, "post.1",
       display_name: "John Doe", standup_name: @standup.name,
-      answers: [ { question: "Q1", answer: "Shipped" } ]
+      answers: [ { question: "Q1", answer: "Shipped" } ],
+      edited: true
     )
 
     edit("Skip", message_id: "100.2")
@@ -134,7 +136,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   test "filling in a finished run that had nothing to post posts it" do
     response = response!(answers: [ answer("Q1", "(skipped)", "100.1"), answer("Q2", "(skipped)", "100.2") ])
     ChatPlatform::SlackAdapter.any_instance.expects(:post_standup_update)
-      .with(@standup.platform_channel, display_name: "John Doe", standup_name: @standup.name, answers: [ { question: "Q1", answer: "Shipped" } ])
+      .with(@standup.platform_channel, display_name: "John Doe", standup_name: @standup.name, answers: [ { question: "Q1", answer: "Shipped" } ], edited: true)
       .returns(ChatPlatform::MessageRef.new(channel: @standup.platform_channel, id: "post.9"))
 
     edit("Shipped", message_id: "100.1", previous_text: "skip")
@@ -304,7 +306,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   test "editing the only posted answer to skip replaces the post with a skipped note" do
     response = response!(answers: [ answer("Q1", "Shipped", "100.1"), answer("Q2", "(skipped)", "100.2") ], platform_message_id: "post.1")
     ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
-      @standup.platform_channel, "post.1", display_name: "John Doe", standup_name: @standup.name, answers: []
+      @standup.platform_channel, "post.1", display_name: "John Doe", standup_name: @standup.name, answers: [], edited: true
     )
 
     edit("skip", message_id: "100.1", previous_text: "Shipped")

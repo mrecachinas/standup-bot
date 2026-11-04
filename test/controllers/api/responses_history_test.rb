@@ -148,7 +148,7 @@ class Api::ResponsesHistoryTest < ActionDispatch::IntegrationTest
       standup: @owned_standup,
       platform_user_id: "UTIME159",
       status: "completed",
-      answers: [ { "question" => "What did you do yesterday?", "answer" => "Added timestamp coverage", "timestamp" => "2025-04-08T09:05:00Z" } ],
+      answers: [ { "question" => "What did you do yesterday?", "answer" => "Added timestamp coverage", "timestamp" => "2025-04-08T09:05:00Z", "edited_at" => "2025-04-08T10:30:00Z" } ],
       standup_date: Date.new(2025, 4, 8),
       created_at: Time.zone.local(2025, 4, 8, 9, 0, 0)
     )
@@ -160,7 +160,8 @@ class Api::ResponsesHistoryTest < ActionDispatch::IntegrationTest
     assert_response :success
     entry = response.parsed_body.dig("history", "days").sole["entries"].sole
     assert_equal response_record.id, entry["response_id"]
-    assert_equal "2025-04-08T09:00:00Z", entry["submitted_at"]
+    # Submitted when the last answer came in, not when the prompt went out.
+    assert_equal "2025-04-08T09:05:00Z", entry["submitted_at"]
     assert_equal "2025-04-08T10:30:00Z", entry["updated_at"]
     assert entry["updated_after_create"]
     assert entry["submitted_at_label"].present?
@@ -168,6 +169,8 @@ class Api::ResponsesHistoryTest < ActionDispatch::IntegrationTest
     assert_equal "Added timestamp coverage", answer["text"]
     assert_equal "2025-04-08T09:05:00Z", answer["answered_at"]
     assert answer["answered_at_label"].present?
+    assert answer["edited"]
+    assert_equal "2025-04-08T10:30:00Z", answer["edited_at"]
     assert_equal "https://avatars.slack-edge.com/time.png", entry["avatar_url"]
   end
 

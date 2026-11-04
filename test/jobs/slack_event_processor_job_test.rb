@@ -33,9 +33,11 @@ class SlackEventProcessorJobTest < ActiveJob::TestCase
     SlackEventProcessorJob.perform_now(event)
   end
 
-  test "routes messages to commands, pending standup answers, or ignores them" do
-    ChatPlatform::SlackAdapter.any_instance.expects(:send_reply).with(@channel_id, is_a(ChatPlatform::Reply)).once
-    StandupResponseService.expects(:record_answer).with(@standup_response, "I worked on feature X", message_id: "1700.2").once
+  test "routes messages to commands, pending standup answers, or says nothing is waiting" do
+    ChatPlatform::SlackAdapter.any_instance.expects(:send_reply).with(@channel_id, responds_with(:text, regexp_matches(/Available Commands/))).once
+    ChatPlatform::SlackAdapter.any_instance.expects(:send_reply)
+      .with(@channel_id, responds_with(:text, regexp_matches(/\AThere's no standup waiting on you right now, so I didn't save that\./))).once
+    StandupResponseService.expects(:record_answer).with(@standup_response, "I worked on feature X", has_entries(message_id: "1700.2", sent_at: Time.zone.at(1700.2r))).once
 
     perform_message("help", ts: "1700.1")
     perform_message("I worked on feature X", ts: "1700.2")

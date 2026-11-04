@@ -96,6 +96,37 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
     adapter.update_standup_update("team", "9.9", display_name: "Ann", standup_name: "Daily", answers: [])
   end
 
+  test "update_standup_update marks the heading (edited) when answers changed after posting" do
+    sent = nil
+    @client.expects(:update_message).with { |*args, **options| sent = [ args, options ]; true }
+
+    adapter.update_standup_update("team", "9.9", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: "A1, fixed" } ], edited: true)
+
+    (_channel, _ts, text, blocks), options = sent
+    assert_equal "*Ann* posted an update for *Daily* _(edited)_\n\n*Q1*\nA1, fixed", text
+    assert_equal [ "*Ann* posted an update for *Daily* _(edited)_" ], blocks.map { |block| block.dig(:text, :text) }
+    assert_equal [ "*Q1*\nA1, fixed" ], options[:attachments].map { |attachment| attachment[:blocks].sole.dig(:text, :text) }
+  end
+
+  test "send_standup_kickoff puts the menu beside the greeting" do
+    @client.stubs(:get_user_info).returns(nil)
+    blocks = nil
+    @client.expects(:send_message).with { |_user, _text, sent_blocks| blocks = sent_blocks; true }.returns({ "channel" => "D1", "ts" => "1" })
+    menu = StandupCommandHandler.kickoff_menu(7, Date.new(2026, 11, 3))
+
+    adapter.send_standup_kickoff("U1", standup_name: "Daily", channel: "team", intro: "", question: "Q1", question_count: 1, menu: menu)
+
+    greeting = blocks.third
+    assert_equal "Hi there! 👋 It's time for *Daily* in #team.", greeting.dig(:text, :text)
+    select = greeting[:accessory]
+    assert_equal "static_select", select[:type]
+    assert_equal StandupCommandHandler::KICKOFF_MENU_ACTION_ID, select[:action_id]
+    assert_equal "Not today?", select.dig(:placeholder, :text)
+    assert_equal [ "Skip today", "I'm out today", "I'm out for a week" ], select[:options].map { |option| option.dig(:text, :text) }
+    assert_equal "skip:7:2026-11-03", select[:options].first[:value]
+    assert_nil blocks.last[:accessory]
+  end
+
   test "send_standup_kickoff splits an oversized intro across sections" do
     @client.stubs(:get_user_info).returns(nil)
     blocks = nil

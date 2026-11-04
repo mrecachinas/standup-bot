@@ -34,6 +34,54 @@ class StandupResponse < ApplicationRecord
     authorized_for(platform, platform_user_id).pending.order("standup_responses.created_at DESC").first
   end
 
+  # How long after a message the bot's next prompt can arrive and still count
+  # as the message having been typed before the prompt showed up. Covers slow
+  # deliveries and Slack's redeliveries (the last one comes about 5 minutes on).
+  CONTINUATION_WINDOW = 10.minutes
+
+  # The run a message sent at sent_at continues, if any, with an answer to
+  # continue: a finished run whose sign-off hasn't gone out yet (say, while its
+  # post is retried), or one whose latest prompt reached the person after they
+  # sent the message (they typed "foo", then "bar" before the next question
+  # showed up).
+  def self.continued_by(platform, platform_user_id, sent_at)
+    return if sent_at.blank?
+
+    runs = authorized_for(platform, platform_user_id).where(status: %w[pending completed]).where.not(prompted_at: nil)
+    awaiting_sign_off = runs.where(status: "completed", signed_off_at: nil)
+      .where(updated_at: (sent_at - CONTINUATION_WINDOW)..)
+      .order(updated_at: :desc).limit(5)
+    prompted_after = runs.where(prompted_at: sent_at..(sent_at + CONTINUATION_WINDOW)).where.not(prompted_at: sent_at)
+      .order(prompted_at: :desc).limit(5)
+
+    (awaiting_sign_off.to_a + prompted_after.to_a).uniq.find { |response| response.answers.present? }
+  end
+
+  # When the question the latest answer replies to was asked, or nil for
+  # answers saved before that was recorded.
+  def last_answer_asked_at
+    answer = Array(answers).last
+    value = answer && (answer["asked_at"] || answer[:asked_at])
+    Time.zone.parse(value.to_s) if value.present?
+  rescue ArgumentError
+    nil
+  end
+
+  # Whether a prompt (the next question or the sign-off) has reached the
+  # person since the latest answer's question was asked.
+  def prompted_since_last_answer?
+    asked_at = last_answer_asked_at
+    asked_at.present? && prompted_at.present? && prompted_at > asked_at
+  end
+
+  # Whether this pending run's next question should have gone out after the
+  # latest answer but didn't. Unknown (false) for answers saved before
+  # questions' send times were recorded.
+  def next_question_unsent?
+    status == "pending" && answers.present? && answers.size < standup.questions.size &&
+      last_answer_asked_at.present? && !prompted_since_last_answer?
+  end
+
   # Edits are only matched against this person's recent responses, newest
   # first. Plenty for real edits, and it keeps the lookup in Ruby so it works
   # the same on MySQL and PostgreSQL.
@@ -59,8 +107,15 @@ class StandupResponse < ApplicationRecord
     nil
   end
 
+  # The answer recorded from this message, including messages that continued
+  # an answer (kept in its "parts").
   def answer_index_for_message(message_id)
-    Array(answers).index { |answer| answer["message_id"].present? && answer["message_id"] == message_id.to_s }
+    return if message_id.blank?
+
+    id = message_id.to_s
+    Array(answers).index do |answer|
+      answer["message_id"].to_s == id || Array(answer["parts"]).any? { |part| part["message_id"].to_s == id }
+    end
   end
 
   def participant

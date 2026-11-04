@@ -10,7 +10,7 @@ bin/dev                 # Rails on :3000, the console's Vite dev server on :5173
 
 Open <http://localhost:5173>. Vite reloads the console as you edit it and passes `/api` and `/auth` requests through to Rails. `script/server` does the same after preparing and seeding the database. If you only need Rails (for example to work on Slack webhooks), run `bin/dev --rails-only`; jobs are queued but won't run until you start `bin/jobs`. To serve the built console from Rails itself on port 3000, run `npm run build` in `frontend/` first.
 
-Background jobs work the same way as in production: Solid Queue stores them in a separate `nerdbot_development_queue` database, and `bin/dev` starts the worker (`bin/jobs`). The worker also runs the recurring schedule in [`config/recurring.yml`](../config/recurring.yml), so scheduled standups and reminders go out locally. Set `SOLID_QUEUE_IN_PUMA=1` to run the worker inside Rails instead. `bin/rails db:prepare` (which `script/server` and `bin/setup` run) creates and loads the queue database. Worker output goes to `log/development.log`.
+Background jobs work the same way as in production: Solid Queue stores them in a separate `standupbot_development_queue` database, and `bin/dev` starts the worker (`bin/jobs`). The worker also runs the recurring schedule in [`config/recurring.yml`](../config/recurring.yml), so scheduled standups and reminders go out locally. Set `SOLID_QUEUE_IN_PUMA=1` to run the worker inside Rails instead. `bin/rails db:prepare` (which `script/server` and `bin/setup` run) creates and loads the queue database. Worker output goes to `log/development.log`.
 
 > [!WARNING]
 > The recurring schedule is real. While `bin/dev` is running against a real Slack or Teams workspace, every active standup that comes due DMs its actual participants, reminders follow, and the nightly `DataCleanupJob` prunes old responses from your dev database. To turn the schedule off and still run jobs you trigger yourself, set `SOLID_QUEUE_SKIP_RECURRING=1`:
@@ -21,7 +21,7 @@ Background jobs work the same way as in production: Solid Queue stores them in a
 >
 > Solid Queue reads this variable in `bin/jobs` and when it runs inside Puma (`SOLID_QUEUE_IN_PUMA=1`). `bin/dev` prints whether recurring jobs are on when it starts. To run one scheduled pass by hand, use `bin/rails runner 'SchedulingJob.perform_later'`.
 
-If you point development at another database with `DATABASE_URL`, the queue database uses the same connection with a `_queue` suffix (for example `nerdbot_mine` and `nerdbot_mine_queue`). `QUEUE_DB_NAME` picks a different name, and `QUEUE_DATABASE_URL` overrides the queue connection entirely ([`lib/development_queue_database.rb`](../lib/development_queue_database.rb) has the rules). The development cache is a file store in `tmp/cache/store`, shared by Rails, the worker, and the Socket Mode client, so the Admin page shows Socket Mode activity. `bin/rails tmp:cache:clear` empties it.
+If you point development at another database with `DATABASE_URL`, the queue database uses the same connection with a `_queue` suffix (for example `standupbot_mine` and `standupbot_mine_queue`). `QUEUE_DB_NAME` picks a different name, and `QUEUE_DATABASE_URL` overrides the queue connection entirely ([`lib/development_queue_database.rb`](../lib/development_queue_database.rb) has the rules). The development cache is a file store in `tmp/cache/store`, shared by Rails, the worker, and the Socket Mode client, so the Admin page shows Socket Mode activity. `bin/rails tmp:cache:clear` empties it.
 
 You'll need Node (the version in [`.node-version`](../.node-version)) for the console. `script/bootstrap` installs its packages, and `bin/dev` does too if they're missing.
 
@@ -63,7 +63,7 @@ npm run lint                                  # Oxlint
 npm run build                                 # build into public/app
 ```
 
-End-to-end tests drive the built console in Chromium, in light and dark mode, against a real Rails server. That server runs in development mode (so CSRF and sessions behave as in production) against a throwaway `nerdbot_e2e` database (plus `nerdbot_e2e_queue`) loaded with the test fixtures. No job worker runs, so jobs are queued but never performed. They need MySQL running. Only one Rails server can run per checkout, so stop `bin/dev` first.
+End-to-end tests drive the built console in Chromium, in light and dark mode, against a real Rails server. That server runs in development mode (so CSRF and sessions behave as in production) against a throwaway `standupbot_e2e` database (plus `standupbot_e2e_queue`) loaded with the test fixtures. No job worker runs, so jobs are queued but never performed. They need MySQL running. Only one Rails server can run per checkout, so stop `bin/dev` first.
 
 ```bash
 cd frontend

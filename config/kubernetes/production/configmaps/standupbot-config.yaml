@@ -1,0 +1,13 @@
+# Non-secret settings shared by every role. Secrets (RAILS_MASTER_KEY,
+# DATABASE_URL, CACHE_DATABASE_URL, QUEUE_DATABASE_URL, SLACK_BOT_TOKEN, and
+# SLACK_SIGNING_SECRET or SLACK_APP_TOKEN) go in the standupbot-secrets Secret.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: standupbot-config
+data:
+  SLACK_CONNECTION_MODE: socket
+  # Below the jobs pods' terminationGracePeriodSeconds.
+  SOLID_QUEUE_SHUTDOWN_TIMEOUT: "45"
+  # First messages of a standup sent at once; see StandupMessageJob.
+  STANDUP_SEND_CONCURRENCY: "2"

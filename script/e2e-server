@@ -11,14 +11,14 @@ export RAILS_ENV=development
 # Slack sign-in is faked (config/initializers/e2e_fake_slack_sign_in.rb) so the
 # tests can reach the member area.
 export E2E_FAKE_SLACK_SIGN_IN=1 SLACK_CLIENT_ID=e2e SLACK_CLIENT_SECRET=e2e SLACK_TEAM_ID=TE2E
-export DATABASE_URL="${E2E_DATABASE_URL:-mysql2://${DB_USER:-root}:${DB_PASSWORD:-}@${DB_HOST:-127.0.0.1}:${DB_PORT:-3306}/nerdbot_e2e}"
+export DATABASE_URL="${E2E_DATABASE_URL:-mysql2://${DB_USER:-root}:${DB_PASSWORD:-}@${DB_HOST:-127.0.0.1}:${DB_PORT:-3306}/standupbot_e2e}"
 
 if [ ! -f public/app/index.html ]; then
   echo "public/app/index.html is missing. Run 'npm run build' in frontend/ first." >&2
   exit 1
 fi
 
-# The queue database must follow DATABASE_URL (nerdbot_e2e_queue by default;
+# The queue database must follow DATABASE_URL (standupbot_e2e_queue by default;
 # see config/database.yml), because the reset below drops it. A developer's
 # QUEUE_DATABASE_URL or QUEUE_DB_NAME would otherwise win (Rails merges
 # QUEUE_DATABASE_URL into the queue config itself), so clear them. No job

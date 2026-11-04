@@ -190,6 +190,22 @@ class SlackClient
     end
   end
 
+  # Every message in a DM (needs im:history) sent after oldest (a Slack ts),
+  # following pagination, as hashes with string keys.
+  def dm_history(channel, oldest:, page_size: 200)
+    messages = []
+    cursor = nil
+    loop do
+      response = with_rate_limit_handling("dm_history") do
+        @client.conversations_history(channel: channel, oldest: oldest, limit: page_size, cursor: cursor)
+      end
+      messages.concat(Array(response["messages"]).map { |message| message.to_h.stringify_keys })
+      cursor = response.dig("response_metadata", "next_cursor").presence
+      break unless cursor
+    end
+    messages
+  end
+
   def update_message(channel, message_ts, text, blocks = nil, attachments: nil)
     message = { channel: channel, ts: message_ts, text: text, as_user: true }
     message[:blocks] = blocks if blocks
