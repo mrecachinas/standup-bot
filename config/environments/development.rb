@@ -23,8 +23,15 @@ Rails.application.configure do
     config.action_controller.perform_caching = false
   end
 
+  # A file store (rather than :memory_store) is shared by the web server, the
+  # job worker, and the Slack Socket Mode client, so values like
+  # StandupMetrics.last_seen show up on the Admin page.
   # Change to :null_store to avoid any caching.
-  config.cache_store = :memory_store
+  config.cache_store = :file_store, Rails.root.join("tmp/cache/store")
+
+  # Run jobs on Solid Queue like production. bin/dev starts the worker (bin/jobs).
+  config.active_job.queue_adapter = :solid_queue
+  config.solid_queue.connects_to = { database: { writing: :queue } }
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

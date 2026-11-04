@@ -5,12 +5,36 @@ To get the app running locally first, see [Getting started](getting-started.md).
 ## Running the app
 
 ```bash
-bin/dev                 # Rails on :3000 and the console's Vite dev server on :5173
+bin/dev                 # Rails on :3000, the console's Vite dev server on :5173, and the job worker
 ```
 
-Open <http://localhost:5173>. Vite reloads the console as you edit it and passes `/api` and `/auth` requests through to Rails. `script/server` does the same after preparing and seeding the database. If you only need Rails (for example to work on Slack webhooks), run `bin/dev --rails-only`. To serve the built console from Rails itself on port 3000, run `npm run build` in `frontend/` first.
+Open <http://localhost:5173>. Vite reloads the console as you edit it and passes `/api` and `/auth` requests through to Rails. `script/server` does the same after preparing and seeding the database. If you only need Rails (for example to work on Slack webhooks), run `bin/dev --rails-only`; jobs are queued but won't run until you start `bin/jobs`. To serve the built console from Rails itself on port 3000, run `npm run build` in `frontend/` first.
+
+Background jobs work the same way as in production: Solid Queue stores them in a separate `nerdbot_development_queue` database, and `bin/dev` starts the worker (`bin/jobs`). The worker also runs the recurring schedule in [`config/recurring.yml`](../config/recurring.yml), so scheduled standups and reminders go out locally. Set `SOLID_QUEUE_IN_PUMA=1` to run the worker inside Rails instead. `bin/rails db:prepare` (which `script/server` and `bin/setup` run) creates and loads the queue database. Worker output goes to `log/development.log`.
+
+> [!WARNING]
+> The recurring schedule is real. While `bin/dev` is running against a real Slack or Teams workspace, every active standup that comes due DMs its actual participants, reminders follow, and the nightly `DataCleanupJob` prunes old responses from your dev database. To turn the schedule off and still run jobs you trigger yourself, set `SOLID_QUEUE_SKIP_RECURRING=1`:
+>
+> ```bash
+> SOLID_QUEUE_SKIP_RECURRING=1 bin/dev
+> ```
+>
+> Solid Queue reads this variable in `bin/jobs` and when it runs inside Puma (`SOLID_QUEUE_IN_PUMA=1`). `bin/dev` prints whether recurring jobs are on when it starts. To run one scheduled pass by hand, use `bin/rails runner 'SchedulingJob.perform_later'`.
+
+If you point development at another database with `DATABASE_URL`, the queue database uses the same connection with a `_queue` suffix (for example `nerdbot_mine` and `nerdbot_mine_queue`). `QUEUE_DB_NAME` picks a different name, and `QUEUE_DATABASE_URL` overrides the queue connection entirely ([`lib/development_queue_database.rb`](../lib/development_queue_database.rb) has the rules). The development cache is a file store in `tmp/cache/store`, shared by Rails, the worker, and the Socket Mode client, so the Admin page shows Socket Mode activity. `bin/rails tmp:cache:clear` empties it.
 
 You'll need Node (the version in [`.node-version`](../.node-version)) for the console. `script/bootstrap` installs its packages, and `bin/dev` does too if they're missing.
+
+### Migrations
+
+App migrations live in `db/migrate` and belong to the `primary` database. `bin/rails db:migrate` migrates both databases and updates `db/schema.rb`. It leaves `db/queue_schema.rb` alone: that's Solid Queue's stock schema, which production loads into PostgreSQL, so it isn't regenerated from the MySQL queue database. Because development has two databases, tasks that act on a single migration need the `:primary` suffix:
+
+```bash
+bin/rails db:rollback:primary
+bin/rails db:migrate:redo:primary
+bin/rails db:migrate:up:primary VERSION=20260101000000
+bin/rails db:migrate:down:primary VERSION=20260101000000
+```
 
 ## Tests
 
@@ -39,7 +63,7 @@ npm run lint                                  # Oxlint
 npm run build                                 # build into public/app
 ```
 
-End-to-end tests drive the built console in Chromium, in light and dark mode, against a real Rails server. That server runs in development mode (so CSRF and sessions behave as in production) against a throwaway `nerdbot_e2e` database loaded with the test fixtures. They need MySQL running.
+End-to-end tests drive the built console in Chromium, in light and dark mode, against a real Rails server. That server runs in development mode (so CSRF and sessions behave as in production) against a throwaway `nerdbot_e2e` database (plus `nerdbot_e2e_queue`) loaded with the test fixtures. No job worker runs, so jobs are queued but never performed. They need MySQL running. Only one Rails server can run per checkout, so stop `bin/dev` first.
 
 ```bash
 cd frontend
@@ -92,10 +116,10 @@ bin/rails standups:validate                   # check config/standups/*.yml
 In HTTP mode, make sure your request URL is publicly reachable (use ngrok locally) and that `SLACK_SIGNING_SECRET` matches the app's signing secret. Requests that fail verification are logged and rejected. In Socket Mode, check that `bin/slack-socket-mode` is running (or `SLACK_SOCKET_MODE_IN_PUMA` is set), that its logs say "Slack Socket Mode connected", and that Socket Mode is turned on in the Slack app's settings. Locally, Socket Mode avoids the tunnel entirely: set `SLACK_CONNECTION_MODE=socket` and `SLACK_APP_TOKEN`, and `bin/dev` starts the client.
 
 **The bot doesn't respond to DMs.**
-Check that the app is subscribed to the `message.im` event, has the `im:history` and `im:write` scopes, and is installed in the workspace. Also check that the job worker (`bin/jobs`) is running, since DMs are handled in the background.
+Check that the app is subscribed to the `message.im` event, has the `im:history` and `im:write` scopes, and is installed in the workspace. Also check that the job worker is running, since DMs are handled in the background. `bin/dev` starts it locally; if you ran `bin/dev --rails-only`, start `bin/jobs` yourself.
 
 **No standups are going out.**
-The worker has to be running for scheduled DMs to be sent. Check that the standup is active, has active participants, and isn't paused or skipped for today by a schedule exception.
+The worker has to be running for scheduled DMs to be sent. It checks for standups that are due every hour and sends reminders every 15 minutes, so you may need to wait for the next run. To run them now, use `bin/rails runner 'SchedulingJob.perform_later'` (or `StandupReminderJob`). If `bin/jobs` fails with `Table '…solid_queue_processes' doesn't exist`, run `bin/rails db:prepare` to create the queue database. Also check that the standup is active, has active participants, and isn't paused or skipped for today by a schedule exception.
 
 **Standups go out at the wrong time.**
 When a standup respects timezones, it uses each participant's Slack timezone. If someone's timezone is wrong, fix it in their Slack profile. The bot caches timezones, so the change may take a little while to show up.

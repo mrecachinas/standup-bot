@@ -44,7 +44,7 @@ To stop, run `docker compose down`. To also wipe the database, run `docker compo
     TEAMS_TENANT_ID: ${TEAMS_TENANT_ID:-}
 ```
 
-Then export the values in your shell and run `docker compose up` again. If you're using [Socket Mode](slack-setup.md#run-the-socket-mode-client), add `--profile slack-socket-mode` so Compose also starts the Slack connection. With native Rails (below), just set the environment variables before running `script/server` and `bin/jobs`.
+Then export the values in your shell and run `docker compose up` again. If you're using [Socket Mode](slack-setup.md#run-the-socket-mode-client), add `--profile slack-socket-mode` so Compose also starts the Slack connection. With native Rails (below), just set the environment variables before running `script/server`.
 
 ## Option 2: Native Rails with MySQL
 
@@ -63,11 +63,10 @@ script/server      # start MySQL if needed, prepare and seed the database, start
 
 Open <http://localhost:5173>. `script/server` seeds the same `admin@example.com` / `local-manager-token` admin as Docker Compose, and the sign-in form is pre-filled in development.
 
-Rails handles web requests, but scheduling, sending DMs, and posting summaries all happen in background jobs. To run them, start the job worker in a second terminal:
+Rails handles web requests, but scheduling, sending DMs, and posting summaries all happen in background jobs. `script/server` starts the job worker (`bin/jobs`) alongside Rails, and it runs the same hourly scheduling and 15-minute reminder schedule as production. Jobs live in a second MySQL database, `nerdbot_development_queue`, which `bin/rails db:prepare` creates for you.
 
-```bash
-bin/jobs
-```
+> [!WARNING]
+> Leaving `script/server` or `bin/dev` running against a real Slack or Teams workspace sends real scheduled standup DMs and reminders to the people in your active standups. The nightly cleanup job also prunes old responses from your dev database. To turn off the schedule locally, start with `SOLID_QUEUE_SKIP_RECURRING=1 script/server`. See [Development](development.md#running-the-app) for details.
 
 If you'd rather set things up by hand, `bin/setup` installs gems and npm packages, prepares the database, and starts `bin/dev`. You can also run `BUNDLE_FROZEN=true bundle install`, `(cd frontend && npm ci)`, `bin/rails db:prepare`, and `bin/dev` yourself. See [Development](development.md#running-the-app) for more on `bin/dev`.
 

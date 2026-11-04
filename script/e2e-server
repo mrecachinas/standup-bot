@@ -18,8 +18,20 @@ if [ ! -f public/app/index.html ]; then
   exit 1
 fi
 
+# The queue database must follow DATABASE_URL (nerdbot_e2e_queue by default;
+# see config/database.yml), because the reset below drops it. A developer's
+# QUEUE_DATABASE_URL or QUEUE_DB_NAME would otherwise win (Rails merges
+# QUEUE_DATABASE_URL into the queue config itself), so clear them. No job
+# worker runs here: enqueued jobs simply wait, and nothing recurring runs.
+unset QUEUE_DATABASE_URL QUEUE_DB_NAME SOLID_QUEUE_IN_PUMA
+export SOLID_QUEUE_SKIP_RECURRING=1
+
 echo "==> Resetting the e2e database..."
 DISABLE_DATABASE_ENVIRONMENT_CHECK=1 bin/rails db:drop db:create db:schema:load db:fixtures:load
+
+# Development's file cache is shared with bin/dev in this checkout; start clean
+# so nothing cached from a real workspace leaks into the tests.
+rm -rf tmp/cache/store
 
 echo "==> Starting Rails on port ${E2E_PORT:-3100}..."
 exec bin/rails server -p "${E2E_PORT:-3100}" -b 127.0.0.1

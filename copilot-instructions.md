@@ -40,7 +40,7 @@ script/bootstrap            # Install dependencies
 script/server               # Start MySQL (via docker compose) + rails server
 script/test                 # Start MySQL (via docker compose) + run tests
 script/test test/models/    # Run a specific test file or directory
-bin/rails db:create db:migrate
+bin/rails db:prepare        # Create/load primary + Solid Queue dev databases, then migrate
 bin/rubocop && bin/brakeman --no-pager
 bin/rails standups:validate # Validate config/standups/*.yml
 ```
@@ -90,7 +90,7 @@ bin/rails standups:validate # Validate config/standups/*.yml
 
 ### Schema
 - **Key Tables**: `standups` (configuration, JSON questions/schedule), `standup_participants` (junction), `standup_responses` (JSON answers)
-- **Migrations**: Use Rails migrations. Avoid DB-level defaults on TEXT/JSON columns.
+- **Migrations**: Use Rails migrations in `db/migrate` (the `primary` database). Avoid DB-level defaults on TEXT/JSON columns. Development also has a Solid Queue database, so single-migration tasks need `:primary` (`db:rollback:primary`, `db:migrate:redo:primary`, `db:migrate:up:primary`/`down:primary VERSION=…`). Don't edit or commit regenerated `db/queue_schema.rb`; it's Solid Queue's stock schema, and `lib/tasks/queue_schema.rake` keeps `db:migrate` from dumping it.
 
 ### Solid Queue  
 - Jobs run as a separate deployment (`bin/jobs`), decoupled from Puma

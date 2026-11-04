@@ -8,9 +8,22 @@ default: &default
   username: <%= ENV.fetch("DB_USER", "root") %>
   password: <%= ENV.fetch("DB_PASSWORD", "") %>
 
+<%
+  # Solid Queue's database in development; see lib/development_queue_database.rb.
+  if Rails.env.development?
+    require Rails.root.join("lib/development_queue_database").to_s
+    dev_queue = DevelopmentQueueDatabase.resolve
+  end
+%>
 development:
-  <<: *default
-  database: nerdbot_development
+  primary:
+    <<: *default
+    database: nerdbot_development
+  queue:
+    <<: *default
+    url: <%= dev_queue&.dig(:url) %>
+    database: <%= dev_queue&.dig(:database) %>
+    migrations_paths: db/queue_migrate
 
 # Tests run on MySQL by default. Set TEST_DB_ADAPTER=postgresql to run them on
 # PostgreSQL, which production uses.

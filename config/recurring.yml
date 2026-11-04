@@ -1,4 +1,4 @@
-production:
+production: &recurring
   hourly_standup_scheduler:
     class: SchedulingJob
     queue: default
@@ -13,7 +13,7 @@ production:
     class: DataCleanupJob
     queue: maintenance
     schedule: at 3am every day
-  
+
   # You can keep these example jobs commented out for reference
   # periodic_cleanup:
   #   class: CleanSoftDeletedRecordsJob
@@ -24,3 +24,7 @@ production:
   #   command: "SoftDeletedRecord.due.delete_all"
   #   priority: 2
   #   schedule: at 5am every day
+
+# Same schedule locally, so scheduled standups and reminders can be tested
+# with bin/dev (which starts the worker).
+development: *recurring
