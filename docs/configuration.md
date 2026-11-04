@@ -50,7 +50,7 @@ In production, the app uses PostgreSQL with three databases: the main one, plus 
 
 The cache and queue databases also accept `CACHE_DB_*` and `QUEUE_DB_*` overrides. Anything you don't set falls back to the matching `DB_*` value.
 
-Development uses MySQL with two databases: the main one and `nerdbot_development_queue` for Solid Queue (there's no separate cache database). If you set `DATABASE_URL`, the queue database uses the same connection with a `_queue` suffix on the database name (or `nerdbot_development_queue` if the URL names no database). `QUEUE_DB_NAME` sets the queue database's name, and `QUEUE_DATABASE_URL` replaces its connection entirely. Test uses a single database and doesn't need a queue database.
+Development uses MySQL with two databases: the main one and `standupbot_development_queue` for Solid Queue (there's no separate cache database). If you set `DATABASE_URL`, the queue database uses the same connection with a `_queue` suffix on the database name (or `standupbot_development_queue` if the URL names no database). `QUEUE_DB_NAME` sets the queue database's name, and `QUEUE_DATABASE_URL` replaces its connection entirely. Test uses a single database and doesn't need a queue database.
 
 ### Operations
 

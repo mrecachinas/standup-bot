@@ -2,9 +2,9 @@ require "test_helper"
 
 class SlackAppManifestTest < ActiveSupport::TestCase
   test "builds Slack app manifest YAML with app routes and required scopes" do
-    manifest = YAML.safe_load(SlackAppManifest.new(app_url: "https://standup.example.com/", app_name: "Nerdbot").to_yaml)
+    manifest = YAML.safe_load(SlackAppManifest.new(app_url: "https://standup.example.com/", app_name: "Standupbot").to_yaml)
 
-    assert_equal "Nerdbot", manifest.dig("display_information", "name")
+    assert_equal "Standupbot", manifest.dig("display_information", "name")
     assert_equal "https://standup.example.com/slack/events",
       manifest.dig("settings", "event_subscriptions", "request_url")
     assert_equal [ "message.im" ], manifest.dig("settings", "event_subscriptions", "bot_events")

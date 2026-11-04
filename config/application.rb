@@ -12,7 +12,7 @@ require "rails/test_unit/railtie"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
-module Nerdbot
+module Standupbot
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.0
@@ -38,7 +38,7 @@ module Nerdbot
     # The Slack and JSON API endpoints remain API-only, but the console uses
     # cookie-backed sessions for browser authentication.
     config.middleware.use ActionDispatch::Cookies
-    config.middleware.use ActionDispatch::Session::CookieStore, key: "_nerdbot_session", same_site: :lax
+    config.middleware.use ActionDispatch::Session::CookieStore, key: "_standupbot_session", same_site: :lax
     config.middleware.use ActionDispatch::Flash
 
     # Configure Slack API credentials
