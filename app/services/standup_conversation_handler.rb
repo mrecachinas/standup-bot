@@ -2,6 +2,9 @@
 # (see StandupCommandHandler#direct_message), answers to the current question,
 # and edits to earlier answers.
 class StandupConversationHandler
+  # Slack's clock and ours can disagree by a little.
+  LEGACY_CLOCK_SKEW = 5.seconds
+
   def initialize(chat)
     @chat = chat
   end
@@ -12,11 +15,11 @@ class StandupConversationHandler
     text = StandupResponseService.normalize_answer_text(message.text)
     return if message.user_id.blank? || text.blank?
 
-    reply = StandupCommandHandler.new(chat: chat, user_id: message.user_id).direct_message(text)
+    reply = StandupCommandHandler.new(chat: chat, user_id: message.user_id).direct_message(text, message_id: message.message_id)
     return chat.send_reply(message.conversation, reply) if reply
 
     standup_response = StandupResponse.latest_pending_for(platform, message.user_id)
-    StandupResponseService.record_answer(standup_response, text) if standup_response
+    StandupResponseService.record_answer(standup_response, text, message_id: message.message_id) if standup_response
   end
 
   private
@@ -27,63 +30,67 @@ class StandupConversationHandler
     chat.key
   end
 
+  # Finds the answer recorded from the edited message and replaces it. Messages
+  # that were never recorded as answers (commands, chatter) are left alone.
   def handle_edit(message)
-    user_id = message.user_id
-    text = StandupResponseService.normalize_answer_text(message.text)
+    return if message.user_id.blank? || message.text.blank?
+    return if message.previous_text.present? && message.previous_text == message.text
 
-    pending_response = StandupResponse.latest_pending_for(platform, user_id)
-    if pending_response && pending_response.answers.present?
-      update_pending_response(pending_response, text)
+    standup_response, index = StandupResponse.find_answer_for_message(platform, message.user_id, message.message_id) ||
+      legacy_answer_for(message)
+
+    unless standup_response
+      Rails.logger.info "Edited message #{message.message_id.inspect} doesn't match a recorded answer, skipping"
       return
     end
 
-    completed_response = current_completed_response_for(user_id)
-    update_completed_response(completed_response, text) if completed_response
+    StandupResponseService.edit_answer(standup_response, index, message.text)
+    # Keeps a message ID stored by legacy_answer_for when the text didn't change.
+    standup_response.save! if standup_response.changed?
   end
 
-  def update_pending_response(standup_response, text)
-    return if text.blank?
+  # Answers recorded before message IDs were stored can only be found by the
+  # text they had before the edit. To keep unrelated chatter from overwriting
+  # an old answer, a candidate must belong to a run that had started by the
+  # time the edited message was sent, be recorded no earlier than that send
+  # time, and not be a "(skipped)" filler, since those can come from skipping a
+  # whole standup rather than from a message. Exactly one candidate across all
+  # runs may match. The match then stores the message ID so later edits of the
+  # same message find it directly.
+  def legacy_answer_for(message)
+    return if message.sent_at.blank?
 
-    standup_response.answers.last["answer"] = text
-    standup_response.answers.last["timestamp"] = Time.current
-    standup_response.save!
-  end
+    previous_answer = StandupResponseService.normalize_answer_text(message.previous_text).strip
+    return if previous_answer.blank?
 
-  def update_completed_response(standup_response, text)
-    return if text.blank?
+    matches = StandupResponse.editable_for(platform, message.user_id).flat_map do |standup_response|
+      next [] if standup_response.created_at > message.sent_at + LEGACY_CLOCK_SKEW
 
-    # Edit events don't say which answer changed, so match by text overlap.
-    edited = false
-
-    standup_response.answers.each_with_index do |answer, index|
-      if text.include?(answer["answer"]) || answer["answer"].include?(text)
-        standup_response.answers[index]["answer"] = text
-        standup_response.answers[index]["timestamp"] = Time.current
-        edited = true
-        break
+      Array(standup_response.answers).each_index.filter_map do |index|
+        [ standup_response, index ] if legacy_match?(standup_response.answers[index], previous_answer, message.sent_at)
       end
     end
-
-    unless edited
-      Rails.logger.warn "Could not match edited message to any answer for standup response #{standup_response.id}, skipping update"
+    unless matches.one?
+      Rails.logger.warn "Edited message matches #{matches.size} answers, skipping" if matches.many?
       return
     end
 
-    standup_response.save!
-    StandupResponseService.repost_response(standup_response)
+    standup_response, index = matches.first
+    standup_response.answers[index]["message_id"] = message.message_id if message.message_id.present?
+    [ standup_response, index ]
   end
 
-  def current_completed_response_for(user_id)
-    active_participants_for(user_id).filter_map do |participant|
-      StandupResponse
-        .where(platform_user_id: user_id, standup_id: participant.standup_id, status: "completed")
-        .for_standup_date(participant.standup_date_for(Time.current))
-        .order(created_at: :desc)
-        .first
-    end.max_by(&:created_at)
+  def legacy_match?(answer, previous_answer, sent_at)
+    return false if answer["message_id"].present? || answer["answer"] == StandupResponseService::SKIPPED_ANSWER
+    return false unless answer["answer"].to_s.strip == previous_answer
+
+    recorded_at = answer_time(answer)
+    recorded_at.present? && recorded_at >= sent_at - LEGACY_CLOCK_SKEW
   end
 
-  def active_participants_for(user_id)
-    StandupParticipant.in_active_standups(platform, user_id).where(active: true).includes(:standup)
+  def answer_time(answer)
+    Time.zone.parse(answer["timestamp"].to_s)
+  rescue ArgumentError
+    nil
   end
 end

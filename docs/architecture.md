@@ -149,7 +149,7 @@ Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custo
 | --- | --- | --- |
 | `SchedulingJob` | Every hour | Finds standups due in the next window and queues a `StandupMessageJob` for each participant at their local time |
 | `StandupMessageJob` | When queued | Opens the DM and sends the intro and first question |
-| `SlackEventProcessorJob` | On each Slack event | Handles DM commands and records answers, including edits to earlier answers |
+| `SlackEventProcessorJob` | On each Slack event | Handles DM commands and records answers. Each answer keeps the ID of the message it came from, so editing that message updates the right answer (and its channel post) |
 | `TeamsActivityProcessorJob` | On each Teams activity | The same for Teams, plus `standup` commands and card choices. It also caches the 1:1 conversation |
 | `StandupReminderJob` | Every 15 minutes | Reminds people who haven't finished, based on each standup's reminder settings |
 | `StandupCollectionJob` | On demand | Gathers completed responses into a report (for `/standup report` or the console) |

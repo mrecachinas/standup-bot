@@ -61,6 +61,17 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     assert_equal 1, @standup_response.answers.size
     assert_equal "(skipped)", @standup_response.answers.first["answer"]
     assert_equal @standup.questions.first, @standup_response.answers.first["question"]
+    assert_not @standup_response.answers.first.key?("message_id")
+  end
+
+  test "record_answer and skip_question keep the participant's message ID" do
+    @mock_slack_client.stubs(:send_message)
+
+    StandupResponseService.record_answer(@standup_response, "Shipped", message_id: "1700.1")
+    StandupResponseService.record_answer(@standup_response, "skip", message_id: "1700.2")
+
+    assert_equal [ [ "Shipped", "1700.1" ], [ "(skipped)", "1700.2" ] ],
+      @standup_response.answers.map { |answer| [ answer["answer"], answer["message_id"] ] }
   end
 
   test "record_answer completes the standup when all questions are answered" do
@@ -179,7 +190,7 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     StandupResponseService.repost_response(completed_response)
   end
 
-  test "repost_response handles empty answers" do
+  test "repost_response replaces a posted update with a skipped note when nothing is left to show" do
     # Create a response with only skipped answers
     completed_response = StandupResponse.new(
       id: 2,
@@ -208,10 +219,72 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
       { "name" => "Test User", "profile" => { "display_name" => "Test User" } }
     ).once
 
-    # With all skipped answers, there should be no update
-    # because post_individual_response will return early with no updates
-    # and repost_response will fall through to that method
+    # Retracted answers mustn't stay up in the channel.
+    @mock_slack_client.expects(:update_message).with(
+      @standup.platform_channel,
+      "1234567890.123456",
+      "*Test User* skipped *#{@standup.name}*",
+      [ { type: "section", text: { type: "mrkdwn", text: "*Test User* skipped *#{@standup.name}*" } } ],
+      attachments: []
+    ).returns({ "ok" => true })
+
     StandupResponseService.repost_response(completed_response)
+  end
+
+  test "repost_response doesn't post a new update when every answer is skipped" do
+    response = StandupResponse.new(standup_id: @standup.id, platform_user_id: "U12345", status: "completed",
+      answers: [ { "question" => "Q1", "answer" => "(skipped)", "timestamp" => Time.current } ])
+    response.stubs(:standup).returns(@standup)
+    @mock_slack_client.stubs(:get_user_info).returns({ "name" => "Test User" })
+    @mock_slack_client.expects(:send_message).never
+
+    StandupResponseService.repost_response(response)
+  end
+
+  def completed_response_for_edit!
+    participant = standup_participants(:one)
+    ChatPlatform::SlackAdapter.any_instance.stubs(:display_name_for).returns("John Doe")
+    StandupResponse.create!(
+      standup: participant.standup, platform_user_id: participant.platform_user_id, status: "completed",
+      standup_date: Date.current, platform_message_id: "post.1",
+      answers: [
+        { "question" => "Q1", "answer" => "Shipped", "timestamp" => 1.hour.ago, "message_id" => "100.1" },
+        { "question" => "Q2", "answer" => "Reviewing", "timestamp" => 1.hour.ago, "message_id" => "100.2" }
+      ]
+    )
+  end
+
+  test "edit_answer updates the channel post and saves the new answer" do
+    response = completed_response_for_edit!
+    ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
+      response.standup.platform_channel, "post.1",
+      display_name: "John Doe", standup_name: response.standup.name,
+      answers: [ { question: "Q1", answer: "Shipped" }, { question: "Q2", answer: "Pairing" } ]
+    )
+
+    assert StandupResponseService.edit_answer(response, 1, "Pairing")
+
+    assert_equal [ "Shipped", "Pairing" ], response.reload.answers.map { |answer| answer["answer"] }
+  end
+
+  test "edit_answer keeps the old answer when the channel update fails, so a retry can apply the edit" do
+    response = completed_response_for_edit!
+    ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update)
+      .raises(ChatPlatform::RateLimitedError.new("rate limited"))
+
+    assert_raises(ChatPlatform::RateLimitedError) do
+      StandupResponseService.edit_answer(response, 1, "skip")
+    end
+    assert_equal [ "Shipped", "Reviewing" ], response.reload.answers.map { |answer| answer["answer"] }
+
+    ChatPlatform::SlackAdapter.any_instance.expects(:update_standup_update).with(
+      response.standup.platform_channel, "post.1",
+      display_name: "John Doe", standup_name: response.standup.name,
+      answers: [ { question: "Q1", answer: "Shipped" } ]
+    )
+
+    assert StandupResponseService.edit_answer(response, 1, "skip")
+    assert_equal [ "Shipped", "(skipped)" ], response.reload.answers.map { |answer| answer["answer"] }
   end
 
   test "cancel_previous_pending_responses cancels old pending responses" do

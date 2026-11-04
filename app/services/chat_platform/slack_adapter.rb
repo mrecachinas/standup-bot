@@ -41,7 +41,7 @@ module ChatPlatform
         client.send_message(
           channel,
           standup_update_text(display_name, standup_name, answers),
-          section_blocks(standup_update_heading(display_name, standup_name)),
+          section_blocks(standup_update_heading(display_name, standup_name, answers)),
           attachments: answer_attachments(answers)
         )
       )
@@ -52,7 +52,7 @@ module ChatPlatform
         channel,
         message_id,
         standup_update_text(display_name, standup_name, answers),
-        section_blocks(standup_update_heading(display_name, standup_name)),
+        section_blocks(standup_update_heading(display_name, standup_name, answers)),
         attachments: answer_attachments(answers)
       )
     end

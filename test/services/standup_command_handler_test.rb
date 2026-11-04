@@ -128,9 +128,9 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
 
   test "direct_message skip moves on without its own reply" do
     response = StandupResponse.create!(standup: @participant.standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: Date.current)
-    StandupResponseService.expects(:skip_question).with(response)
+    StandupResponseService.expects(:skip_question).with(response, message_id: "1700.1")
 
-    assert @handler.direct_message("skip").none?
+    assert @handler.direct_message("skip", message_id: "1700.1").none?
   end
 
   test "skip offers to restart a single skipped standup" do

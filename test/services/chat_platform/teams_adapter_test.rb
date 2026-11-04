@@ -87,6 +87,12 @@ class ChatPlatform::TeamsAdapterTest < ActiveSupport::TestCase
     adapter.update_standup_update(TEAMS_CHANNEL, "7", display_name: "Tess", standup_name: "Daily", answers: [ { question: "Q1", answer: "A2" } ])
   end
 
+  test "edits a standup update to a skipped note when no answers are left" do
+    @connector.expects(:update_activity).with(has_entries(activity_id: "7", activity: has_entries(text: "**Tess** skipped **Daily**")))
+
+    adapter.update_standup_update(TEAMS_CHANNEL, "7", display_name: "Tess", standup_name: "Daily", answers: [])
+  end
+
   test "replies in an existing conversation using its service URL" do
     ChatConversation.remember!(platform: :teams, platform_user_id: TEAMS_USER_ID, conversation_id: "a:chat", service_url: "https://smba.trafficmanager.net/amer/")
     @connector.expects(:send_activity).with(has_entries(service_url: "https://smba.trafficmanager.net/amer/", conversation_id: "a:chat")).returns("x")
