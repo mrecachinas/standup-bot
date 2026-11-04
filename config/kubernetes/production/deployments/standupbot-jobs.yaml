@@ -42,11 +42,24 @@ spec:
           # args, not command, keeps the image's entrypoint, which runs
           # db:prepare before the worker starts.
           args: ["./bin/jobs"]
+          env:
+            # Touched while this pod's workers are registered and heartbeating
+            # (config/initializers/solid_queue_readiness.rb), so a rollout
+            # waits for the new pod to actually run jobs.
+            - name: SOLID_QUEUE_READY_FILE
+              value: /tmp/solid-queue.ready
           envFrom:
             - secretRef:
                 name: standupbot-secrets
             - configMapRef:
                 name: standupbot-config
+          readinessProbe:
+            exec:
+              # Ready while the file was touched in the last minute.
+              command: ["sh", "-c", "test -n \"$(find /tmp/solid-queue.ready -mmin -1 2>/dev/null)\""]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
           resources:
             requests:
               cpu: 250m

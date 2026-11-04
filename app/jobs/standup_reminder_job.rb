@@ -44,8 +44,10 @@ class StandupReminderJob < ApplicationJob
     false
   end
 
-  # The reminder is claimed before it's sent by moving last_reminder_at to now
-  # (only if nobody else has), so two runs or a retry can't both send it. The
+  # The reminder is claimed before it's sent by moving last_reminder_at to now,
+  # only if the run hasn't changed since it was read (no other claim, answer
+  # or prompt), so two runs or a retry can't both send it, and an answer
+  # arriving meanwhile cancels a reminder that would repeat a question. The
   # count is used up only once it's delivered: a claim left by a worker that
   # stopped mid-send just delays the next try by the reminder interval. A
   # failed send gives the claim back. One person's failure doesn't stop the
@@ -53,7 +55,8 @@ class StandupReminderJob < ApplicationJob
   def send_reminder(response)
     previous = response.last_reminder_at
     claimed = StandupResponse.pending
-      .where(id: response.id, reminder_count: response.reminder_count.to_i, last_reminder_at: previous)
+      .where(id: response.id, reminder_count: response.reminder_count.to_i, last_reminder_at: previous,
+        prompted_at: response.prompted_at, updated_at: response.updated_at)
       .update_all(last_reminder_at: Time.current)
     return unless claimed == 1
 

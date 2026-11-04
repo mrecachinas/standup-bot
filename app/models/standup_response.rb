@@ -57,6 +57,31 @@ class StandupResponse < ApplicationRecord
     (awaiting_sign_off.to_a + prompted_after.to_a).uniq.find { |response| response.answers.present? }
   end
 
+  # When the question the latest answer replies to was asked, or nil for
+  # answers saved before that was recorded.
+  def last_answer_asked_at
+    answer = Array(answers).last
+    value = answer && (answer["asked_at"] || answer[:asked_at])
+    Time.zone.parse(value.to_s) if value.present?
+  rescue ArgumentError
+    nil
+  end
+
+  # Whether a prompt (the next question or the sign-off) has reached the
+  # person since the latest answer's question was asked.
+  def prompted_since_last_answer?
+    asked_at = last_answer_asked_at
+    asked_at.present? && prompted_at.present? && prompted_at > asked_at
+  end
+
+  # Whether this pending run's next question should have gone out after the
+  # latest answer but didn't. Unknown (false) for answers saved before
+  # questions' send times were recorded.
+  def next_question_unsent?
+    status == "pending" && answers.present? && answers.size < standup.questions.size &&
+      last_answer_asked_at.present? && !prompted_since_last_answer?
+  end
+
   # Edits are only matched against this person's recent responses, newest
   # first. Plenty for real edits, and it keeps the lookup in Ruby so it works
   # the same on MySQL and PostgreSQL.

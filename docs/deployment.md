@@ -67,8 +67,9 @@ bin/kamal deploy
 
 | Manifest | Runs | Notes |
 | --- | --- | --- |
-| `deployments/standupbot-web.yaml` | Puma on port 3000 (`standupbot-web` Service) | An init container runs `db:prepare` and, optionally, `standups:import` from a `standup-configs` ConfigMap. A `preStop` sleep lets the Service stop routing to a pod before Puma drains. |
-| `deployments/standupbot-jobs.yaml` | `bin/jobs` | Also runs the recurring schedule, so there's no CronJob. Recurring runs are deduplicated across replicas. |
+| `deployments/standupbot-web.yaml` | Puma on port 3000 (`standupbot-web` Service) | The entrypoint runs `db:prepare` first. A `preStop` sleep lets the Service stop routing to a pod before Puma drains. |
+| `deployments/standupbot-jobs.yaml` | `bin/jobs` | Also runs the recurring schedule, so there's no CronJob. Recurring runs are deduplicated across replicas. Ready once its workers are registered and heartbeating. |
+| `jobs/standupbot-import-standups.yaml` | `standups:import` | Optional. Loads standups from a `standup-configs` ConfigMap. Run it once per deploy (delete the old Job first); running it from every pod could create the same standup twice. |
 | `deployments/standupbot-slack-socket-mode.yaml` | `bin/slack-socket-mode` | Socket Mode only. Ready only while connected to Slack. |
 | `policies/standupbot-pdb.yaml` | PodDisruptionBudgets | Keeps one of each through node drains. |
 

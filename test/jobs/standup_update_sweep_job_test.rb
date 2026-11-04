@@ -26,4 +26,23 @@ class StandupUpdateSweepJobTest < ActiveJob::TestCase
 
     assert_no_enqueued_jobs(only: StandupUpdateJob) { StandupUpdateSweepJob.perform_now }
   end
+
+  test "sends a next question that never went out after an answer was saved" do
+    asked_at = 1.hour.ago.change(usec: 0)
+    stuck = run!(status: "pending", prompted_at: asked_at, updated_at: 10.minutes.ago,
+      answers: [ { "question" => "Q1", "answer" => "A1", "asked_at" => asked_at.iso8601(6) } ])
+
+    assert_enqueued_with(job: StandupPromptJob, args: [ stuck, 1 ]) { StandupUpdateSweepJob.perform_now }
+  end
+
+  test "leaves pending runs whose next question went out, or with answers from before send times were recorded" do
+    asked_at = 1.hour.ago.change(usec: 0)
+    run!(status: "pending", prompted_at: 30.minutes.ago, updated_at: 10.minutes.ago,
+      answers: [ { "question" => "Q1", "answer" => "A1", "asked_at" => asked_at.iso8601(6) } ])
+    run!(status: "pending", updated_at: 10.minutes.ago, standup_date: Date.current - 1)
+    run!(status: "pending", prompted_at: asked_at, updated_at: 1.minute.ago, standup_date: Date.current - 2,
+      answers: [ { "question" => "Q1", "answer" => "A1", "asked_at" => asked_at.iso8601(6) } ])
+
+    assert_no_enqueued_jobs(only: StandupPromptJob) { StandupUpdateSweepJob.perform_now }
+  end
 end

@@ -1,0 +1,42 @@
+# Loads standups from the standup-configs ConfigMap. Optional; skip it if
+# standups are managed in the console. Run it once per deploy (a Job's spec
+# can't be changed, so delete the old one first), rather than from every web
+# pod: the importer matches standups by name, so two copies running at once
+# on a fresh database could each create the same standup.
+#
+#   kubectl delete job standupbot-import-standups --ignore-not-found
+#   kubectl apply -f jobs/standupbot-import-standups.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: standupbot-import-standups
+  labels:
+    app: standupbot
+    role: import
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: standupbot
+        role: import
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: import-standups
+          image: your-standupbot-image:tag
+          # args, not command, so the image's entrypoint (jemalloc) still runs.
+          # db:prepare first in case this runs before the web pods' entrypoint
+          # has migrated (migrations take a lock, so that's safe).
+          args: ["./bin/rails", "db:prepare", "standups:import"]
+          envFrom:
+            - secretRef:
+                name: standupbot-secrets
+          volumeMounts:
+            - name: standup-configs
+              mountPath: /rails/config/standups
+      volumes:
+        - name: standup-configs
+          configMap:
+            name: standup-configs

@@ -28,19 +28,6 @@ spec:
         role: web
     spec:
       terminationGracePeriodSeconds: 40
-      initContainers:
-        # Loads standups from the standup-configs ConfigMap. Optional; drop it
-        # if standups are managed in the console.
-        - name: import-standups
-          image: your-standupbot-image:tag
-          # args, not command, so the image's entrypoint (jemalloc) still runs.
-          args: ["./bin/rails", "db:prepare", "standups:import"]
-          envFrom:
-            - secretRef:
-                name: standupbot-secrets
-          volumeMounts:
-            - name: standup-configs
-              mountPath: /rails/config/standups
       containers:
         - name: web
           image: your-standupbot-image:tag
@@ -78,8 +65,3 @@ spec:
               memory: 512Mi
             limits:
               memory: 1Gi
-      volumes:
-        - name: standup-configs
-          configMap:
-            name: standup-configs
-            optional: true

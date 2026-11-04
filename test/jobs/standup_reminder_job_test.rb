@@ -131,4 +131,22 @@ class StandupReminderJobTest < ActiveJob::TestCase
       assert_equal 1, response.reload.reminder_count
     end
   end
+
+  test "an answer saved while the DM history is checked cancels the reminder" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      response = StandupResponse.create!(standup: @standup, platform_user_id: "URACE", status: "pending", answers: [],
+        created_at: 2.hours.ago, prompted_at: 2.hours.ago, dm_channel: "D9", standup_date: Date.current)
+      SlackDmBackfill.any_instance.expects(:call).with do
+        # Another worker records the answer and sends the next question meanwhile.
+        StandupResponse.find(response.id).update!(answers: [ { "question" => @standup.questions.first, "answer" => "Done" } ], prompted_at: Time.current)
+        true
+      end.returns(0)
+      @mock_slack_client.expects(:send_message).never
+
+      StandupReminderJob.perform_now
+
+      assert_equal 0, response.reload.reminder_count
+      assert_nil response.last_reminder_at
+    end
+  end
 end
