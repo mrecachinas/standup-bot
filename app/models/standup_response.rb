@@ -19,13 +19,14 @@ class StandupResponse < ApplicationRecord
   scope :completed, -> { where(status: "completed") }
   scope :for_standup_date, ->(date) { where(standup_date: normalize_date(date)) }
   scope :on_platform, ->(platform) { joins(:standup).where(standups: { platform: platform.to_s }) }
-  # Responses belonging to this person in standups they're still part of.
+  # Responses belonging to this person in standups they're still part of. A
+  # subquery rather than a join + DISTINCT, because PostgreSQL can't compare
+  # json columns (answers) for DISTINCT.
   scope :authorized_for, ->(platform, platform_user_id) {
-    joins(standup: :standup_participants)
+    joins(:standup)
       .where(standups: { platform: platform.to_s })
       .where(platform_user_id: platform_user_id)
-      .where(standup_participants: { platform_user_id: platform_user_id })
-      .distinct
+      .where(standup_id: StandupParticipant.where(platform_user_id: platform_user_id).select(:standup_id))
   }
 
   # The answer a DM reply should go to: this person's most recent unfinished standup.

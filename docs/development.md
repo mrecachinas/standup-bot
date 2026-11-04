@@ -14,13 +14,21 @@ You'll need Node (the version in [`.node-version`](../.node-version)) for the co
 
 ## Tests
 
-The Rails suite uses Minitest with Mocha and runs against MySQL.
+The Rails suite uses Minitest with Mocha and runs against MySQL by default.
 
 ```bash
 script/test                                   # start MySQL if needed, prepare the test DB, run everything
 script/test test/models/standup_test.rb       # run one file
 bin/rails test test/services/                 # or call Rails directly if the DB is already up
 ```
+
+Production runs PostgreSQL, so CI also runs the suite there. To do the same locally, point the test environment at a PostgreSQL server:
+
+```bash
+RAILS_ENV=test TEST_DB_ADAPTER=postgresql DB_HOST=localhost bin/rails db:test:prepare test
+```
+
+Keep `RAILS_ENV=test`. Without it, `db:test:prepare` connects to the development database (MySQL) first and fails if MySQL isn't running. `DB_USER` defaults to your login name and `DB_PORT` to 5432. On macOS, also set `PGGSSENCMODE=disable`, or the forked test workers can crash in libpq. Watch out for PostgreSQL-only differences, such as `DISTINCT` over tables with `json` columns (`standups`, `standup_responses`), which PostgreSQL can't compare. Use a subquery instead.
 
 The console has its own checks, run from `frontend/`:
 
