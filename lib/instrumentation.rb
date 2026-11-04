@@ -1,5 +1,6 @@
 require "json"
 require "active_support"
+require "active_support/core_ext/enumerable"
 require "active_support/core_ext/object/blank"
 require "active_support/core_ext/object/json"
 require "active_support/tagged_logging"
@@ -51,6 +52,24 @@ module Instrumentation
 
       ActiveSupport.event_reporter.set_context(context)
       ActiveSupport.error_reporter.set_context(**context)
+    end
+
+    # Sets context for the block only: when it exits, even by raising, both
+    # reporters' contexts go back to what they were, dropping anything set
+    # inside. Keys that weren't set before are left as nil in the error
+    # context, which has no way to remove one.
+    def with_context(**context)
+      event_context = ActiveSupport.event_reporter.context
+      error_context = ActiveSupport::ExecutionContext.to_h
+      begin
+        set_context(**context)
+        yield
+      ensure
+        ActiveSupport.event_reporter.clear_context
+        ActiveSupport.event_reporter.set_context(event_context)
+        added_keys = ActiveSupport::ExecutionContext.to_h.keys - error_context.keys
+        ActiveSupport::ExecutionContext.set(**added_keys.index_with(nil), **error_context)
+      end
     end
 
     def context

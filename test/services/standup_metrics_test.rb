@@ -97,6 +97,21 @@ class StandupMetricsTest < ActiveSupport::TestCase
     assert_equal "Faraday::TimeoutError", payload[:error_class]
   end
 
+  test "measure keeps an outcome the block sets unless it raises" do
+    tags = {}
+    StandupMetrics.measure("microsoft.api_request", tags) { tags[:outcome] = "error" }
+
+    assert_raises(Faraday::TimeoutError) do
+      StandupMetrics.measure("microsoft.api_request", tags) { raise Faraday::TimeoutError }
+    end
+
+    reported, raised = @subscriber.events.map { |event| event[:payload] }
+    assert_equal "error", reported[:outcome]
+    assert_nil reported[:error_class]
+    assert_equal "error", raised[:outcome]
+    assert_equal "Faraday::TimeoutError", raised[:error_class]
+  end
+
   test "measure doesn't record last seen" do
     cache = mock("cache")
     cache.expects(:write).never

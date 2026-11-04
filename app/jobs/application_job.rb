@@ -10,9 +10,6 @@ class ApplicationJob < ActiveJob::Base
     "#{platform}:#{platform_user_id}" if platform_user_id.present?
   end
 
-  # Every log line and error report from the job carries these. Rails reports
-  # errors that escape a job (after its retries) to Rails.error by itself.
-  before_perform { Instrumentation.set_context(job_class: self.class.name, job_id: job_id, queue: queue_name) }
   around_perform :track_and_notify_failures
 
   # Retry only transient/network errors, not permanent failures
@@ -27,6 +24,20 @@ class ApplicationJob < ActiveJob::Base
            wait: :polynomially_longer, attempts: 3
 
   discard_on ActiveRecord::RecordNotFound
+
+  # Every log line and error report from the job carries its job_class, job_id,
+  # and queue. A job run inside another (perform_now) puts the outer job's
+  # context back when it finishes. A failure that retry_on or discard_on
+  # doesn't handle is reported here, while the job's context is still set;
+  # Rails' own report of the same error after the job is then a no-op.
+  def perform_now
+    Instrumentation.with_context(job_class: self.class.name, job_id: job_id, queue: queue_name) do
+      super
+    rescue StandardError => exception
+      Rails.error.report(exception, handled: false, source: "application.active_job")
+      raise
+    end
+  end
 
   private
 

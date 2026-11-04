@@ -11,6 +11,42 @@ class ApplicationJobTest < ActiveJob::TestCase
     def perform = self.class.seen_context = Instrumentation.context.dup
   end
 
+  class RetryingJob < ApplicationJob
+    def perform = raise(Net::ReadTimeout)
+  end
+
+  class InnerJob < ApplicationJob
+    def perform(fail:) = fail ? raise(ArgumentError, "inner failed") : :done
+  end
+
+  class OuterJob < ApplicationJob
+    cattr_accessor :seen
+
+    def perform
+      self.class.seen = []
+      InnerJob.perform_now(fail: false)
+      record_context
+      begin
+        InnerJob.perform_now(fail: true)
+      rescue ArgumentError
+        record_context
+      end
+    end
+
+    private
+
+    def record_context
+      self.class.seen << [ Instrumentation.context.dup, ActiveSupport::ExecutionContext.to_h ]
+    end
+  end
+
+  class ErrorCollector
+    attr_reader :reports
+
+    def initialize = @reports = []
+    def report(error, **details) = @reports << details.merge(error: error)
+  end
+
   setup do
     @previous_admin_channel = ENV["ADMIN_CHANNEL"]
     ENV["ADMIN_CHANNEL"] = "C-ADMIN"
@@ -53,5 +89,48 @@ class ApplicationJobTest < ActiveJob::TestCase
     job.perform_now
 
     assert_equal({ job_class: "ApplicationJobTest::ContextJob", job_id: job.job_id, queue: "default" }, ContextJob.seen_context.slice(:job_class, :job_id, :queue))
+  end
+
+  test "a job run inside another puts the outer job's context back, even when it fails" do
+    ChatPlatform::SlackAdapter.any_instance.stubs(:send_message)
+    outer = OuterJob.new
+    outer.perform_now
+
+    expected = { job_class: "ApplicationJobTest::OuterJob", job_id: outer.job_id, queue: "default" }
+    assert_equal 2, OuterJob.seen.size
+    OuterJob.seen.each do |event_context, error_context|
+      assert_equal expected, event_context.slice(:job_class, :job_id, :queue)
+      assert_equal expected, error_context.slice(:job_class, :job_id, :queue)
+      assert_same outer, error_context[:job]
+    end
+  end
+
+  test "reports a failure with the failing job's context" do
+    ChatPlatform::SlackAdapter.any_instance.stubs(:send_message)
+    collector = ErrorCollector.new
+    Rails.error.subscribe(collector)
+    job = FailingJob.new
+
+    assert_raises(ArgumentError) { job.perform_now }
+
+    report = collector.reports.sole
+    assert_equal "bad input", report[:error].message
+    assert_equal false, report[:handled]
+    assert_equal "application.active_job", report[:source]
+    assert_equal({ job_class: "ApplicationJobTest::FailingJob", job_id: job.job_id, queue: "default" }, report[:context].slice(:job_class, :job_id, :queue))
+  ensure
+    Rails.error.unsubscribe(collector)
+  end
+
+  test "doesn't report errors that retry_on handles" do
+    collector = ErrorCollector.new
+    Rails.error.subscribe(collector)
+    ChatPlatform::SlackAdapter.any_instance.stubs(:send_message)
+
+    assert_enqueued_with(job: RetryingJob) { RetryingJob.perform_now }
+
+    assert_empty collector.reports
+  ensure
+    Rails.error.unsubscribe(collector)
   end
 end

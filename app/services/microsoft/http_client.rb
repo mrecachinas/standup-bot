@@ -62,11 +62,15 @@ module Microsoft
     attr_reader :scope, :token_provider
 
     # Times each attempt as a microsoft.api_request event, tagged with the
-    # host (Graph or the Bot Connector) and the response status.
+    # host (Graph or the Bot Connector) and the response status. Unsuccessful
+    # responses, including retried 401s and 429s, count as errors.
     def timed(method, url)
       tags = { method: method.to_s.upcase, host: (URI.parse(url.to_s).host rescue nil) }
       StandupMetrics.measure("microsoft.api_request", tags) do
-        yield.tap { |response| tags[:status] = response.status }
+        yield.tap do |response|
+          tags[:status] = response.status
+          tags[:outcome] = "error" unless response.success?
+        end
       end
     end
 
