@@ -9,7 +9,9 @@ if ARGV.delete("--rails-only")
 end
 
 frontend = File.expand_path("../frontend", __dir__)
-unless File.directory?(File.join(frontend, "node_modules"))
+# npm writes .package-lock.json on install; the directory alone can be an empty
+# mount point left by the devcontainer's node_modules volume.
+unless File.exist?(File.join(frontend, "node_modules", ".package-lock.json"))
   system("npm", "ci", chdir: frontend) || abort("npm ci failed in frontend/")
 end
 

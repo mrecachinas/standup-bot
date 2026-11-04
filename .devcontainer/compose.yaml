@@ -5,6 +5,8 @@ services:
       dockerfile: .devcontainer/Dockerfile
     volumes:
       - ..:/workspaces/standup-bot:cached
+      # Keep the container's Linux-only npm packages out of the host checkout.
+      - frontend-node-modules:/workspaces/standup-bot/frontend/node_modules
     # Keep the container running; VS Code attaches to it.
     command: sleep infinity
     depends_on:
@@ -25,4 +27,5 @@ services:
       retries: 10
 
 volumes:
+  frontend-node-modules:
   mysql-data:

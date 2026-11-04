@@ -39,6 +39,7 @@
     }
   },
 
-  // Installs gems and npm packages and prepares the database.
-  "postCreateCommand": "bin/setup --skip-server"
+  // Docker creates the node_modules volume as root; hand it to the container
+  // user, then install gems and npm packages and prepare the database.
+  "postCreateCommand": "sudo chown vscode:vscode frontend/node_modules && bin/setup --skip-server"
 }
