@@ -153,8 +153,13 @@ module ChatPlatform
       channel_reference(channel, name: name)
     end
 
+    # Only used to personalize a greeting, so a failed lookup falls back to
+    # "there" instead of keeping the standup from going out.
     def first_name_for(user_id)
       user_profile(user_id)&.first_name
+    rescue StandardError => e
+      Rails.logger.warn "Couldn't look up #{user_id} for a greeting: #{e.class} - #{e.message}"
+      nil
     end
 
     def standup_kickoff_parts(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, wrapped_up_previous: false)

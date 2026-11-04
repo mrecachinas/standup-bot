@@ -59,7 +59,7 @@ class StandupMessageJobTest < ActiveJob::TestCase
 
     _user_id, fallback, blocks = sent
     greeting = "Hi Michael! 👋 It's time for *Daily Standup* in <#C0123ABC>. Please share what you've been working on."
-    assert_equal "#{greeting}\n\n*What did you do yesterday?*", fallback
+    assert_equal "Starting *Daily Standup* · 3 questions · Reply `skip` to pass on one\n\n#{greeting}\n\n*What did you do yesterday?*", fallback
     assert_equal %w[context divider section section], blocks.map { |block| block[:type] }
     assert_equal "Starting *Daily Standup* · 3 questions · Reply `skip` to pass on one", blocks.first[:elements].first[:text]
     assert_equal greeting, blocks.third.dig(:text, :text)
