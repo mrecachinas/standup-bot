@@ -122,11 +122,11 @@ The console uses these too, and so can scripts with an access token, except wher
 
 ## Health checks
 
-These endpoints don't need authentication.
+`/up` and `/health` don't need authentication, so load balancers can use them. The others show how the installation is set up and used, so they need the `HEALTH_CHECK_TOKEN` as `Authorization: Bearer <token>`; without one set, they return `401`.
 
 | Path | Returns |
 | --- | --- |
 | `/up` | `200` if the app booted. Used by the Docker and Kamal health checks. |
 | `/health` | A basic `{ "status": "ok" }` response |
-| `/health/detailed` | Database, job queue, and Slack API checks, with an overall status |
-| `/health/metrics` | Operational metrics for dashboards |
+| `/health/detailed` | Database, job queue, Slack, and Teams checks, with an overall status. Needs `HEALTH_CHECK_TOKEN`. |
+| `/health/metrics` | Standup, participant, and response counts for dashboards. Needs `HEALTH_CHECK_TOKEN`. |

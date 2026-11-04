@@ -7,6 +7,7 @@ class SlackClient
   PRIVATE_CHANNELS_HIDDEN_NOTICE = "Private channels aren't listed because the Slack app doesn't have the " \
     "#{PRIVATE_CHANNEL_SCOPE} scope. Add it under OAuth & Permissions and reinstall the app to include them.".freeze
   PAGE_SIZE = 200
+  API_REQUEST_METRIC = "slack.api_request".freeze
 
   def initialize
     @client = Slack::Web::Client.new(token: slack_bot_token, default_max_retries: MAX_RATE_LIMIT_RETRIES)
@@ -96,7 +97,7 @@ class SlackClient
   rescue Slack::Web::Api::Errors::TooManyRequestsError
     raise
   rescue Faraday::Error => e
-    Rails.logger.error "Error fetching user info: #{e.class} - #{e.message}"
+    Rails.error.report(e, context: { slack_user_id: slack_id }, source: "slack_client.get_user_info")
     nil
   end
 
@@ -136,8 +137,10 @@ class SlackClient
   def channel_members(channel)
     channel_id = resolve_channel_id(channel)
     members = []
-    @client.conversations_members(channel: channel_id, limit: PAGE_SIZE) do |page|
-      members.concat(page.members)
+    StandupMetrics.measure(API_REQUEST_METRIC, operation: "channel_members") do
+      @client.conversations_members(channel: channel_id, limit: PAGE_SIZE) do |page|
+        members.concat(page.members)
+      end
     end
     members
   rescue Slack::Web::Api::Errors::ChannelNotFound
@@ -288,12 +291,14 @@ class SlackClient
     return name if name.match?(CHANNEL_ID_PATTERN)
 
     response, private_listed = with_private_channel_fallback do |types|
-      @client.conversations_id(
-        channel: "##{name}",
-        id_types: types,
-        id_exclude_archived: true,
-        id_limit: PAGE_SIZE
-      )
+      StandupMetrics.measure(API_REQUEST_METRIC, operation: "resolve_channel") do
+        @client.conversations_id(
+          channel: "##{name}",
+          id_types: types,
+          id_exclude_archived: true,
+          id_limit: PAGE_SIZE
+        )
+      end
     rescue Slack::Web::Api::Errors::ChannelNotFound
       nil
     end
@@ -330,7 +335,7 @@ class SlackClient
     retries = 0
 
     begin
-      yield
+      StandupMetrics.measure(API_REQUEST_METRIC, operation: operation) { yield }
     rescue Slack::Web::Api::Errors::TooManyRequestsError => e
       StandupMetrics.track("slack.rate_limited", operation: operation)
 

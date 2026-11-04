@@ -46,7 +46,7 @@ module SlackSocketMode
 
       SlackInbound.slash_command(command, user_id: payload["user_id"], text: payload["text"]).body
     rescue StandardError => error
-      @logger.error "Slack slash command #{payload['command']} failed: #{error.class}: #{error.message}"
+      Rails.error.report(error, severity: :error, context: { command: payload["command"] }, source: "slack_socket_mode.slash_command")
       { response_type: "ephemeral", text: "Sorry, something went wrong handling that command." }
     end
   end

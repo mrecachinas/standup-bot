@@ -73,7 +73,7 @@ class StandupUpdateJob < ApplicationJob
     chat = chat_for(standup)
     channel = chat.channel_mention(standup.platform_channel, name: standup.platform_channel_name)
     Rails.logger.warn "Couldn't post standup response #{standup_response.id} to #{standup.platform_channel}: #{error.class} - #{error.message}"
-    StandupMetrics.track("standup.post_failed", standup_id: standup.id, response_id: standup_response.id, error: error.message)
+    StandupMetrics.track("standup.post_failed", standup_id: standup.id, response_id: standup_response.id, error_class: error.class.name)
 
     lines = []
     lines << (standup.outro.presence || "Thanks! 🙌") if announce

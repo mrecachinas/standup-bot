@@ -41,7 +41,7 @@ class MicrosoftSignIn
   rescue Microsoft::IdTokenVerifier::Invalid => error
     raise Error, error.message
   rescue Microsoft::ApiError, Faraday::Error => error
-    Rails.logger.warn("Microsoft sign-in failed: #{error.class}: #{error.message}")
+    Rails.error.report(error, source: "microsoft_sign_in")
     raise Error, "Microsoft sign-in failed. Please try again."
   end
 

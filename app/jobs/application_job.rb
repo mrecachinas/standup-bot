@@ -10,6 +10,9 @@ class ApplicationJob < ActiveJob::Base
     "#{platform}:#{platform_user_id}" if platform_user_id.present?
   end
 
+  # Every log line and error report from the job carries these. Rails reports
+  # errors that escape a job (after its retries) to Rails.error by itself.
+  before_perform { Instrumentation.set_context(job_class: self.class.name, job_id: job_id, queue: queue_name) }
   around_perform :track_and_notify_failures
 
   # Retry only transient/network errors, not permanent failures
@@ -38,8 +41,7 @@ class ApplicationJob < ActiveJob::Base
       "job.failed",
       job_class: self.class.name,
       job_id: job_id,
-      error_class: exception.class.name,
-      error_message: exception.message
+      error_class: exception.class.name
     )
     notify_admin_channel(exception)
     raise
@@ -63,7 +65,7 @@ class ApplicationJob < ActiveJob::Base
       begin
         ChatPlatform.for(platform).send_message(channel, text)
       rescue StandardError => notification_error
-        Rails.logger.error "Failed to notify #{platform} admin channel: #{notification_error.class} - #{notification_error.message}"
+        Rails.error.report(notification_error, context: { platform: platform }, source: "application_job.notify_admin_channel")
       end
     end
   end
@@ -77,7 +79,7 @@ class ApplicationJob < ActiveJob::Base
     count = Rails.cache.increment(key, 1, expires_in: ADMIN_NOTICE_INTERVAL)
     count.present? && count > 1
   rescue StandardError => cache_error
-    Rails.logger.warn "Couldn't check admin notice throttling: #{cache_error.class} - #{cache_error.message}"
+    Rails.error.report(cache_error, source: "application_job.admin_notice_throttle")
     false
   end
 end

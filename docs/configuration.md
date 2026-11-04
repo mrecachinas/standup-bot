@@ -68,6 +68,17 @@ Development uses MySQL with two databases: the main one and `standupbot_developm
 | `SOLID_QUEUE_IN_PUMA` | _(unset)_ | Set it to run background jobs inside the web process instead of a separate worker |
 | `SOLID_QUEUE_SKIP_RECURRING` | _(unset)_ | Set it to `1` so the worker doesn't run the recurring schedule (scheduled standups, reminders, nightly cleanup). Useful locally to avoid DMing a real workspace. Works with `bin/jobs` and `SOLID_QUEUE_IN_PUMA`. |
 
+### Observability
+
+See [Observability](architecture.md#observability) for how logs, metrics, and error reports fit together.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LOG_FORMAT` | `json` | Production log format. `json` writes one JSON object per line with the request or job's context; `text` writes plain lines tagged with the request ID. |
+| `STATSD_ADDR` | _(unset)_ | `host:port` of a StatsD agent (such as the Datadog agent) to send metrics to. Unset, no metrics are sent. |
+| `STATSD_PREFIX` | `standup_bot` | Prefix for metric names |
+| `HEALTH_CHECK_TOKEN` | _(unset)_ | Bearer token for `/health/detailed` and `/health/metrics`. Unset, those endpoints return `401`. |
+
 ### Production web settings
 
 | Variable | Default | Description |

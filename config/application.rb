@@ -12,6 +12,10 @@ require "rails/test_unit/railtie"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
+# Logs, metrics, and error reporting. Loaded like a gem (not autoloaded), so
+# the environment files can use its log formatter.
+require_relative "../lib/instrumentation"
+
 module Standupbot
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
@@ -20,7 +24,7 @@ module Standupbot
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets puma tasks development_queue_database.rb])
+    config.autoload_lib(ignore: %w[assets puma tasks development_queue_database.rb instrumentation instrumentation.rb])
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -45,6 +49,12 @@ module Standupbot
     config.slack = config_for(:slack)
     config.teams = config_for(:teams)
     config.retention = config_for(:retention)
+
+    # Tags every log line and error report in a request with its request ID.
+    config.middleware.insert_after ActionDispatch::RequestId, Instrumentation::RequestContext
+
+    # Bearer token for /health/detailed and /health/metrics. Unset, they're off.
+    config.x.health_check_token = ENV["HEALTH_CHECK_TOKEN"].presence
 
     config.x.health_check_host_authorization_exclude = lambda do |request|
       request.path == "/up" || request.path == "/health" || request.path.start_with?("/health/")

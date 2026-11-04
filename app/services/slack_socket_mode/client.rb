@@ -45,7 +45,7 @@ module SlackSocketMode
           failures = session ? 0 : failures + 1
         rescue StandardError => error
           failures += 1
-          @logger.error "Slack Socket Mode connection failed: #{error.class}: #{error.message}"
+          Rails.error.report(error, severity: :error, source: "slack_socket_mode.connection")
         end
 
         wait(RECONNECT_DELAYS[[ failures - 1, RECONNECT_DELAYS.size - 1 ].min]) if failures.positive?
@@ -116,7 +116,7 @@ module SlackSocketMode
     rescue JSON::ParserError
       @logger.warn "Ignoring malformed Slack Socket Mode message"
     rescue StandardError => error
-      @logger.error "Slack Socket Mode envelope type=#{data['type']} failed: #{error.class}: #{error.message}"
+      Rails.error.report(error, severity: :error, context: { envelope_type: data["type"] }, source: "slack_socket_mode.envelope")
     end
 
     def dispatch(connection, envelope)

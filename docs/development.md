@@ -105,6 +105,7 @@ bin/rails standups:validate                   # check config/standups/*.yml
 | `frontend/` | The web console: React, TypeScript, and Primer React (see [`frontend/README.md`](../frontend/README.md)) |
 | `app/jobs/` | Scheduling, DMs, reminders, reports, and cleanup |
 | `app/services/` | Slack client, response handling, analytics, and audit logging |
+| `lib/instrumentation/` | JSON log formatter and the log and StatsD backends for `Rails.error` and `Rails.event` (see [Observability](architecture.md#observability)) |
 | `config/standups/` | YAML standup definitions |
 | `config/recurring.yml` | Recurring job schedule |
 

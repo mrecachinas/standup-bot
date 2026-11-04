@@ -12,7 +12,7 @@ if (ready_file = ENV["SOLID_QUEUE_READY_FILE"].presence)
         end
         FileUtils.touch(ready_file) if alive
       rescue StandardError => error
-        Rails.logger.warn "Solid Queue readiness check failed: #{error.class} - #{error.message}"
+        Rails.error.report(error, source: "solid_queue.readiness")
       ensure
         sleep 15
       end

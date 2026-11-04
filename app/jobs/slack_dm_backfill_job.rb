@@ -17,7 +17,7 @@ class SlackDmBackfillJob < ApplicationJob
     rescue Slack::Web::Api::Errors::TooManyRequestsError
       raise
     rescue StandardError => error
-      Rails.logger.error "Couldn't backfill DMs for standup response #{standup_response.id}: #{error.class} - #{error.message}"
+      Rails.error.report(error, severity: :error, context: { standup_response_id: standup_response.id }, source: "slack_dm_backfill_job")
     end
     Rails.logger.info "Backfilled #{handled} missed Slack DM(s)"
     StandupMetrics.track("slack.dm_backfill", handled: handled)

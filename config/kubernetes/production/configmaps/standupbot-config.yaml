@@ -11,3 +11,5 @@ data:
   SOLID_QUEUE_SHUTDOWN_TIMEOUT: "45"
   # First messages of a standup sent at once; see StandupMessageJob.
   STANDUP_SEND_CONCURRENCY: "2"
+  # Send metrics to a StatsD/Datadog agent, e.g. the node's agent.
+  # STATSD_ADDR: "datadog-agent.monitoring.svc:8125"
