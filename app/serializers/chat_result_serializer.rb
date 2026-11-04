@@ -25,7 +25,16 @@ class ChatResultSerializer
   def metadata
     return if @result.metadata.blank?
 
-    @result.metadata.to_h.map { |key, value| { key: key.to_s, label: key.to_s.humanize, value: value } }
+    @result.metadata.to_h.map { |key, value| { key: key.to_s, label: metadata_label(key), value: value } }
+  end
+
+  # "team_id" is "Team ID", not "Team" (which would repeat the team name's label).
+  def metadata_label(key)
+    key = key.to_s
+    return "URL" if key == "url"
+    return "#{key.delete_suffix('_id').humanize} ID" if key.end_with?("_id")
+
+    key.humanize
   end
 
   def record_json(record)

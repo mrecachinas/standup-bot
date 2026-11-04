@@ -54,6 +54,22 @@ if (!("popover" in HTMLElement.prototype)) {
   proto.togglePopover = () => false;
 }
 
+// Primer's Autocomplete announces results through a <live-region> element,
+// which the Node build Vitest loads doesn't register with jsdom.
+if (!customElements.get("live-region")) {
+  customElements.define(
+    "live-region",
+    class extends HTMLElement {
+      announce() {
+        return { cancel() {} };
+      }
+      announceFromElement() {
+        return { cancel() {} };
+      }
+    },
+  );
+}
+
 afterEach(() => {
   cleanup();
   window.localStorage.clear();

@@ -74,7 +74,8 @@ describe("IntegrationsPage", () => {
   it("searches channels and people", async () => {
     const user = userEvent.setup();
     const fetchMock = mockFetch(userBootstrap(), (url) => {
-      if (url === "/api/integrations?platform=slack&channel_query=eng&discover=channels") return jsonResponse(integrationsFixture({ channel_query: "eng", channel_result: channelResult() }));
+      if (url === "/api/integrations?platform=slack&channel_query=eng&discover=channels")
+        return jsonResponse(integrationsFixture({ channel_query: "eng", channel_result: channelResult({ action: "Private channels aren't listed because the Slack app doesn't have the groups:read scope." }) }));
       if (url === "/api/integrations?platform=slack&discover=users") return jsonResponse(integrationsFixture({ user_result: userResult() }));
       if (url === "/api/integrations") return jsonResponse(integrationsFixture());
       return undefined;
@@ -88,6 +89,7 @@ describe("IntegrationsPage", () => {
     const channels = await screen.findByRole("list", { name: "Channel results" });
     expect(within(channels).getByText("eng-standup")).toBeInTheDocument();
     expect(within(channels).queryByRole("button")).toBeNull();
+    expect(screen.getByText("Private channels aren't listed because the Slack app doesn't have the groups:read scope.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Find users" }));
     const people = await screen.findByRole("list", { name: "People results" });

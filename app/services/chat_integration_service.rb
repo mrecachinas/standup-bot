@@ -72,9 +72,11 @@ class ChatIntegrationService
   def discover_channels(query: nil, limit: DEFAULT_LIMIT, include_private: true)
     return missing_api_config_result if missing_api_config_result
 
-    records = client.list_channels(query: query, limit: normalized_limit(limit))
+    channels = client.list_channels(query: query, limit: normalized_limit(limit), include_private: include_private)
+    notice = channels.notice if channels.respond_to?(:notice)
+    records = Array(channels).to_a
     records = records.reject { |record| record["is_private"] } unless include_private
-    Result.new(status: "ok", records: records, message: "Found #{records.size} #{label} channel(s).")
+    Result.new(status: "ok", records: records, message: "Found #{records.size} #{label} channel(s).", action: notice)
   rescue StandardError => error
     failure_result(error, "discover #{label} channels")
   end

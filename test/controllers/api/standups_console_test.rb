@@ -88,7 +88,7 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal 3, body.dig("message_preview", "question_count")
     assert_equal "9:30 AM", body.dig("message_preview", "time")
     assert_includes body.dig("message_preview", "hint"), "Slack DM"
-    assert_equal "prefixed_text", body.dig("channel", "input")
+    assert_equal "search", body.dig("channel", "input")
     assert_equal "slack", body.dig("platform", "key")
     assert_includes body["platform_options"].map { |option| option["key"] }, "slack"
     assert body["platform_options"].all? { |option| option.key?("label") && option.key?("icon") }
@@ -895,17 +895,17 @@ class Api::TeamsStandupsConsoleTest < ActionDispatch::IntegrationTest
   test "channel options list Teams channels, private ones only for admins" do
     TeamsIntegrationService.any_instance.unstub(:discover_channels)
     TeamsIntegrationService.any_instance.expects(:discover_channels)
-      .with(limit: ChatIntegrationService::MAX_LIMIT, include_private: false)
+      .with(query: nil, limit: ChatIntegrationService::MAX_LIMIT, include_private: false)
       .returns(ChatIntegrationService::Result.new(status: "ok", records: [ { "id" => TEAMS_CHANNEL, "label" => "Engineering › Standup" } ], message: "Found 1."))
     sign_in(@manager, "manager-access-token")
 
     get channel_options_api_standups_path(platform: "teams"), as: :json
 
     assert_response :success
-    assert_equal({ "platform" => "teams", "records" => [ { "id" => TEAMS_CHANNEL, "label" => "Engineering › Standup" } ], "success" => true, "message" => "Found 1." }, response.parsed_body)
+    assert_equal({ "platform" => "teams", "records" => [ { "id" => TEAMS_CHANNEL, "label" => "Engineering › Standup" } ], "success" => true, "message" => "Found 1.", "action" => nil }, response.parsed_body)
 
     TeamsIntegrationService.any_instance.expects(:discover_channels)
-      .with(limit: ChatIntegrationService::MAX_LIMIT, include_private: true)
+      .with(query: nil, limit: ChatIntegrationService::MAX_LIMIT, include_private: true)
       .returns(ChatIntegrationService::Result.new(status: "ok", records: [], message: "Found 0."))
     sign_in(users(:admin), "admin-access-token")
 
@@ -925,11 +925,61 @@ class Api::TeamsStandupsConsoleTest < ActionDispatch::IntegrationTest
   test "an admin's token can list channel options including private ones" do
     TeamsIntegrationService.any_instance.unstub(:discover_channels)
     TeamsIntegrationService.any_instance.expects(:discover_channels)
-      .with(limit: ChatIntegrationService::MAX_LIMIT, include_private: true)
+      .with(query: nil, limit: ChatIntegrationService::MAX_LIMIT, include_private: true)
       .returns(ChatIntegrationService::Result.new(status: "ok", records: [], message: "Found 0."))
 
     get channel_options_api_standups_path(platform: "teams"), headers: token_headers, as: :json
 
     assert_response :success
+  end
+
+  test "channel options search Slack channels by name for the picker" do
+    SlackIntegrationService.any_instance.expects(:discover_channels)
+      .with(query: "standup", limit: ChatIntegrationService::MAX_LIMIT, include_private: false)
+      .returns(ChatIntegrationService::Result.new(
+        status: "ok",
+        records: [ { "id" => "C0STANDUP", "name" => "standup-bot-test", "label" => "#standup-bot-test", "is_private" => false, "is_member" => true, "num_members" => 2 } ],
+        message: "Found 1 Slack channel(s)."
+      ))
+    sign_in(@manager, "manager-access-token")
+
+    get channel_options_api_standups_path, params: { platform: "slack", query: "#standup" }
+
+    assert_response :success
+    assert_equal(
+      {
+        "platform" => "slack",
+        "records" => [ { "id" => "C0STANDUP", "name" => "standup-bot-test", "label" => "#standup-bot-test", "is_private" => false, "is_member" => true } ],
+        "success" => true,
+        "message" => "Found 1 Slack channel(s).",
+        "action" => nil
+      },
+      response.parsed_body
+    )
+  end
+
+  test "creating a Slack standup stores the picked channel's ID and name" do
+    sign_in(@manager, "manager-access-token")
+
+    post api_standups_path, params: {
+      standup: {
+        name: "Picked Channel",
+        platform: "slack",
+        platform_channel: "C0STANDUP",
+        platform_channel_name: "standup-bot-test",
+        question_rows: [ "What changed?" ],
+        schedule_type: "weekly",
+        schedule_days: [ "1" ],
+        send_time: "09:15",
+        respect_timezone: "true",
+        active: "true"
+      }
+    }, as: :json
+
+    assert_response :created
+    standup = Standup.order(:id).last
+    assert_equal "C0STANDUP", standup.platform_channel
+    assert_equal "standup-bot-test", standup.platform_channel_name
+    assert_equal "#standup-bot-test", standup.channel_reference
   end
 end

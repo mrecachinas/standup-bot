@@ -48,7 +48,7 @@ test.describe("as a standup manager", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Create a standup" })).toBeVisible();
 
     await page.getByRole("textbox", { name: "Name" }).fill(name);
-    await page.getByRole("textbox", { name: "Post summaries to" }).fill("e2e-standup");
+    await page.getByRole("combobox", { name: "Post summaries to" }).fill("e2e-standup");
     await page.getByRole("button", { name: "Create standup" }).click();
 
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
@@ -66,6 +66,50 @@ test.describe("as a standup manager", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: renamed })).toBeVisible();
     await expect(page.getByText(`${renamed} was updated.`)).toBeVisible();
+
+    checkErrors();
+  });
+
+  test("picks a Slack channel by searching, and keeps it when editing", async ({ page }, testInfo) => {
+    const checkErrors = watchForErrors(page);
+    const name = uniqueName(testInfo, "E2E channel picker");
+    const queries: string[] = [];
+    // Slack isn't connected in e2e, so answer the channel search here.
+    await page.route("**/api/standups/channel_options?*", async (route) => {
+      const url = new URL(route.request().url());
+      queries.push(url.searchParams.get("query") ?? "");
+      await route.fulfill({
+        json: {
+          platform: url.searchParams.get("platform"),
+          records: [
+            { id: "C0STANDUP", name: "standup-bot-test", label: "#standup-bot-test", is_private: false, is_member: true },
+            { id: "C0STANDUP2", name: "standup-leads", label: "#standup-leads", is_private: true, is_member: false },
+          ],
+          success: true,
+          message: "Found 2 Slack channel(s).",
+          action: null,
+        },
+      });
+    });
+
+    await page.goto("/manager/standups/new");
+    await page.getByRole("textbox", { name: "Name" }).fill(name);
+    const channel = page.getByRole("combobox", { name: "Post summaries to" });
+    await channel.pressSequentially("standup");
+    await expect(page.getByRole("option", { name: /standup-bot-test/ })).toBeVisible();
+    await expect(page.getByRole("option", { name: /standup-leads/ })).toContainText("bot not invited");
+    expect(queries).toContain("standup");
+    await page.screenshot({ path: testInfo.outputPath("channel-picker.png") });
+
+    await page.getByRole("option", { name: /standup-bot-test/ }).click();
+    await expect(channel).toHaveValue("standup-bot-test");
+    await expect(page.getByText("Linked to #standup-bot-test (C0STANDUP).")).toBeVisible();
+    await page.getByRole("button", { name: "Create standup" }).click();
+    await expect(page.getByText(`${name} was created.`)).toBeVisible();
+
+    await page.getByRole("navigation", { name: `${name} sections` }).getByRole("link", { name: "Settings" }).click();
+    await expect(page.getByRole("combobox", { name: "Post summaries to" })).toHaveValue("standup-bot-test");
+    await expect(page.getByText("Linked to #standup-bot-test (C0STANDUP).")).toBeVisible();
 
     checkErrors();
   });
@@ -94,7 +138,7 @@ test.describe("as a standup manager", () => {
 
   test("shows validation errors on the standup form", async ({ page }) => {
     await page.goto("/manager/standups/new");
-    await page.getByRole("textbox", { name: "Post summaries to" }).fill("e2e-standup");
+    await page.getByRole("combobox", { name: "Post summaries to" }).fill("e2e-standup");
     await page.getByRole("button", { name: "Create standup" }).click();
 
     await expect(page.getByText(/Name can't be blank/i).first()).toBeVisible();
@@ -107,7 +151,7 @@ test.describe("as a standup manager", () => {
 
     await page.goto("/manager/standups/new");
     await page.getByRole("textbox", { name: "Name" }).fill(name);
-    await page.getByRole("textbox", { name: "Post summaries to" }).fill("e2e-roster");
+    await page.getByRole("combobox", { name: "Post summaries to" }).fill("e2e-roster");
     await page.getByRole("button", { name: "Create standup" }).click();
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
 

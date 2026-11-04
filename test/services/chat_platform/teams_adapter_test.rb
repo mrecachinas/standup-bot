@@ -149,8 +149,8 @@ class ChatPlatform::TeamsAdapterTest < ActiveSupport::TestCase
   end
 
   test "lists channels as TEAM_ID|CHANNEL_ID with readable labels" do
-    @graph.expects(:teams).returns([ { "id" => TEAMS_TEAM_ID, "displayName" => "Engineering" } ])
-    @graph.expects(:channels).with(TEAMS_TEAM_ID).returns([
+    @graph.stubs(:teams).returns([ { "id" => TEAMS_TEAM_ID, "displayName" => "Engineering" } ])
+    @graph.stubs(:channels).with(TEAMS_TEAM_ID).returns([
       { "id" => "19:standup@thread.tacv2", "displayName" => "Standup", "membershipType" => "standard" },
       { "id" => "19:secret@thread.tacv2", "displayName" => "Secret", "membershipType" => "private" }
     ])
@@ -159,6 +159,7 @@ class ChatPlatform::TeamsAdapterTest < ActiveSupport::TestCase
 
     assert_equal [ TEAMS_CHANNEL ], records.map { |record| record["id"] }
     assert_equal "Engineering › Standup", records.first["label"]
+    assert_equal [ TEAMS_CHANNEL ], adapter.list_channels(include_private: false).map { |record| record["id"] }
   end
 
   test "channel members come back as importable profiles" do

@@ -37,10 +37,24 @@ export function DiscoveryResults({ result, emptyMessage, label, renderAction }: 
   }
 
   const records = result.records ?? [];
-  if (records.length === 0) return <PanelEmptyText>{emptyMessage}</PanelEmptyText>;
+  // e.g. private Slack channels left out because the app lacks a scope.
+  const note = result.action && (
+    <div className={styles.resultBanner}>
+      <Banner variant="info" title="Some results are hidden" hideTitle description={result.action} />
+    </div>
+  );
+  if (records.length === 0)
+    return (
+      <>
+        {note}
+        <PanelEmptyText>{emptyMessage}</PanelEmptyText>
+      </>
+    );
 
   return (
-    <PanelList label={label}>
+    <>
+      {note}
+      <PanelList label={label}>
       {records.map((record) => (
         <PanelListItem
           key={record.id}
@@ -50,6 +64,7 @@ export function DiscoveryResults({ result, emptyMessage, label, renderAction }: 
           trailing={renderAction?.(record)}
         />
       ))}
-    </PanelList>
+      </PanelList>
+    </>
   );
 }

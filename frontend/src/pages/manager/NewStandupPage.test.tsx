@@ -44,7 +44,7 @@ describe("NewStandupPage", () => {
     expect(screen.getByRole("link", { name: "start from scratch" })).toHaveAttribute("href", "/manager/standups/new?template=blank&platform=slack");
 
     expect(screen.getByRole("button", { name: "Slack" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByLabelText(/Post summaries to/)).toHaveAttribute("placeholder", "eng-standup");
+    expect(screen.getByLabelText(/Post summaries to/)).toHaveAttribute("placeholder", "Search channels or type a name");
     expect(screen.getByText("Weekdays at 9:30 AM, in each person's local time")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Monday" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sunday" })).not.toBeChecked();
@@ -112,6 +112,7 @@ describe("NewStandupPage", () => {
         name: "Platform daily",
         platform: "slack",
         platform_channel: "platform",
+        platform_channel_name: null,
         intro: "",
         outro: "",
         reminder_enabled: true,
@@ -297,5 +298,103 @@ describe("NewStandupPage", () => {
       { id: null, platform_user_id: "U9GRACE", original_platform_user_id: "", display_name: "Grace Hopper", cached_timezone: "America/New_York", active: true, _destroy: false },
     ]);
     expect(body.standup.participant_handles).toBe("U777");
+  });
+
+  it("searches Slack channels and saves the picked channel's ID and name", async () => {
+    const user = userEvent.setup();
+    const fetchMock = setup((url, init) => {
+      if (url.startsWith("/api/standups/channel_options?")) {
+        return jsonResponse({
+          platform: "slack",
+          records: [
+            { id: "C0STANDUP", name: "standup-bot-test", label: "#standup-bot-test", is_private: false, is_member: true },
+            { id: "C0SECRET", name: "standup-secret", label: "#standup-secret", is_private: true, is_member: false },
+          ],
+          success: true,
+          message: "Found 2 Slack channel(s).",
+          action: null,
+        });
+      }
+      if (url === "/api/standups" && init.method === "POST") return jsonResponse({ errors: ["Name can't be blank"], field_errors: { name: ["can't be blank"] } }, 422);
+      return undefined;
+    });
+    renderApp("/manager/standups/new");
+
+    const input = await screen.findByRole("combobox", { name: /Post summaries to/ });
+    expect(urls(fetchMock).some((url) => url.startsWith("/api/standups/channel_options"))).toBe(false);
+    await user.type(input, "#standup");
+    const option = await screen.findByRole("option", { name: /standup-bot-test/ });
+    expect(urls(fetchMock)).toContain("/api/standups/channel_options?platform=slack&query=standup");
+    expect(screen.getByRole("option", { name: /standup-secret.*private · bot not invited/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /standup-bot-test/ })).not.toHaveTextContent("private");
+    await user.click(option);
+
+    expect(input).toHaveValue("standup-bot-test");
+    expect(screen.getByText("C0STANDUP", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(/Linked to/)).toHaveTextContent("Linked to #standup-bot-test (C0STANDUP).");
+
+    await user.click(screen.getByRole("button", { name: "Create standup" }));
+    await screen.findByText("1 error prevented saving");
+    const [body] = bodiesFor(fetchMock, "/api/standups");
+    expect(body.standup).toMatchObject({ platform_channel: "C0STANDUP", platform_channel_name: "standup-bot-test" });
+  });
+
+  it("explains why private channels are missing and keeps a typed name", async () => {
+    const user = userEvent.setup();
+    const fetchMock = setup((url, init) => {
+      if (url.startsWith("/api/standups/channel_options?")) {
+        return jsonResponse({
+          platform: "slack",
+          records: [],
+          success: true,
+          message: "Found 0 Slack channel(s).",
+          action: "Private channels aren't listed because the Slack app doesn't have the groups:read scope.",
+        });
+      }
+      if (url === "/api/standups" && init.method === "POST") return jsonResponse({ errors: ["Name can't be blank"], field_errors: { name: ["can't be blank"] } }, 422);
+      return undefined;
+    });
+    renderApp("/manager/standups/new");
+
+    await user.type(await screen.findByRole("combobox", { name: /Post summaries to/ }), "secret-team");
+    expect(await screen.findByText(/doesn't have the groups:read scope/)).toBeInTheDocument();
+    expect(screen.getByText("No channels matched. The typed name will be used.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Create standup" }));
+    await screen.findByText("1 error prevented saving");
+    const [body] = bodiesFor(fetchMock, "/api/standups");
+    expect(body.standup).toMatchObject({ platform_channel: "secret-team", platform_channel_name: null });
+  });
+
+  it("hides the last search's channels while a new search loads", async () => {
+    const user = userEvent.setup();
+    let finishSecondSearch: (response: Response) => void = () => {};
+    const channels = (records: { id: string; name: string }[]) =>
+      jsonResponse({
+        platform: "slack",
+        records: records.map((record) => ({ ...record, label: `#${record.name}`, is_private: false, is_member: true })),
+        success: true,
+        message: `Found ${records.length} Slack channel(s).`,
+        action: null,
+      });
+    const fetchMock = setup((url) => {
+      if (url === "/api/standups/channel_options?platform=slack&query=eng") return channels([{ id: "C0ENG", name: "eng" }]);
+      if (url === "/api/standups/channel_options?platform=slack&query=engx") return new Promise<Response>((resolve) => (finishSecondSearch = resolve));
+      return undefined;
+    });
+    renderApp("/manager/standups/new");
+
+    const input = await screen.findByRole("combobox", { name: /Post summaries to/ });
+    await user.type(input, "eng");
+    expect(await screen.findByRole("option", { name: /^eng/ })).toBeInTheDocument();
+
+    await user.type(input, "x");
+    await waitFor(() => expect(screen.queryByRole("option", { name: /^eng/ })).toBeNull());
+    await waitFor(() => expect(urls(fetchMock)).toContain("/api/standups/channel_options?platform=slack&query=engx"));
+    expect(screen.queryByRole("option", { name: /^eng/ })).toBeNull();
+
+    finishSecondSearch(channels([{ id: "C0ENGX", name: "engx-team" }]));
+    expect(await screen.findByRole("option", { name: /engx-team/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^eng(?!x)/ })).toBeNull();
   });
 });
