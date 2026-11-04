@@ -1,0 +1,44 @@
+// For format details, see https://containers.dev/implementors/json_reference/.
+{
+  "name": "standup-bot",
+  "dockerComposeFile": "compose.yaml",
+  "service": "rails-app",
+  "workspaceFolder": "/workspaces/standup-bot",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Keep in sync with .node-version
+    "ghcr.io/devcontainers/features/node:1": { "version": "26" },
+    "ghcr.io/rails/devcontainer/features/mysql-client:1": {},
+    // libpq for the pg gem, which production uses
+    "ghcr.io/rails/devcontainer/features/postgres-client:1": {}
+  },
+
+  "containerEnv": {
+    "DB_HOST": "mysql",
+    "DB_PORT": "3306",
+    "DB_USER": "root",
+    // Stop bundle install from deleting other platforms' gems from vendor/cache
+    "BUNDLE_NO_PRUNE": "true"
+  },
+
+  "forwardPorts": [5173, 3000],
+  "portsAttributes": {
+    "5173": { "label": "Console (Vite)", "onAutoForward": "openBrowser" },
+    "3000": { "label": "Rails" },
+    "3100": { "label": "Rails (e2e)", "onAutoForward": "silent" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Shopify.ruby-lsp",
+        "oxc.oxc-vscode",
+        "ms-playwright.playwright"
+      ]
+    }
+  },
+
+  // Installs gems and npm packages and prepares the database.
+  "postCreateCommand": "bin/setup --skip-server"
+}
