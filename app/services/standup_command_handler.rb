@@ -226,9 +226,16 @@ class StandupCommandHandler
     standup_date = parse_date(date)
     return Reply.text("That option isn't available anymore.") unless KICKOFF_CHOICES.key?(choice) && standup_date
 
-    with_selected_participant(standup_id) do |standup, _participant|
+    with_selected_participant(standup_id) do |standup, participant|
       response = StandupResponse.find_by(platform_user_id: user_id, standup_id: standup.id, standup_date: standup_date)
-      choice == "skip" ? skip_run(standup, response) : out_of_office(choice.delete_prefix("away_").to_i)
+      # A menu from an earlier run (or one that's gone) doesn't act on today's.
+      if response.nil? || standup_date != current_standup_date(participant)
+        Reply.text("That #{fmt.bold(standup.name)} has already moved on, so I left things as they are.")
+      elsif choice == "skip"
+        skip_run(standup, response)
+      else
+        out_of_office(choice.delete_prefix("away_").to_i)
+      end
     end
   end
 
@@ -370,10 +377,12 @@ class StandupCommandHandler
 
   # The person's own timezone (as their standups see it), so dates in replies
   # and away periods follow their calendar rather than UTC's.
+  # The person's own timezone (even for standups that run on UTC), so dates
+  # in replies and away periods follow their calendar.
   def user_time_zone
     @user_time_zone ||= begin
       participant = active_participants.first || StandupParticipant.on_platform(platform).find_by(platform_user_id: user_id)
-      participant&.standup_time_zone || Time.zone
+      participant&.time_zone || Time.zone
     end
   end
 
@@ -381,16 +390,19 @@ class StandupCommandHandler
     Time.current.in_time_zone(user_time_zone).to_date
   end
 
-  # Deactivates these rows until return_date and reactivates them at the start
-  # of that day in the person's timezone, before that day's standups go out.
+  # Deactivates these rows for `days` days starting today, and returns the day
+  # they're back. vacation_until is the last day away, as in the console ("no
+  # prompts through this date"), and the rows are reactivated at the start of
+  # the next day in the person's timezone, before that day's standups go out.
   def mark_away(participants, days)
-    return_date = user_today + days.days
+    return_date = user_today + [ days, 1 ].max.days
+    last_day_away = return_date - 1.day
     participant_ids = participants.map(&:id)
-    StandupParticipant.where(id: participant_ids).update_all(active: false, vacation_until: return_date)
+    StandupParticipant.where(id: participant_ids).update_all(active: false, vacation_until: last_day_away)
     # Reactivate exactly these rows, not ones the person paused some other way.
     ParticipantReactivationJob
       .set(wait_until: return_date.in_time_zone(user_time_zone))
-      .perform_later(user_id, participant_ids, platform.to_s, return_date.iso8601)
+      .perform_later(user_id, participant_ids, platform.to_s, last_day_away.iso8601)
     return_date
   end
 

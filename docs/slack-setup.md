@@ -165,7 +165,7 @@ Participants can also type these in their DM with the bot:
 | --- | --- |
 | `skip` | Skip the current question |
 | `cancel` | Cancel the current standup |
-| `away [days]` | Mark yourself away for a number of days (7 by default), counted from today in your timezone |
+| `away [days]` | Mark yourself away for a number of days (7 by default), starting today in your timezone. Your standups resume the day after, and the console shows the last day you're away. |
 | `back` | Come back from being away |
 | `report` | Get a standup report |
 | `help` | List the commands |

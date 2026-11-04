@@ -90,11 +90,12 @@ class StandupResponseHistory
     end
 
     # When the last answer came in for a finished run; otherwise when the run
-    # started. The row itself is created when the prompt goes out.
+    # started. The row itself is created when the prompt goes out. Uses all of
+    # the response's answers, not just the ones a question filter shows.
     def submitted_at
       return response&.created_at unless answered?
 
-      answers.filter_map(&:timestamp_time).max || response.created_at
+      all_answers.filter_map(&:timestamp_time).max || response.created_at
     end
 
     def updated_at
@@ -104,7 +105,18 @@ class StandupResponseHistory
     # Answering each question updates the row too, so only an answer edited
     # after the run was finished counts.
     def updated_after_create?
-      answers.any?(&:edited?)
+      all_answers.any?(&:edited?)
+    end
+
+    def all_answers
+      @all_answers ||= Array(response&.answers).map do |answer|
+        Answer.new(
+          question: answer["question"] || answer[:question],
+          text: answer["answer"] || answer[:answer],
+          timestamp: answer["timestamp"] || answer[:timestamp],
+          edited_at: answer["edited_at"] || answer[:edited_at]
+        )
+      end
     end
   end
 

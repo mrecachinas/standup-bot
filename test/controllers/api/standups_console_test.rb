@@ -222,6 +222,15 @@ class Api::StandupsConsoleTest < ActionDispatch::IntegrationTest
     assert_equal "UTC", response.parsed_body.dig("overview", "upcoming", "preview_timezone")
   end
 
+  test "the overview keeps a participant timezone stored by its Rails name" do
+    sign_in(@manager, "manager-access-token")
+    @owned_standup.standup_participants.where(active: true).update_all(cached_timezone: "Eastern Time (US & Canada)")
+
+    get api_standup_path(@owned_standup), params: { include: "overview" }
+
+    assert_equal "Eastern Time (US & Canada)", response.parsed_body.dig("overview", "upcoming", "preview_timezone")
+  end
+
   test "the overview of a paused standup says so" do
     sign_in(@admin, "admin-access-token")
 

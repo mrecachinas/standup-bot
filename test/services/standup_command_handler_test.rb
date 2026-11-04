@@ -175,7 +175,7 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
     end
 
     assert_not @participant.reload.active?
-    assert_equal Date.new(2025, 4, 10), @participant.vacation_until
+    assert_equal Date.new(2025, 4, 9), @participant.vacation_until
   end
 
   test "direct_message back ends time away that was set on the web" do
@@ -213,8 +213,9 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
       end
     end
 
-    assert_equal Date.new(2026, 11, 10), @participant.reload.vacation_until
-    assert_equal "2026-11-10", enqueued_jobs.last["arguments"].last
+    # vacation_until is the last day away, as in the console.
+    assert_equal Date.new(2026, 11, 9), @participant.reload.vacation_until
+    assert_equal "2026-11-09", enqueued_jobs.last["arguments"].last
   end
 
   test "kickoff_menu names each choice and the run" do
@@ -246,8 +247,32 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
 
     assert_equal "skipped", response.reload.status
     assert_not @participant.reload.active?
-    assert_equal date + 1, @participant.vacation_until
+    assert_equal date, @participant.vacation_until, "away through today, back tomorrow"
     assert_match(/\AEnjoy your time off! 🌴 I skipped \*\*#{Regexp.escape(standup.name)}\*\* for today\. Your standups resume on .+\. Type `back` anytime to return early\.\z/, reply.text)
+  end
+
+  test "the kickoff menu doesn't act on an earlier run" do
+    standup, date, response = pending_run_today!
+    yesterday = date - 1
+    StandupResponse.create!(standup: standup, platform_user_id: @participant.platform_user_id, status: "skipped", answers: [], standup_date: yesterday)
+
+    reply = @handler.kickoff_choice("away_7:#{standup.id}:#{yesterday.iso8601}")
+
+    assert_match(/has already moved on/, reply.text)
+    assert @participant.reload.active?
+    assert_equal "pending", response.reload.status
+    assert_match(/has already moved on/, @handler.kickoff_choice("skip:#{standup.id}:#{(date - 3).iso8601}").text)
+  end
+
+  test "away uses the person's own timezone even for a standup on UTC" do
+    in_new_york!
+    @participant.standup.update!(respect_timezone: false)
+
+    # 8:30 PM on November 3 in New York.
+    Timecop.freeze(Time.utc(2026, 11, 4, 1, 30)) do
+      assert_match(/until Wednesday, November 4\./, @handler.direct_message("away 1").text)
+    end
+    assert_equal Date.new(2026, 11, 3), @participant.reload.vacation_until
   end
 
   test "the kickoff menu ignores values it doesn't recognize" do

@@ -107,6 +107,31 @@ class StandupResponseHistoryTest < ActiveSupport::TestCase
     assert_equal Time.zone.local(2025, 4, 8, 9, 25, 0), entry.submitted_at
   end
 
+  test "submission details use every answer, even when a question filter hides some" do
+    @standup.standup_participants.create!(platform_user_id: "UFILTERED1", display_name: "Filtered Person", active: true)
+    StandupResponse.create!(
+      standup: @standup,
+      platform_user_id: "UFILTERED1",
+      status: "completed",
+      answers: [
+        { "question" => "What did you do yesterday?", "answer" => "Reviewed PRs", "timestamp" => "2025-04-08T09:20:00Z" },
+        { "question" => "What will you do today?", "answer" => "Ship it", "timestamp" => "2025-04-08T09:25:00Z", "edited_at" => "2025-04-08T11:00:00Z" }
+      ],
+      standup_date: Date.new(2025, 4, 8),
+      created_at: Time.zone.local(2025, 4, 8, 9, 0, 0)
+    )
+
+    entry = StandupResponseHistory.new(
+      standup: @standup,
+      params: { start_date: "2025-04-08", end_date: "2025-04-08", participant: "UFILTERED1", question: "What did you do yesterday?" },
+      today: Date.new(2025, 4, 10)
+    ).days.first.entries.first
+
+    assert_equal [ "Reviewed PRs" ], entry.answers.map(&:text)
+    assert entry.updated_after_create?
+    assert_equal Time.zone.local(2025, 4, 8, 9, 25, 0), entry.submitted_at
+  end
+
   test "schedule exceptions remove skipped dates from expected history" do
     @standup.standup_schedule_exceptions.create!(
       exception_type: "cancelled",

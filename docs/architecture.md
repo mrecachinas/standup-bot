@@ -158,7 +158,7 @@ Schedules can be `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, or `custo
 | `StandupReminderJob` | Every 15 minutes | Reminds people who haven't finished, counting from the latest question, based on each standup's reminder settings. On Slack, it first checks the DM for replies the bot missed |
 | `SlackDmBackfillJob` | When Socket Mode reconnects after an outage, or `bin/rails slack:backfill_dms` | Picks up replies sent while no connection was up, from DM history |
 | `StandupCollectionJob` | On demand | Gathers completed responses into a report (for `/standup report` or the console) |
-| `ParticipantReactivationJob` | At the start of the day someone's `away` period ends, in their timezone | Puts the participant back in rotation, unless they've since started a later away period |
+| `ParticipantReactivationJob` | At the start of the day after someone's last day away, in their timezone | Puts the participant back in rotation. If their away date has since moved later, it runs again after the new date |
 | `DataCleanupJob` | Daily at 3am | Expires stale pending responses and deletes data older than the retention window |
 
 Recurring schedules are defined in [`config/recurring.yml`](../config/recurring.yml). If you set `ADMIN_CHANNEL` (Slack) or `TEAMS_ADMIN_CHANNEL` (Teams), failed jobs post a message there, at most once per kind of failure every 15 minutes.

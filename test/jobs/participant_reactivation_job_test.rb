@@ -6,9 +6,9 @@ class ParticipantReactivationJobTest < ActiveJob::TestCase
     @participant1 = standup_participants(:inactive_daily)
     @participant2 = standup_participants(:inactive_weekly)
 
-    # Make sure they're inactive for our test cases
-    @participant1.update!(active: false)
-    @participant2.update!(active: false)
+    # Make sure they're inactive for our test cases, with away periods ending today
+    @participant1.update!(active: false, vacation_until: Date.current)
+    @participant2.update!(active: false, vacation_until: Date.current)
 
     # Get common platform_user_id from the fixtures
     @platform_user_id = @participant1.platform_user_id
@@ -76,7 +76,8 @@ class ParticipantReactivationJobTest < ActiveJob::TestCase
     assert_enqueued_with(
       job: ParticipantReactivationJob,
       args: [ @platform_user_id, [ @participant1.id ], "slack", "2026-11-20" ],
-      at: Time.find_zone("America/New_York").local(2026, 11, 20)
+      # The day after the new last day away.
+      at: Time.find_zone("America/New_York").local(2026, 11, 21)
     ) do
       ParticipantReactivationJob.perform_now(@platform_user_id, [ @participant1.id ], "slack", "2026-11-10")
     end
@@ -102,5 +103,15 @@ class ParticipantReactivationJobTest < ActiveJob::TestCase
 
     assert @participant1.reload.active?
     assert_nil @participant1.vacation_until
+  end
+
+  test "a job queued before away dates were passed only ends away periods that are over" do
+    @mock_slack_client.expects(:send_message).once
+    @participant2.update!(vacation_until: Date.current + 5, cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+
+    ParticipantReactivationJob.perform_now(@platform_user_id, [ @participant1.id, @participant2.id ], "slack")
+
+    assert @participant1.reload.active?
+    assert_not @participant2.reload.active?
   end
 end

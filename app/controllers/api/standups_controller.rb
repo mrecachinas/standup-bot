@@ -263,7 +263,7 @@ module Api
     def participant_preview_timezone(standup)
       return unless standup.respect_timezone
 
-      iana_name = standup.standup_participants
+      timezone = standup.standup_participants
         .where(active: true)
         .where.not(cached_timezone: [ nil, "" ])
         .group(:cached_timezone)
@@ -271,7 +271,9 @@ module Api
         .limit(1)
         .pluck(:cached_timezone)
         .first
-      rails_time_zone_name(iana_name)
+      # Cached timezones are usually IANA names, shown by their Rails name;
+      # one that's already a Rails name (or has no Rails name) is kept as is.
+      rails_time_zone_name(timezone) || (timezone if StandupParticipant.valid_timezone?(timezone))
     end
 
     def rails_time_zone_name(iana_name)
