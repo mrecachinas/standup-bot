@@ -1,9 +1,10 @@
 # Getting started
 
-There are two ways to run Standup Bot locally:
+There are three ways to run Standup Bot locally:
 
 - **Docker Compose** runs the whole app in containers. It's the fastest way to try things out, and you don't need Ruby installed.
 - **Native Rails** runs the app directly on your machine against MySQL. Use this when you're working on the code.
+- **Dev Container** gives you the native Rails setup inside a container, with Ruby, Node, and MySQL already installed. Use this to work on the code without installing anything locally.
 
 ## Option 1: Docker Compose
 
@@ -77,6 +78,12 @@ By default, development and test connect to MySQL on `127.0.0.1:3306` as `root` 
 ```bash
 docker compose up -d --wait mysql
 ```
+
+## Option 3: Dev Container
+
+Open the repository in VS Code and choose **Dev Containers: Reopen in Container**. The [`.devcontainer`](../.devcontainer) setup also works with the [`devcontainer` CLI](https://github.com/devcontainers/cli). It builds a Ruby and Node container alongside a MySQL 8 container, then runs `bin/setup --skip-server` to install gems and npm packages and prepare the databases.
+
+Once it's up, use the same commands as native Rails from a terminal inside the container: `script/server`, `bin/jobs`, `script/test`, and so on. VS Code forwards the console on port 5173 and Rails on port 3000. For the end-to-end tests, run `npx playwright install --with-deps chromium` in `frontend/` once.
 
 ## Next steps
 

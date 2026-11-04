@@ -3,8 +3,8 @@ require "fileutils"
 
 APP_ROOT = File.expand_path("..", __dir__)
 
-def system!(*args)
-  system(*args, exception: true)
+def system!(*args, **options)
+  system(*args, exception: true, **options)
 end
 
 FileUtils.chdir APP_ROOT do
