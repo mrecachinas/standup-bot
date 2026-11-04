@@ -265,4 +265,135 @@ class StandupAnalyticsServiceTest < ActiveSupport::TestCase
       assert_equal [ Date.new(2025, 4, 9) ], runs.map { |run| run[:date] }
     end
   end
+
+  test "a standup created mid-window only expects runs since it was created" do
+    standup = new_daily_standup(created_at: Time.zone.local(2025, 4, 8, 8, 0, 0))
+    standup.standup_responses.create!(platform_user_id: "UNEW00001", status: "completed", standup_date: Date.new(2025, 4, 8), answers: [])
+    standup.standup_responses.create!(platform_user_id: "UNEW00002", status: "expired", standup_date: Date.new(2025, 4, 8), answers: [])
+    standup.standup_responses.create!(platform_user_id: "UNEW00001", status: "completed", standup_date: Date.new(2025, 4, 9), answers: [])
+
+    Timecop.freeze(Time.zone.local(2025, 4, 10, 12, 0, 0)) do
+      analytics = StandupAnalyticsService.new(standup, period_days: 14)
+      summary = analytics.summary
+
+      assert_equal 4, summary[:expected_responses]
+      assert_equal 2, summary[:completed_responses]
+      assert_in_delta 50.0, summary[:completion_rate]
+      assert_equal [ Date.new(2025, 4, 8), Date.new(2025, 4, 9) ], analytics.run_breakdown.map { |run| run[:date] }
+      assert_equal [ 2, 2 ], summary[:participant_stats].map { |stat| stat[:expected] }
+    end
+  end
+
+  test "a standup created today has nothing expected yet" do
+    now = Time.zone.local(2025, 4, 10, 15, 0, 0)
+    standup = new_daily_standup(created_at: now - 1.hour)
+
+    Timecop.freeze(now) do
+      summary = StandupAnalyticsService.new(standup, period_days: 30).summary
+
+      assert_equal 0, summary[:expected_responses]
+      assert_equal 0.0, summary[:completion_rate]
+      assert(summary[:participant_stats].all? { |stat| stat[:expected].zero? })
+    end
+  end
+
+  test "the day a standup was created only counts for people who got a prompt" do
+    # Created after that day's 9:00 run had already gone out.
+    standup = new_daily_standup(created_at: Time.zone.local(2025, 4, 8, 14, 0, 0))
+
+    Timecop.freeze(Time.zone.local(2025, 4, 10, 12, 0, 0)) do
+      trends = StandupAnalyticsService.new(standup, start_date: "2025-04-07", end_date: "2025-04-09").response_trends
+
+      assert_equal [ 0, 0, 2 ], trends.map { |trend| trend[:expected] }
+    end
+
+    standup.standup_responses.create!(platform_user_id: "UNEW00001", status: "pending", standup_date: Date.new(2025, 4, 8), answers: [])
+
+    Timecop.freeze(Time.zone.local(2025, 4, 10, 12, 0, 0)) do
+      trends = StandupAnalyticsService.new(standup, start_date: "2025-04-07", end_date: "2025-04-09").response_trends
+
+      assert_equal [ 0, 1, 2 ], trends.map { |trend| trend[:expected] }
+    end
+  end
+
+  test "a participant added mid-window is only expected from when they joined" do
+    @standup.standup_responses.delete_all
+    newcomer = @standup.standup_participants.create!(platform_user_id: "UJOINED01", display_name: "New Person", active: true)
+    newcomer.update_column(:created_at, Time.zone.local(2025, 4, 8, 12, 0, 0))
+
+    Timecop.freeze(Time.zone.local(2025, 4, 10, 12, 0, 0)) do
+      analytics = StandupAnalyticsService.new(@standup, start_date: "2025-04-06", end_date: "2025-04-09")
+      stats = analytics.participant_stats.index_by { |stat| stat[:platform_user_id] }
+
+      assert_equal 1, stats["UJOINED01"][:expected]
+      assert_equal 4, stats["U123456"][:expected]
+      assert_equal 4, stats["U234567"][:expected]
+      assert_equal 9, analytics.summary[:expected_responses]
+
+      csv = CSV.parse(analytics.to_csv, headers: true)
+      newcomer_rows = csv.select { |row| row["User ID"] == "UJOINED01" }
+      assert_equal [ "2025-04-09" ], newcomer_rows.map { |row| row["Date"] }
+    end
+  end
+
+  test "join dates use the participant's standup timezone" do
+    standup = new_daily_standup(created_at: Time.zone.local(2025, 4, 1, 0, 0, 0), respect_timezone: true)
+    participant = standup.standup_participants.find_by!(platform_user_id: "UNEW00001")
+    participant.update_columns(cached_timezone: "Asia/Tokyo", cached_timezone_updated_at: Time.zone.local(2025, 1, 1), created_at: Time.zone.local(2025, 4, 8, 20, 0, 0))
+    StandupParticipant.any_instance.expects(:fetch_profile).never
+
+    Timecop.freeze(Time.zone.local(2025, 4, 12, 12, 0, 0)) do
+      stats = StandupAnalyticsService.new(standup, start_date: "2025-04-07", end_date: "2025-04-11").participant_stats.index_by { |stat| stat[:platform_user_id] }
+
+      # 20:00 UTC on Apr 8 is already Apr 9 in Tokyo, so Apr 10 and 11 count.
+      assert_equal 2, stats["UNEW00001"][:expected]
+      assert_equal 5, stats["UNEW00002"][:expected]
+    end
+  end
+
+  test "a prompt from a postponed run counts even if it predates the join date" do
+    standup = new_daily_standup(created_at: Time.zone.local(2025, 4, 1, 0, 0, 0))
+    standup.standup_schedule_exceptions.create!(
+      exception_type: "rescheduled",
+      original_date: Date.new(2025, 4, 8),
+      rescheduled_date: Date.new(2025, 4, 10),
+      rescheduled_time: "11:30",
+      rescheduled_timezone: "UTC"
+    )
+    newcomer = standup.standup_participants.find_by!(platform_user_id: "UNEW00001")
+    newcomer.update_column(:created_at, Time.zone.local(2025, 4, 9, 12, 0, 0))
+    # The postponed run still records its prompt under the original date.
+    standup.standup_responses.create!(platform_user_id: "UNEW00001", status: "expired", standup_date: Date.new(2025, 4, 8), answers: [])
+
+    Timecop.freeze(Time.zone.local(2025, 4, 12, 12, 0, 0)) do
+      analytics = StandupAnalyticsService.new(standup, start_date: "2025-04-07", end_date: "2025-04-11")
+      stats = analytics.participant_stats.index_by { |stat| stat[:platform_user_id] }
+      april_eighth = analytics.run_breakdown.find { |run| run[:date] == Date.new(2025, 4, 8) }
+
+      assert_equal 3, stats["UNEW00001"][:expected]
+      assert_equal 3, stats["UNEW00001"][:missed]
+      assert_equal 2, april_eighth[:expected]
+      assert_equal 2, april_eighth[:missed]
+      assert_equal 8, analytics.summary[:expected_responses]
+    end
+  end
+
+  private
+
+  def new_daily_standup(created_at:, respect_timezone: false)
+    standup = Standup.create!(
+      name: "Brand new",
+      platform_channel: "brand-new",
+      questions: [ "Update?" ],
+      schedule_type: "daily",
+      default_hour: 9,
+      default_minute: 0,
+      respect_timezone: respect_timezone,
+      created_at: created_at
+    )
+    %w[UNEW00001 UNEW00002].each do |platform_user_id|
+      standup.standup_participants.create!(platform_user_id: platform_user_id, display_name: platform_user_id, active: true, created_at: created_at)
+    end
+    standup
+  end
 end

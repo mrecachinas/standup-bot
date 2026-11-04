@@ -91,6 +91,16 @@ class StandupParticipant < ApplicationRecord
     active? && (vacation_until.blank? || vacation_until < date)
   end
 
+  # The first standup date this person could have been asked about: whichever
+  # came later, the standup being created or them joining it. Uses the cached
+  # timezone only, so reporting never triggers a profile lookup.
+  def first_expected_date
+    started_at = [ standup&.created_at, created_at ].compact.max
+    return if started_at.nil?
+
+    started_at.in_time_zone(cached_standup_time_zone).to_date
+  end
+
   def vacation_status_on(date = Date.current)
     if vacation_until.present? && vacation_until >= date
       "Away through #{vacation_until.iso8601}"
@@ -144,6 +154,12 @@ class StandupParticipant < ApplicationRecord
 
   def touch_cached_timezone_updated_at
     self.cached_timezone_updated_at = Time.current
+  end
+
+  def cached_standup_time_zone
+    return Standup.resolve_time_zone(DEFAULT_TIMEZONE) unless standup&.respect_timezone
+
+    Standup.resolve_time_zone(valid_cached_timezone || DEFAULT_TIMEZONE)
   end
 
   def cached_timezone_available?
