@@ -145,6 +145,20 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
     assert_equal({ text: "Restart", value: standup.id }, reply.button)
   end
 
+  test "restart and start don't promise a DM when today's run is underway or done" do
+    standup = standups(:daily)
+    @participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+    response = StandupResponse.create!(standup: standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: @participant.standup_date_for(Time.current))
+
+    assert_no_enqueued_jobs(only: StandupMessageJob) do
+      assert_equal "**#{standup.name}** is already in progress. Reply in your DM with the bot to keep going.", @handler.restart(standup.id).text
+
+      response.update!(status: "completed")
+      assert_equal "You've already finished **#{standup.name}** for today. ✅", @handler.restart(standup.id).text
+      assert_equal "You've already finished **#{standup.name}** for today. ✅", @handler.start_selected(standup.id).text
+    end
+  end
+
   test "restart queues a fresh run for the day" do
     standup = standups(:daily)
 

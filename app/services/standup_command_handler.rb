@@ -59,10 +59,7 @@ class StandupCommandHandler
     return Reply.text("You are not part of any active standups.") if participants.empty?
 
     if participants.one?
-      participant = participants.first
-      standup = participant.standup
-      StandupMessageJob.perform_later(user_id, standup.id, current_standup_date(participant).iso8601, restart: true)
-      Reply.text("Starting #{fmt.bold(standup.name)} now. Check your DMs.")
+      start_run(participants.first, "Starting #{fmt.bold(participants.first.standup.name)} now. Check your DMs.")
     else
       selection("Which standup would you like to start?", participants, "standup_start_selection")
     end
@@ -196,16 +193,14 @@ class StandupCommandHandler
   # Someone picked a standup from a selection reply.
   def start_selected(standup_id)
     with_selected_participant(standup_id) do |standup, participant|
-      StandupMessageJob.perform_later(user_id, standup.id, participant.standup_date_for(Time.current).iso8601, restart: true)
-      Reply.text("Starting #{fmt.bold(standup.name)} now. Check your DMs.")
+      start_run(participant, "Starting #{fmt.bold(standup.name)} now. Check your DMs.")
     end
   end
 
   # Someone clicked Restart on a skipped or cancelled standup.
   def restart(standup_id)
     with_selected_participant(standup_id) do |standup, participant|
-      StandupMessageJob.perform_later(user_id, standup.id, participant.standup_date_for(Time.current).iso8601, restart: true)
-      Reply.text("Restarting #{fmt.bold(standup.name)}…")
+      start_run(participant, "Restarting #{fmt.bold(standup.name)}…")
     end
   end
 
@@ -240,6 +235,22 @@ class StandupCommandHandler
 
   def report_queued_reply(standup)
     Reply.text("Generating report for #{standup.name}. It will be posted to #{chat.channel_mention(standup.platform_channel, name: standup.platform_channel_name)} shortly.")
+  end
+
+  # Queues a fresh run for today unless one is already underway or done, which
+  # StandupMessageJob would leave alone, so the reply doesn't promise a DM that never comes.
+  def start_run(participant, queued_text)
+    name = fmt.bold(participant.standup.name)
+
+    case today_response_for(participant)&.status
+    when "pending"
+      Reply.text("#{name} is already in progress. Reply in your DM with the bot to keep going.")
+    when "completed"
+      Reply.text("You've already finished #{name} for today. ✅")
+    else
+      StandupMessageJob.perform_later(user_id, participant.standup_id, current_standup_date(participant).iso8601, restart: true)
+      Reply.text(queued_text)
+    end
   end
 
   def restartable_reply(verb, standup)

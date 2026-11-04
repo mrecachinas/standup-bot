@@ -33,11 +33,14 @@ module ChatPlatform
       to_message_ref(client.send_message(target, text))
     end
 
+    # The visible heading is a block; the top-level text keeps the whole update,
+    # because notifications and screen readers read that rather than the blocks.
     def post_standup_update(channel, display_name:, standup_name:, answers:)
       to_message_ref(
         client.send_message(
           channel,
-          standup_update_heading(display_name, standup_name),
+          standup_update_text(display_name, standup_name, answers),
+          section_blocks(standup_update_heading(display_name, standup_name)),
           attachments: answer_attachments(answers)
         )
       )
@@ -47,7 +50,8 @@ module ChatPlatform
       client.update_message(
         channel,
         message_id,
-        standup_update_heading(display_name, standup_name),
+        standup_update_text(display_name, standup_name, answers),
+        section_blocks(standup_update_heading(display_name, standup_name)),
         attachments: answer_attachments(answers)
       )
     end
@@ -59,13 +63,15 @@ module ChatPlatform
         question: question, question_count: question_count, wrapped_up_previous: wrapped_up_previous
       )
       blocks = [
-        (section_block(parts[:wrapped_up]) if parts[:wrapped_up]),
+        *(section_blocks(parts[:wrapped_up]) if parts[:wrapped_up]),
         { type: "context", elements: [ { type: "mrkdwn", text: parts[:context] } ] },
         { type: "divider" },
-        section_block(parts[:greeting]),
-        section_block(parts[:question])
-      ].compact
-      fallback = parts.values_at(:wrapped_up, :greeting, :question).compact.join("\n\n")
+        *section_blocks(parts[:greeting]),
+        *section_blocks(parts[:question])
+      ]
+      # Screen readers and notifications use this text, so it carries everything,
+      # including the question count and how to skip.
+      fallback = parts.values_at(:wrapped_up, :context, :greeting, :question).compact.join("\n\n")
 
       to_message_ref(client.send_message(user_id, fallback, blocks))
     end
@@ -196,6 +202,47 @@ module ChatPlatform
       { type: "section", text: { type: "mrkdwn", text: text } }
     end
 
+    # Section blocks for text of any length, split under Slack's limit.
+    def section_blocks(text)
+      split_mrkdwn(text).map { |chunk| section_block(chunk) }
+    end
+
+    # Splits mrkdwn into chunks under the section limit, preferring line breaks,
+    # then spaces, and never cutting through <...> links, mentions, or channels,
+    # which would stop rendering if split across two sections.
+    def split_mrkdwn(text, limit = SECTION_TEXT_LIMIT)
+      chunks = []
+      rest = text.to_s
+
+      while rest.length > limit
+        cut = mrkdwn_cut_point(rest, limit)
+        chunks << rest[0...cut]
+        rest = rest[cut..].sub(/\A[ \n]+/, "")
+      end
+
+      chunks << rest
+    end
+
+    def mrkdwn_cut_point(text, limit)
+      depth = 0
+      last_newline = last_space = last_safe = nil
+
+      text[0...limit].each_char.with_index do |char, index|
+        depth += 1 if char == "<"
+        depth -= 1 if char == ">" && depth.positive?
+        next unless depth.zero?
+
+        last_safe = index + 1
+        # A break near the start would leave a tiny section, so only use breaks in the second half.
+        next if index < limit / 2
+
+        last_newline = index + 1 if char == "\n"
+        last_space = index + 1 if char == " "
+      end
+
+      last_newline || last_space || last_safe || limit
+    end
+
     # One colored bar per answer, with the question in bold above it.
     def answer_attachments(answers)
       answers.each_with_index.map do |answer, index|
@@ -203,7 +250,7 @@ module ChatPlatform
         {
           color: ANSWER_COLORS[index % ANSWER_COLORS.size],
           fallback: "#{answer[:question]}: #{answer[:answer]}",
-          blocks: text.scan(/.{1,#{SECTION_TEXT_LIMIT}}/m).map { |chunk| section_block(chunk) }
+          blocks: section_blocks(text)
         }
       end
     end

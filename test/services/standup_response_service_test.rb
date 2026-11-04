@@ -133,7 +133,8 @@ class StandupResponseServiceTest < ActiveSupport::TestCase
     @mock_slack_client.expects(:update_message).with(
       @standup.platform_channel,
       "1234567890.123456",
-      "*Test User* posted an update for *#{@standup.name}*",
+      includes("*What did you work on yesterday?*\nI worked on feature X"),
+      [ { type: "section", text: { type: "mrkdwn", text: "*Test User* posted an update for *#{@standup.name}*" } } ],
       has_entry(:attachments, is_a(Array))
     ).returns({ "ok" => true })
 

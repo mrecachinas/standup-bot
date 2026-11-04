@@ -27,15 +27,19 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
     assert_nil adapter.send_message("C1", "hi")
   end
 
-  test "post_standup_update puts each answer under a colored bar" do
-    attachments = nil
-    @client.expects(:send_message)
-      .with { |channel, text, **options| attachments = options[:attachments]; channel == "team" && text == "*Ann* posted an update for *Daily*" }
-      .returns({ "channel" => "C1", "ts" => "9.9" })
+  test "post_standup_update shows a compact heading and puts each answer under a colored bar" do
+    sent = nil
+    @client.expects(:send_message).with { |*args, **options| sent = [ args, options ]; true }.returns({ "channel" => "C1", "ts" => "9.9" })
 
     message = adapter.post_standup_update("team", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: "A1" }, { question: "Q2", answer: "A2" } ])
 
+    (channel, text, blocks), options = sent
+    attachments = options[:attachments]
     assert_equal "9.9", message.id
+    assert_equal "team", channel
+    # The top-level text is what screen readers and notifications use, so it has everything.
+    assert_equal "*Ann* posted an update for *Daily*\n\n*Q1*\nA1\n\n*Q2*\nA2", text
+    assert_equal [ "*Ann* posted an update for *Daily*" ], blocks.map { |block| block.dig(:text, :text) }
     assert_equal ChatPlatform::SlackAdapter::ANSWER_COLORS.first(2), attachments.map { |attachment| attachment[:color] }
     assert_equal [ "*Q1*\nA1", "*Q2*\nA2" ], attachments.map { |attachment| attachment[:blocks].first.dig(:text, :text) }
     assert_equal "Q1: A1", attachments.first[:fallback]
@@ -44,7 +48,7 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
   test "post_standup_update splits long answers across blocks" do
     attachments = nil
     @client.expects(:send_message)
-      .with { |_channel, _text, **options| attachments = options[:attachments]; true }
+      .with { |*_args, **options| attachments = options[:attachments]; true }
       .returns({ "channel" => "C1", "ts" => "9.9" })
 
     adapter.post_standup_update("team", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: "x" * 7_000 } ])
@@ -55,13 +59,54 @@ class ChatPlatform::SlackAdapterTest < ActiveSupport::TestCase
     assert_equal "*Q1*\n#{"x" * 7_000}", texts.join
   end
 
+  test "long answers split at line breaks or spaces and never through links or mentions" do
+    attachments = nil
+    @client.expects(:send_message)
+      .with { |*_args, **options| attachments = options[:attachments]; true }
+      .returns({ "channel" => "C1", "ts" => "9.9" })
+    link = "<https://example.com/tickets/#{"1" * 40}|ticket>"
+    answer = "#{"a" * 2_980}#{link} and <@U123ABC> #{"word " * 700}"
+
+    adapter.post_standup_update("team", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: answer } ])
+
+    texts = attachments.first[:blocks].map { |block| block.dig(:text, :text) }
+    assert texts.all? { |text| text.length <= ChatPlatform::SlackAdapter::SECTION_TEXT_LIMIT }
+    assert texts.all? { |text| text.count("<") == text.count(">") }, "a section split through Slack markup"
+    assert texts.any? { |text| text.include?(link) }
+    assert texts.drop(1).all? { |text| !text.start_with?(" ", "\n") }
+  end
+
   test "update_standup_update edits the heading and answers in place" do
-    @client.expects(:update_message).with do |channel, ts, text, **options|
-      channel == "team" && ts == "9.9" && text == "*Ann* posted an update for *Daily*" &&
+    @client.expects(:update_message).with do |channel, ts, text, blocks, **options|
+      channel == "team" && ts == "9.9" && text == "*Ann* posted an update for *Daily*\n\n*Q1*\nA1" &&
+        blocks.map { |block| block.dig(:text, :text) } == [ "*Ann* posted an update for *Daily*" ] &&
         options[:attachments].map { |attachment| attachment[:blocks].first.dig(:text, :text) } == [ "*Q1*\nA1" ]
     end
 
     adapter.update_standup_update("team", "9.9", display_name: "Ann", standup_name: "Daily", answers: [ { question: "Q1", answer: "A1" } ])
+  end
+
+  test "send_standup_kickoff splits an oversized intro across sections" do
+    @client.stubs(:get_user_info).returns(nil)
+    blocks = nil
+    @client.expects(:send_message).with { |_user, _text, sent_blocks| blocks = sent_blocks; true }.returns({ "channel" => "D1", "ts" => "1" })
+
+    adapter.send_standup_kickoff("U1", standup_name: "Daily", channel: "team", intro: "word " * 700, question: "Q1", question_count: 1)
+
+    sections = blocks.select { |block| block[:type] == "section" }.map { |block| block.dig(:text, :text) }
+    assert_operator sections.size, :>, 2
+    assert sections.all? { |text| text.length <= ChatPlatform::SlackAdapter::SECTION_TEXT_LIMIT }
+    assert_equal "*Q1*", sections.last
+  end
+
+  test "send_standup_kickoff greets generically when the profile lookup fails" do
+    @client.stubs(:get_user_info).raises(Faraday::ConnectionFailed, "down")
+    blocks = nil
+    @client.expects(:send_message).with { |_user, _text, sent_blocks| blocks = sent_blocks; true }.returns({ "channel" => "D1", "ts" => "1" })
+
+    adapter.send_standup_kickoff("U1", standup_name: "Daily", channel: "team", intro: "", question: "Q1", question_count: 1)
+
+    assert_equal "Hi there! 👋 It's time for *Daily* in #team.", blocks.third.dig(:text, :text)
   end
 
   test "send_standup_kickoff falls back to a friendly greeting without a profile" do
