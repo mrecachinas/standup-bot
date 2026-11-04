@@ -63,4 +63,19 @@ bin/kamal deploy
 
 ## Kubernetes
 
-[`config/kubernetes/production/`](../config/kubernetes/production/) has example manifests: a Deployment with an init container that runs `standups:import` from a `standup-configs` ConfigMap, a Service, and a CronJob. Treat these as a starting point rather than something ready to apply. In particular, you'll need a worker Deployment running `bin/jobs`, and once it's running, the worker's built-in recurring schedule (see [`config/recurring.yml`](../config/recurring.yml)) replaces the CronJob.
+[`config/kubernetes/production/`](../config/kubernetes/production/) has example manifests. Replace the image, fill in the `standupbot-secrets` Secret (`RAILS_MASTER_KEY`, the three database URLs, and the Slack or Teams credentials), and adjust `standupbot-config`.
+
+| Manifest | Runs | Notes |
+| --- | --- | --- |
+| `deployments/standupbot-web.yaml` | Puma on port 3000 (`standupbot-web` Service) | An init container runs `db:prepare` and, optionally, `standups:import` from a `standup-configs` ConfigMap. A `preStop` sleep lets the Service stop routing to a pod before Puma drains. |
+| `deployments/standupbot-jobs.yaml` | `bin/jobs` | Also runs the recurring schedule, so there's no CronJob. Recurring runs are deduplicated across replicas. |
+| `deployments/standupbot-slack-socket-mode.yaml` | `bin/slack-socket-mode` | Socket Mode only. Ready only while connected to Slack. |
+| `policies/standupbot-pdb.yaml` | PodDisruptionBudgets | Keeps one of each through node drains. |
+
+All three Deployments run 2 replicas and roll out with `maxSurge: 1` and `maxUnavailable: 0`, so a new pod is ready before an old one stops:
+
+- **Socket Mode:** Slack sends each event to one open connection (up to 10 per app, counting the extra pod during a rollout). A stopping pod closes its connection, and Slack redelivers anything it hadn't acknowledged to another pod. If every pod is down for longer than Slack keeps redelivering (about 5 minutes), the first pod to reconnect reads missed replies from DM history. In HTTP mode, run `bin/rails slack:backfill_dms` after an outage like that.
+- **Workers:** on SIGTERM, Solid Queue stops taking jobs and gives running ones `SOLID_QUEUE_SHUTDOWN_TIMEOUT` seconds to finish; anything unfinished goes back on the queue. Messages people send are recorded once even if a job runs twice, and an answer is saved before anything is posted.
+
+Replicas are for availability, not speed. Slack limits how many messages a workspace can send a minute, so a standup going to everyone at once is paced by `STANDUP_SEND_CONCURRENCY` (2 by default). See [Reliability](architecture.md#reliability) for how messages are kept from being lost or doubled.
+

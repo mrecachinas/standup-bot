@@ -1,0 +1,63 @@
+# The Slack Socket Mode client. Only for SLACK_CONNECTION_MODE=socket; in
+# HTTP mode, delete this Deployment and point Slack at standupbot-web.
+#
+# Each pod holds its own connection and Slack sends each event to one of them,
+# so two replicas keep events flowing through a rollout or a lost node. Slack
+# allows 10 connections per app, counting the extra pod during a rollout.
+#
+# The pod is ready only while it's connected to Slack (it keeps
+# SLACK_SOCKET_MODE_READY_FILE fresh), so a rollout waits for the new pod to
+# connect before stopping an old one. A stopped pod closes its connection
+# within a second; Slack redelivers anything it hadn't acknowledged to a live
+# connection. If every pod is down for longer than Slack keeps redelivering
+# (about 5 minutes), the first pod to reconnect picks up the missed replies
+# from DM history.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standupbot-slack-socket-mode
+  labels:
+    app: standupbot
+    role: slack-socket-mode
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: standupbot
+      role: slack-socket-mode
+  template:
+    metadata:
+      labels:
+        app: standupbot
+        role: slack-socket-mode
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: slack-socket-mode
+          image: your-standupbot-image:tag
+          command: ["./bin/slack-socket-mode"]
+          env:
+            - name: SLACK_SOCKET_MODE_READY_FILE
+              value: /tmp/slack-socket-mode.ready
+          envFrom:
+            - secretRef:
+                name: standupbot-secrets
+            - configMapRef:
+                name: standupbot-config
+          readinessProbe:
+            exec:
+              # Ready while the file was touched in the last minute.
+              command: ["sh", "-c", "test -n \"$(find /tmp/slack-socket-mode.ready -mmin -1 2>/dev/null)\""]
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 384Mi
+            limits:
+              memory: 768Mi

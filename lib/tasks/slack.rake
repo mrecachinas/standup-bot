@@ -18,4 +18,9 @@ namespace :slack do
   rescue ArgumentError => error
     abort error.message
   end
+
+  desc "Pick up DM replies missed during an outage (longer than Slack's ~5 minutes of redeliveries) from DM history"
+  task backfill_dms: :environment do
+    SlackDmBackfillJob.perform_now
+  end
 end

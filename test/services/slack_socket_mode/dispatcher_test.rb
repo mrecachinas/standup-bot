@@ -4,8 +4,7 @@ class SlackSocketMode::DispatcherTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   setup do
-    @http = mock("http")
-    @dispatcher = SlackSocketMode::Dispatcher.new(http: @http)
+    @dispatcher = SlackSocketMode::Dispatcher.new
     @participant = standup_participants(:one)
     @participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
   end
@@ -67,34 +66,12 @@ class SlackSocketMode::DispatcherTest < ActiveSupport::TestCase
     assert_match(/something went wrong/, dispatch(envelope).sole.dig(:payload, :text))
   end
 
-  test "acks interactions first and replies through the response_url" do
-    standup = standups(:daily)
-    payload = {
-      "type" => "block_actions",
-      "user" => { "id" => @participant.platform_user_id },
-      "response_url" => "https://hooks.slack.com/actions/T1/123/abc",
-      "actions" => [ { "action_id" => "standup_selection", "selected_option" => { "value" => standup.id.to_s } } ]
-    }
-    @http.expects(:post).with do |url, body, headers|
-      assert_equal payload["response_url"], url
-      assert_match(/Generating report/, JSON.parse(body)["text"])
-      assert_equal "application/json", headers["Content-Type"]
-      true
+  test "queues interactions and then acks, so a click isn't lost if the process stops" do
+    payload = { "type" => "block_actions", "user" => { "id" => @participant.platform_user_id }, "actions" => [] }
+
+    assert_enqueued_with(job: SlackInteractionJob, args: [ payload ]) do
+      assert_equal [ { envelope_id: "env-5" } ], dispatch({ "envelope_id" => "env-5", "type" => "interactive", "payload" => payload })
     end
-
-    assert_equal [ { envelope_id: "env-5" } ], dispatch({ "envelope_id" => "env-5", "type" => "interactive", "payload" => payload })
-  end
-
-  test "won't post interaction replies to a non-Slack URL" do
-    payload = {
-      "type" => "block_actions",
-      "user" => { "id" => @participant.platform_user_id },
-      "response_url" => "https://evil.example.com/slack.com",
-      "actions" => [ { "action_id" => "unknown" } ]
-    }
-    @http.expects(:post).never
-
-    dispatch({ "envelope_id" => "env-6", "type" => "interactive", "payload" => payload })
   end
 
   test "acks unknown envelope types" do

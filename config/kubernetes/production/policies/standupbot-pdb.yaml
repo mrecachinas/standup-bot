@@ -1,0 +1,34 @@
+# Keep at least one of each running through node drains and other voluntary
+# disruptions.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: standupbot-web
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: standupbot
+      role: web
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: standupbot-jobs
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: standupbot
+      role: jobs
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: standupbot-slack-socket-mode
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: standupbot
+      role: slack-socket-mode

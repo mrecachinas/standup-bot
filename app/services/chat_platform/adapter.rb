@@ -66,11 +66,10 @@ module ChatPlatform
     # menu: { action_id:, placeholder:, options: [{ text:, value: }] } for a
     # "Not today?" dropdown, on platforms that show one; the plain-text default
     # leaves it out (people can still type `skip` or `away`).
-    def send_standup_kickoff(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, wrapped_up_previous: false, menu: nil)
+    def send_standup_kickoff(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, first_name: nil, wrapped_up_previous: false, menu: nil)
       parts = standup_kickoff_parts(
-        user_id,
         standup_name: standup_name, channel: channel, channel_name: channel_name, intro: intro,
-        question: question, question_count: question_count, wrapped_up_previous: wrapped_up_previous
+        question: question, question_count: question_count, first_name: first_name, wrapped_up_previous: wrapped_up_previous
       )
       send_direct_message(user_id, parts.values_at(:wrapped_up, :context, :greeting, :question).compact.join("\n\n"))
     end
@@ -161,19 +160,13 @@ module ChatPlatform
       channel_reference(channel, name: name)
     end
 
-    # Only used to personalize a greeting, so a failed lookup falls back to
-    # "there" instead of keeping the standup from going out.
-    def first_name_for(user_id)
-      user_profile(user_id)&.first_name
-    rescue StandardError => e
-      Rails.logger.warn "Couldn't look up #{user_id} for a greeting: #{e.class} - #{e.message}"
-      nil
-    end
-
-    def standup_kickoff_parts(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, wrapped_up_previous: false)
+    # first_name comes from the caller (the participant's stored name) rather
+    # than a profile lookup, since a standup going out to everyone at once
+    # would hit the platform's rate limit. Without one, it's "Hi there!".
+    def standup_kickoff_parts(standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, first_name: nil, wrapped_up_previous: false)
       name = formatter.bold(standup_name)
       greeting = [
-        "Hi #{first_name_for(user_id).presence || "there"}! 👋 It's time for #{name}",
+        "Hi #{first_name.presence || "there"}! 👋 It's time for #{name}",
         (" in #{channel_mention(channel, name: channel_name)}" if channel.present?),
         ".",
         (" #{intro.strip}" if intro.present?)

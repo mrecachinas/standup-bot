@@ -1,5 +1,7 @@
 class SlackEventProcessorJob < ApplicationJob
-  queue_as :default
+  queue_as :inbound
+  limits_concurrency key: ->(event) { ApplicationJob.inbound_concurrency_key(:slack, event["user"] || event.dig("message", "user")) },
+    group: INBOUND_CONCURRENCY_GROUP, duration: INBOUND_CONCURRENCY_DURATION
 
   def perform(event)
     message = inbound_message(event)
@@ -39,8 +41,7 @@ class SlackEventProcessorJob < ApplicationJob
     )
   end
 
-  # A Slack ts is the message's send time in epoch seconds.
   def slack_time(ts)
-    Time.zone.at(ts.to_d) if ts.to_s.match?(/\A\d+(\.\d+)?\z/)
+    ChatPlatform::SlackAdapter.time_from_ts(ts)
   end
 end

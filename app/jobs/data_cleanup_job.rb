@@ -6,11 +6,13 @@ class DataCleanupJob < ApplicationJob
 
     old_responses_deleted = cleanup_old_responses
     pending_expired = cleanup_stale_pending_responses
+    processed_messages_deleted = cleanup_processed_messages
     vacuumed = vacuum_database_if_sqlite
 
     result = {
       old_responses_deleted: old_responses_deleted,
       pending_expired: pending_expired,
+      processed_messages_deleted: processed_messages_deleted,
       vacuumed: vacuumed
     }
 
@@ -37,6 +39,14 @@ class DataCleanupJob < ApplicationJob
     StandupResponse.pending
       .where("created_at < ?", cutoff)
       .update_all(status: "expired", updated_at: Time.current)
+  end
+
+  def cleanup_processed_messages
+    deleted = 0
+    ProcessedChatMessage.where(created_at: ...ProcessedChatMessage::RETENTION.ago).in_batches(of: cleanup_batch_size) do |batch|
+      deleted += batch.delete_all
+    end
+    deleted
   end
 
   def vacuum_database_if_sqlite

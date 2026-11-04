@@ -36,7 +36,7 @@ class StandupConversationHandlerTest < ActiveSupport::TestCase
   test "records an answer with the message ID for the pending response" do
     response = response!(status: "pending")
 
-    StandupResponseService.expects(:record_answer).with(response, "Did things", message_id: "1700.1")
+    StandupResponseService.expects(:record_answer).with(response, "Did things", has_entries(message_id: "1700.1"))
 
     @handler.handle(inbound("Did things", message_id: "1700.1"))
   end

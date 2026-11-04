@@ -1,11 +1,25 @@
 class ApplicationJob < ActiveJob::Base
+  # Jobs handling what people send the bot share this concurrency group, keyed
+  # by platform and person, so one person's messages and clicks are handled one
+  # at a time in the order they arrived (Solid Queue releases blocked jobs in
+  # order). Quick replies can't race, and "foo" is recorded before "bar".
+  INBOUND_CONCURRENCY_GROUP = "chat-inbound".freeze
+  INBOUND_CONCURRENCY_DURATION = 5.minutes
+
+  def self.inbound_concurrency_key(platform, platform_user_id)
+    "#{platform}:#{platform_user_id}" if platform_user_id.present?
+  end
+
   around_perform :track_and_notify_failures
 
   # Retry only transient/network errors, not permanent failures
-  retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :exponentially_longer, attempts: 5
-  retry_on ChatPlatform::RateLimitedError, wait: :exponentially_longer, attempts: 5
+  retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
+  retry_on ChatPlatform::RateLimitedError, wait: :polynomially_longer, attempts: 5
   retry_on Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED,
-           wait: :exponentially_longer, attempts: 3
+           Faraday::ConnectionFailed, Faraday::TimeoutError,
+           # Slack timeouts, 5xx, and unparseable responses, plus its own internal_error.
+           Slack::Web::Api::Errors::ServerError, Slack::Web::Api::Errors::InternalError,
+           wait: :polynomially_longer, attempts: 3
 
   discard_on ActiveRecord::RecordNotFound
 
@@ -30,17 +44,33 @@ class ApplicationJob < ActiveJob::Base
   end
 
   ADMIN_CHANNEL_ENV = { slack: "ADMIN_CHANNEL", teams: "TEAMS_ADMIN_CHANNEL" }.freeze
+  # One notice per kind of failure in this window, so a burst of the same
+  # failure (say, many people's DMs failing at once) doesn't flood the channel.
+  ADMIN_NOTICE_INTERVAL = 15.minutes
 
-  def notify_admin_channel(exception)
+  def notify_admin_channel(exception, context: nil)
+    return if admin_notice_muted?(exception, context)
+
+    subject = context || "Job #{self.class.name} failed"
+    text = "⚠️ #{subject}: #{exception.class} - #{exception.message} " \
+      "(similar failures are muted for #{ADMIN_NOTICE_INTERVAL.inspect})"
     ADMIN_CHANNEL_ENV.each do |platform, env_name|
       channel = ENV[env_name].presence
       next unless channel
 
       begin
-        ChatPlatform.for(platform).send_message(channel, "⚠️ Job #{self.class.name} failed: #{exception.class} - #{exception.message}")
+        ChatPlatform.for(platform).send_message(channel, text)
       rescue StandardError => notification_error
         Rails.logger.error "Failed to notify #{platform} admin channel: #{notification_error.class} - #{notification_error.message}"
       end
     end
+  end
+
+  def admin_notice_muted?(exception, context)
+    key = [ "admin-notice", self.class.name, exception.class.name, context ].compact.join("/")
+    return true if Rails.cache.exist?(key)
+
+    Rails.cache.write(key, true, expires_in: ADMIN_NOTICE_INTERVAL)
+    false
   end
 end

@@ -190,6 +190,15 @@ class SlackClient
     end
   end
 
+  # Messages in a DM (needs im:history) sent after oldest (a Slack ts), as
+  # hashes with string keys, newest first.
+  def dm_history(channel, oldest:, limit: 200)
+    response = with_rate_limit_handling("dm_history") do
+      @client.conversations_history(channel: channel, oldest: oldest, limit: limit)
+    end
+    Array(response["messages"]).map { |message| message.to_h.stringify_keys }
+  end
+
   def update_message(channel, message_ts, text, blocks = nil, attachments: nil)
     message = { channel: channel, ts: message_ts, text: text, as_user: true }
     message[:blocks] = blocks if blocks

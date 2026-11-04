@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_03_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_020100) do
   create_table "audit_logs", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "action", null: false
     t.string "actor_email"
@@ -40,6 +40,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_230000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["platform", "platform_user_id"], name: "index_chat_conversations_on_platform_and_platform_user_id", unique: true
+  end
+
+  create_table "processed_chat_messages", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.string "platform", null: false
+    t.string "platform_user_id", null: false
+    t.string "message_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "index_processed_chat_messages_on_created_at"
+    t.index ["platform", "platform_user_id", "message_id"], name: "idx_processed_chat_messages_on_message", unique: true
   end
 
   create_table "report_configurations", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -113,6 +122,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_230000) do
     t.bigint "standup_id", null: false
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false
+    t.datetime "prompted_at"
     t.index ["platform_user_id", "status"], name: "index_standup_responses_on_platform_user_id_and_status"
     t.index ["standup_id", "platform_user_id", "standup_date"], name: "idx_standup_responses_on_standup_user_date", unique: true
   end

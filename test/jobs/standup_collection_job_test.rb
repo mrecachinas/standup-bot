@@ -29,9 +29,8 @@ class StandupCollectionJobTest < ActiveJob::TestCase
         ]
       )
 
-      @mock_slack_client.expects(:get_user_info).with("U123456").returns(
-        { "name" => "johndoe", "profile" => { "display_name" => "John Doe" } }
-      )
+      # John Doe is a participant, so his stored name is used without a lookup.
+      @mock_slack_client.expects(:get_user_info).never
 
       @mock_slack_client.expects(:send_standup_summary).with(
         @standup.platform_channel,

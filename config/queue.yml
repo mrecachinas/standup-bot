@@ -3,6 +3,12 @@ default: &default
     - polling_interval: 1
       batch_size: 500
   workers:
+    # What people send the bot (answers, commands, button clicks) has its own
+    # threads, so replies never wait behind a burst of scheduled standups.
+    - queues: inbound
+      threads: 3
+      processes: 1
+      polling_interval: 0.1
     - queues: "*"
       threads: 3
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>

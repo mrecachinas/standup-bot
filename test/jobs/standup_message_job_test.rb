@@ -58,7 +58,8 @@ class StandupMessageJobTest < ActiveJob::TestCase
     StandupMessageJob.perform_now(@platform_user_id, @standup.id)
 
     _user_id, fallback, blocks = sent
-    greeting = "Hi Michael! 👋 It's time for *Daily Standup* in <#C0123ABC>. Please share what you've been working on."
+    # The first name comes from the participant's stored name ("John Doe"), not a profile lookup.
+    greeting = "Hi John! 👋 It's time for *Daily Standup* in <#C0123ABC>. Please share what you've been working on."
     assert_equal "Starting *Daily Standup* · 3 questions · Reply `skip` to pass on one\n\n#{greeting}\n\n*What did you do yesterday?*", fallback
     assert_equal %w[context divider section section], blocks.map { |block| block[:type] }
     assert_equal "Starting *Daily Standup* · 3 questions · Reply `skip` to pass on one", blocks.first[:elements].first[:text]
@@ -198,5 +199,24 @@ class StandupMessageJobTest < ActiveJob::TestCase
     assert_no_difference "StandupResponse.count" do
       StandupMessageJob.perform_now(@platform_user_id, @standup.id, standup_date.iso8601)
     end
+  end
+
+  test "notes when the first question reached the person, by Slack's clock" do
+    @mock_slack_client.expects(:send_message).returns({ "channel" => "D12345", "ts" => "1800000000.000100" })
+
+    StandupMessageJob.perform_now(@platform_user_id, @standup.id)
+
+    response = StandupResponse.find_by!(platform_user_id: @platform_user_id, standup: @standup)
+    assert_equal "D12345", response.dm_channel
+    assert_equal Time.zone.at(1_800_000_000.0001r), response.prompted_at
+  end
+
+  test "a failed first message leaves no run behind, so the retry sends it" do
+    @mock_slack_client.expects(:send_message).raises(Faraday::ConnectionFailed, "down")
+
+    assert_enqueued_with(job: StandupMessageJob) do
+      StandupMessageJob.perform_now(@platform_user_id, @standup.id)
+    end
+    assert_not StandupResponse.exists?(platform_user_id: @platform_user_id, standup: @standup)
   end
 end

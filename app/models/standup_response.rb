@@ -34,6 +34,26 @@ class StandupResponse < ApplicationRecord
     authorized_for(platform, platform_user_id).pending.order("standup_responses.created_at DESC").first
   end
 
+  # How long after a message the bot's next prompt can arrive and still count
+  # as the message having been typed before the prompt showed up. Covers slow
+  # deliveries and Slack's redeliveries (the last one comes about 5 minutes on).
+  CONTINUATION_WINDOW = 10.minutes
+
+  # The run a message sent at sent_at continues: one whose latest prompt
+  # reached the person after they sent it (they typed "foo", then "bar" before
+  # the next question showed up), and that has an answer to continue.
+  def self.continued_by(platform, platform_user_id, sent_at)
+    return if sent_at.blank?
+
+    authorized_for(platform, platform_user_id)
+      .where(status: %w[pending completed])
+      .where(prompted_at: sent_at..(sent_at + CONTINUATION_WINDOW))
+      .where.not(prompted_at: sent_at)
+      .order(prompted_at: :desc)
+      .limit(5)
+      .find { |response| response.answers.present? }
+  end
+
   # Edits are only matched against this person's recent responses, newest
   # first. Plenty for real edits, and it keeps the lookup in Ruby so it works
   # the same on MySQL and PostgreSQL.
@@ -59,8 +79,15 @@ class StandupResponse < ApplicationRecord
     nil
   end
 
+  # The answer recorded from this message, including messages that continued
+  # an answer (kept in its "parts").
   def answer_index_for_message(message_id)
-    Array(answers).index { |answer| answer["message_id"].present? && answer["message_id"] == message_id.to_s }
+    return if message_id.blank?
+
+    id = message_id.to_s
+    Array(answers).index do |answer|
+      answer["message_id"].to_s == id || Array(answer["parts"]).any? { |part| part["message_id"].to_s == id }
+    end
   end
 
   def participant

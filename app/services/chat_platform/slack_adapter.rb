@@ -10,6 +10,11 @@ module ChatPlatform
     # Slack's limit for a section block's text.
     SECTION_TEXT_LIMIT = 3000
 
+    # A Slack ts is the message's send time in epoch seconds.
+    def self.time_from_ts(ts)
+      Time.zone.at(ts.to_d) if ts.to_s.match?(/\A\d+(\.\d+)?\z/)
+    end
+
     def key
       :slack
     end
@@ -57,11 +62,10 @@ module ChatPlatform
       )
     end
 
-    def send_standup_kickoff(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, wrapped_up_previous: false, menu: nil)
+    def send_standup_kickoff(user_id, standup_name:, channel:, intro:, question:, question_count:, channel_name: nil, first_name: nil, wrapped_up_previous: false, menu: nil)
       parts = standup_kickoff_parts(
-        user_id,
         standup_name: standup_name, channel: channel, channel_name: channel_name, intro: intro,
-        question: question, question_count: question_count, wrapped_up_previous: wrapped_up_previous
+        question: question, question_count: question_count, first_name: first_name, wrapped_up_previous: wrapped_up_previous
       )
       greeting_blocks = section_blocks(parts[:greeting])
       greeting_blocks[0] = greeting_blocks[0].merge(accessory: menu_select(menu)) if menu
@@ -286,7 +290,7 @@ module ChatPlatform
 
 
     def to_message_ref(response)
-      MessageRef.from_hash(response, id_key: "ts")
+      MessageRef.from_hash(response, id_key: "ts", sent_at: ->(ts) { self.class.time_from_ts(ts) })
     end
 
     def profile_value(profile, key)

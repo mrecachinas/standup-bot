@@ -1,0 +1,53 @@
+# The Solid Queue worker (bin/jobs): sends standups and reminders, handles
+# what people send the bot, and runs the recurring schedule in
+# config/recurring.yml, so no CronJob is needed. Recurring runs are
+# deduplicated across replicas.
+#
+# On SIGTERM, Solid Queue stops taking jobs and gives running ones
+# SOLID_QUEUE_SHUTDOWN_TIMEOUT seconds to finish (keep it below
+# terminationGracePeriodSeconds). Jobs that don't finish go back on the queue
+# and run again; the jobs are written so a rerun doesn't send duplicates or
+# lose answers.
+#
+# Two replicas are for availability. More don't send faster: Slack caps
+# messages per workspace, and STANDUP_SEND_CONCURRENCY paces first messages.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standupbot-jobs
+  labels:
+    app: standupbot
+    role: jobs
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: standupbot
+      role: jobs
+  template:
+    metadata:
+      labels:
+        app: standupbot
+        role: jobs
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: jobs
+          image: your-standupbot-image:tag
+          command: ["./bin/jobs"]
+          envFrom:
+            - secretRef:
+                name: standupbot-secrets
+            - configMapRef:
+                name: standupbot-config
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi

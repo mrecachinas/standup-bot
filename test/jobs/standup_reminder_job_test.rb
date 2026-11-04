@@ -82,4 +82,40 @@ class StandupReminderJobTest < ActiveJob::TestCase
       assert_equal 0, paused_response.reload.reminder_count
     end
   end
+
+  test "a failed reminder is given back for the next run and doesn't stop the others" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      failing = StandupResponse.create!(standup: @standup, platform_user_id: "UFAIL", status: "pending", answers: [], created_at: 2.hours.ago, standup_date: Date.current)
+      other = StandupResponse.create!(standup: @standup, platform_user_id: "UOTHER", status: "pending", answers: [], created_at: 2.hours.ago, standup_date: Date.current)
+      @mock_slack_client.expects(:send_message).with("UFAIL", anything).raises(Slack::Web::Api::Errors::SlackError.new("account_inactive"))
+      @mock_slack_client.expects(:send_message).with("UOTHER", anything).once
+
+      StandupReminderJob.perform_now
+
+      assert_equal 0, failing.reload.reminder_count
+      assert_nil failing.last_reminder_at
+      assert_equal 1, other.reload.reminder_count
+    end
+  end
+
+  test "counts from the latest prompt, so a new question isn't reminded about right away" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      StandupResponse.create!(standup: @standup, platform_user_id: "UPROMPTED", status: "pending", answers: [], created_at: 2.hours.ago, prompted_at: 10.minutes.ago, standup_date: Date.current)
+      @mock_slack_client.expects(:send_message).never
+
+      StandupReminderJob.perform_now
+    end
+  end
+
+  test "skips the reminder when the person's DM had replies the bot missed" do
+    Timecop.freeze(Time.new(2025, 4, 7, 12, 0, 0, "+00:00")) do
+      response = StandupResponse.create!(standup: @standup, platform_user_id: "UMISSED", status: "pending", answers: [], created_at: 2.hours.ago, dm_channel: "D9", standup_date: Date.current)
+      SlackDmBackfill.any_instance.expects(:call).with(response).returns(1)
+      @mock_slack_client.expects(:send_message).never
+
+      StandupReminderJob.perform_now
+
+      assert_equal 0, response.reload.reminder_count
+    end
+  end
 end

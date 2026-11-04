@@ -48,6 +48,10 @@ Rails.application.configure do
   # Replace the default in-process and non-durable queuing backend for Active Job.
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
+  # How long a stopping worker gives running jobs to finish before putting
+  # them back on the queue. Keep it below the orchestrator's grace period
+  # (terminationGracePeriodSeconds in Kubernetes).
+  config.solid_queue.shutdown_timeout = ENV.fetch("SOLID_QUEUE_SHUTDOWN_TIMEOUT", 5).to_i.seconds
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).

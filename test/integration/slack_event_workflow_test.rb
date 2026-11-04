@@ -48,7 +48,8 @@ class SlackEventWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal @standup.questions.size, response.answers.size
     channel_post = @fake_slack_client.messages.find { |message| message[:channel] == @standup.platform_channel }
     assert channel_post
-    assert_equal "*Test User* posted an update for *#{@standup.name}*", channel_post[:blocks].first.dig(:text, :text)
+    # The participant's stored name, without a profile lookup.
+    assert_equal "*John Doe* posted an update for *#{@standup.name}*", channel_post[:blocks].first.dig(:text, :text)
     assert_includes channel_post[:text], "*Yesterday?*\nAnswer 1"
     @standup.questions.each_with_index do |question, index|
       assert_equal "*#{question}*\nAnswer #{index + 1}", channel_post[:attachments][index][:blocks].first.dig(:text, :text)

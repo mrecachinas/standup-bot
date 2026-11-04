@@ -1,0 +1,84 @@
+# The web app (console, API, and in HTTP mode, Slack's request URLs).
+# Rolling updates start a new pod and wait for it to be ready before stopping
+# an old one. On SIGTERM, the preStop sleep gives the Service time to stop
+# routing to the pod before Puma drains; Slack redelivers any event that gets
+# no answer (with ProcessedChatMessage keeping redeliveries from doubling up).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standupbot-web
+  labels:
+    app: standupbot
+    role: web
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: standupbot
+      role: web
+  template:
+    metadata:
+      labels:
+        app: standupbot
+        role: web
+    spec:
+      terminationGracePeriodSeconds: 40
+      initContainers:
+        # Loads standups from the standup-configs ConfigMap. Optional; drop it
+        # if standups are managed in the console.
+        - name: import-standups
+          image: your-standupbot-image:tag
+          command: ["./bin/rails", "db:prepare", "standups:import"]
+          envFrom:
+            - secretRef:
+                name: standupbot-secrets
+          volumeMounts:
+            - name: standup-configs
+              mountPath: /rails/config/standups
+      containers:
+        - name: web
+          image: your-standupbot-image:tag
+          # Puma directly (TLS and compression are the ingress's job); the
+          # entrypoint runs db:prepare first.
+          command: ["./bin/rails", "server"]
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: standupbot-secrets
+            - configMapRef:
+                name: standupbot-config
+          readinessProbe:
+            httpGet:
+              path: /up
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /up
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "10"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: standup-configs
+          configMap:
+            name: standup-configs
+            optional: true

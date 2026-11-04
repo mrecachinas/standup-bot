@@ -1,5 +1,10 @@
 class StandupMessageJob < ApplicationJob
   queue_as :default
+  # When a standup goes out to everyone at once, only this many first messages
+  # are sent at a time. Slack allows a workspace several hundred messages a
+  # minute, and adding workers would only add rate-limit errors (whose retries
+  # hold worker threads).
+  limits_concurrency key: "send", to: ENV.fetch("STANDUP_SEND_CONCURRENCY", 2).to_i, duration: 5.minutes
 
   # restart: replace a skipped or cancelled run for the day with a fresh one.
   def perform(platform_user_id, standup_id, standup_date = nil, restart: false)
@@ -10,6 +15,11 @@ class StandupMessageJob < ApplicationJob
     participant = standup.standup_participants.find_by(platform_user_id: platform_user_id)
     lock_record = participant || standup
 
+    # Everything happens under the person's lock, so overlapping jobs can't
+    # both start a run. The run is created only once the first DM is out, in
+    # the same transaction, so a reply can't land in a run the person hasn't
+    # seen, and a failed send leaves nothing behind for the retry to skip.
+    # The lock is only contended by other first messages for this person.
     lock_record.with_lock do
       resolved_standup_date = resolve_standup_date(standup_date, participant)
 
@@ -33,30 +43,15 @@ class StandupMessageJob < ApplicationJob
         return
       end
 
-      wrapped_up = StandupResponseService.cancel_previous_pending_responses(
-        platform_user_id,
-        standup_id,
-        resolved_standup_date
-      )
-
-      message = chat_for(standup).send_standup_kickoff(
-        platform_user_id,
-        standup_name: standup.name,
-        channel: standup.platform_channel,
-        channel_name: standup.platform_channel_name,
-        intro: standup.intro,
-        question: standup.questions.first,
-        question_count: standup.questions.size,
-        wrapped_up_previous: wrapped_up.to_i.positive?,
-        menu: StandupCommandHandler.kickoff_menu(standup.id, resolved_standup_date)
-      )
-      message_channel = message&.channel.presence || platform_user_id
+      wrapped_up = StandupResponseService.cancel_previous_pending_responses(platform_user_id, standup_id, resolved_standup_date)
+      message = send_kickoff(standup, participant, platform_user_id, resolved_standup_date, wrapped_up_previous: wrapped_up.to_i.positive?)
 
       standup_response = StandupResponse.create!(
         platform_user_id: platform_user_id,
         standup_id: standup_id,
         status: "pending",
-        dm_channel: message_channel,
+        dm_channel: message&.channel.presence || platform_user_id,
+        prompted_at: message&.sent_at || Time.current,
         standup_date: resolved_standup_date,
         answers: []
       )
@@ -65,6 +60,28 @@ class StandupMessageJob < ApplicationJob
   end
 
   private
+
+  def send_kickoff(standup, participant, platform_user_id, standup_date, wrapped_up_previous:)
+    chat_for(standup).send_standup_kickoff(
+      platform_user_id,
+      standup_name: standup.name,
+      channel: standup.platform_channel,
+      channel_name: standup.platform_channel_name,
+      intro: standup.intro,
+      question: standup.questions.first,
+      question_count: standup.questions.size,
+      first_name: first_name_for(participant),
+      wrapped_up_previous: wrapped_up_previous,
+      menu: StandupCommandHandler.kickoff_menu(standup.id, standup_date)
+    )
+  end
+
+  # From the name stored for the participant, so sending standups doesn't
+  # need a profile lookup per person (those are rate-limited).
+  def first_name_for(participant)
+    name = participant&.display_name
+    name.to_s.split.first if name.present? && name != participant.platform_user_id
+  end
 
   def discard_abandoned_response(platform_user_id, standup_id, standup_date)
     StandupResponse
