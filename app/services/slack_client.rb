@@ -52,9 +52,10 @@ class SlackClient
     end
   end
 
-  def send_message(channel, text, blocks = nil)
+  def send_message(channel, text, blocks = nil, attachments: nil)
     message = { channel: channel, text: text, as_user: true }
     message[:blocks] = blocks if blocks
+    message[:attachments] = attachments if attachments
 
     response = with_rate_limit_handling("send_message") do
       @client.chat_postMessage(**message)
@@ -193,9 +194,10 @@ class SlackClient
     end
   end
 
-  def update_message(channel, message_ts, text, blocks = nil)
+  def update_message(channel, message_ts, text, blocks = nil, attachments: nil)
     message = { channel: channel, ts: message_ts, text: text, as_user: true }
     message[:blocks] = blocks if blocks
+    message[:attachments] = attachments if attachments
 
     with_rate_limit_handling("update_message") do
       @client.chat_update(**message)

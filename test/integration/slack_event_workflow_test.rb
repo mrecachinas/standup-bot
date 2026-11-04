@@ -9,9 +9,9 @@ class SlackEventWorkflowTest < ActionDispatch::IntegrationTest
       @counter = 0
     end
 
-    def send_message(channel, text, blocks = nil)
+    def send_message(channel, text, blocks = nil, attachments: nil)
       @counter += 1
-      @messages << { channel: channel, text: text, blocks: blocks }
+      @messages << { channel: channel, text: text, blocks: blocks, attachments: attachments }
       { "ok" => true, "channel" => channel.start_with?("U") ? "D#{channel}" : channel, "ts" => "123.#{@counter}" }
     end
 
@@ -48,8 +48,10 @@ class SlackEventWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal @standup.questions.size, response.answers.size
     channel_post = @fake_slack_client.messages.find { |message| message[:channel] == @standup.platform_channel }
     assert channel_post
+    assert_equal "*Test User* posted an update for *#{@standup.name}*", channel_post[:blocks].first.dig(:text, :text)
+    assert_includes channel_post[:text], "*Yesterday?*\nAnswer 1"
     @standup.questions.each_with_index do |question, index|
-      assert_includes channel_post[:text], "*#{question}*\nAnswer #{index + 1}"
+      assert_equal "*#{question}*\nAnswer #{index + 1}", channel_post[:attachments][index][:blocks].first.dig(:text, :text)
     end
   end
 

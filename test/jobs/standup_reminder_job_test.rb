@@ -18,7 +18,10 @@ class StandupReminderJobTest < ActiveJob::TestCase
         created_at: 2.hours.ago
       )
 
-      @mock_slack_client.expects(:send_message).with("UREMIND", includes("still in progress")).once
+      @mock_slack_client.expects(:send_message).with(
+        "UREMIND",
+        "⏰ *Daily Standup* is still waiting on you (1 of 3 answered). Reply here to pick up where you left off, or `skip` to pass on this one.\n\n*#{@standup.questions.second}*"
+      ).once
 
       StandupReminderJob.perform_now
 

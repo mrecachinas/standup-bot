@@ -10,7 +10,7 @@ schedule:
     - friday
   time: "09:30"
   
-intro: "Good morning! Let's check in on your progress. Please answer these questions for today's standup:"
+intro: "Please share what you've been working on."
 
 questions:
   - "What did you accomplish since the last standup?"

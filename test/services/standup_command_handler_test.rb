@@ -17,6 +17,7 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
     def key = :slack
     def formatter = Formatter
     def channel_reference(channel, name: nil) = Formatter.channel_reference(name.presence || channel)
+    def channel_mention(channel, name: nil) = channel_reference(channel, name: name)
   end
 
   setup do
@@ -70,7 +71,7 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
 
   test "start_selected queues the DM for a participant" do
     assert_enqueued_with(job: StandupMessageJob) do
-      assert_equal "Starting #{standups(:daily).name} now. Check your DMs.", @handler.start_selected(standups(:daily).id).text
+      assert_equal "Starting **#{standups(:daily).name}** now. Check your DMs.", @handler.start_selected(standups(:daily).id).text
     end
   end
 
@@ -117,8 +118,53 @@ class StandupCommandHandlerTest < ActiveSupport::TestCase
   test "direct_message cancel cancels the latest pending response" do
     response = StandupResponse.create!(standup: @participant.standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: Date.current)
 
-    assert_equal "Your standup has been cancelled.", @handler.direct_message("cancel").text
+    reply = @handler.direct_message("cancel")
+
+    assert_equal "You cancelled **#{@participant.standup.name}**. You can restart it anytime.", reply.text
+    assert_equal({ text: "Restart", value: @participant.standup.id }, reply.button)
+    assert_equal StandupCommandHandler::RESTART_ACTION_ID, reply.action_id
     assert_equal "cancelled", response.reload.status
+  end
+
+  test "direct_message skip moves on without its own reply" do
+    response = StandupResponse.create!(standup: @participant.standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: Date.current)
+    StandupResponseService.expects(:skip_question).with(response)
+
+    assert @handler.direct_message("skip").none?
+  end
+
+  test "skip offers to restart a single skipped standup" do
+    standup = @participant.standup
+    @participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+    StandupResponse.create!(standup: standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: @participant.standup_date_for(Time.current))
+    StandupResponseService.stubs(:skip_remaining_questions)
+
+    reply = @handler.run("skip")
+
+    assert_equal "You skipped **#{standup.name}**. You can restart it anytime.", reply.text
+    assert_equal({ text: "Restart", value: standup.id }, reply.button)
+  end
+
+  test "restart and start don't promise a DM when today's run is underway or done" do
+    standup = standups(:daily)
+    @participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+    response = StandupResponse.create!(standup: standup, platform_user_id: @participant.platform_user_id, status: "pending", answers: [], standup_date: @participant.standup_date_for(Time.current))
+
+    assert_no_enqueued_jobs(only: StandupMessageJob) do
+      assert_equal "**#{standup.name}** is already in progress. Reply in your DM with the bot to keep going.", @handler.restart(standup.id).text
+
+      response.update!(status: "completed")
+      assert_equal "You've already finished **#{standup.name}** for today. ✅", @handler.restart(standup.id).text
+      assert_equal "You've already finished **#{standup.name}** for today. ✅", @handler.start_selected(standup.id).text
+    end
+  end
+
+  test "restart queues a fresh run for the day" do
+    standup = standups(:daily)
+
+    assert_enqueued_with(job: StandupMessageJob, args: [ @participant.platform_user_id, standup.id, @participant.standup_date_for(Time.current).iso8601, { restart: true } ]) do
+      assert_equal "Restarting **#{standup.name}**…", @handler.restart(standup.id).text
+    end
   end
 
   test "direct_message away pauses active standups and schedules the return" do

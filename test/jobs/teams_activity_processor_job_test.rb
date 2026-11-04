@@ -45,13 +45,13 @@ class TeamsActivityProcessorJobTest < ActiveJob::TestCase
     TeamsActivityProcessorJob.perform_now(activity(text: "<p>Shipped the <b>adapter</b></p>"))
 
     assert_equal "Shipped the adapter", response.reload.answers.first["answer"]
-    assert @sent.any? { |target, text| target == TEAMS_USER_ID && text.include?("**Question 2/2:**") }
+    assert @sent.any? { |target, text| target == TEAMS_USER_ID && text == "**Today?**" }
   end
 
   test "finishing a standup posts to the channel and names it" do
     response = pending_response!
     ChatPlatform::TeamsAdapter.any_instance.expects(:post_standup_update)
-      .with(TEAMS_CHANNEL, display_name: "Tess Teams", answers: [ { question: "Yesterday?", answer: "A1" }, { question: "Today?", answer: "A2" } ])
+      .with(TEAMS_CHANNEL, display_name: "Tess Teams", standup_name: @standup.name, answers: [ { question: "Yesterday?", answer: "A1" }, { question: "Today?", answer: "A2" } ])
       .returns(ChatPlatform::MessageRef.new(channel: "19:x;messageid=9", id: "9"))
 
     TeamsActivityProcessorJob.perform_now(activity(text: "A1"))

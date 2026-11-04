@@ -160,6 +160,24 @@ class SlackEventsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Generating report/, response_body["text"])
   end
 
+  test "restart button queues a fresh run" do
+    standup = standups(:daily)
+    participant = standup_participants(:one)
+    participant.update!(cached_timezone: "UTC", cached_timezone_updated_at: Time.current)
+    payload = {
+      type: "block_actions",
+      user: { id: participant.platform_user_id },
+      actions: [ { action_id: "standup_restart", value: standup.id.to_s } ]
+    }
+
+    assert_enqueued_with(job: StandupMessageJob, args: [ participant.platform_user_id, standup.id, participant.standup_date_for(Time.current).iso8601, { restart: true } ]) do
+      post interactions_url, params: { payload: payload.to_json }
+    end
+
+    assert_response :success
+    assert_equal "Restarting *#{standup.name}*…", JSON.parse(response.body)["text"]
+  end
+
   test "should reject invalid interaction payload" do
     post interactions_url, params: { payload: "not json" }
 

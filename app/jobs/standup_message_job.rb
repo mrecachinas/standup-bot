@@ -1,7 +1,8 @@
 class StandupMessageJob < ApplicationJob
   queue_as :default
 
-  def perform(platform_user_id, standup_id, standup_date = nil)
+  # restart: replace a skipped or cancelled run for the day with a fresh one.
+  def perform(platform_user_id, standup_id, standup_date = nil, restart: false)
     Rails.logger.info "Sending standup message to user #{platform_user_id} for standup #{standup_id}"
 
     standup = Standup.find(standup_id)
@@ -24,25 +25,30 @@ class StandupMessageJob < ApplicationJob
         return
       end
 
+      discard_abandoned_response(platform_user_id, standup_id, resolved_standup_date) if restart
+
       if existing_response?(platform_user_id, standup_id, resolved_standup_date)
         Rails.logger.info "User #{platform_user_id} already has a response for standup #{standup_id} on #{resolved_standup_date}, skipping"
         StandupMetrics.track("standup.skipped_existing_response", standup_id: standup_id, platform_user_id: platform_user_id)
         return
       end
 
-      StandupResponseService.cancel_previous_pending_responses(
+      wrapped_up = StandupResponseService.cancel_previous_pending_responses(
         platform_user_id,
         standup_id,
         resolved_standup_date
       )
 
-      chat = chat_for(standup)
-      formatted_question = StandupFormatter.format_question(
-        standup.questions.first, 1, standup.questions.size, formatter: chat.formatter
+      message = chat_for(standup).send_standup_kickoff(
+        platform_user_id,
+        standup_name: standup.name,
+        channel: standup.platform_channel,
+        channel_name: standup.platform_channel_name,
+        intro: standup.intro,
+        question: standup.questions.first,
+        question_count: standup.questions.size,
+        wrapped_up_previous: wrapped_up.to_i.positive?
       )
-      message_text = [ standup.intro, "", formatted_question ].join("\n")
-
-      message = chat.send_direct_message(platform_user_id, message_text)
       message_channel = message&.channel.presence || platform_user_id
 
       standup_response = StandupResponse.create!(
@@ -58,6 +64,13 @@ class StandupMessageJob < ApplicationJob
   end
 
   private
+
+  def discard_abandoned_response(platform_user_id, standup_id, standup_date)
+    StandupResponse
+      .where(platform_user_id: platform_user_id, standup_id: standup_id, status: %w[skipped cancelled])
+      .for_standup_date(standup_date)
+      .destroy_all
+  end
 
   def existing_response?(platform_user_id, standup_id, standup_date)
     StandupResponse

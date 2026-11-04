@@ -47,17 +47,17 @@ module ChatPlatform
       deliver(target, message_activity(text))
     end
 
-    def post_standup_update(channel, display_name:, answers:)
-      send_message(channel, standup_update_text(display_name, answers))
+    def post_standup_update(channel, display_name:, standup_name:, answers:)
+      send_message(channel, standup_update_text(display_name, standup_name, answers))
     end
 
-    def update_standup_update(channel, message_id, display_name:, answers:)
+    def update_standup_update(channel, message_id, display_name:, standup_name:, answers:)
       channel_id = parse_channel!(channel)[:channel]
       connector.update_activity(
         service_url: Microsoft::Config.service_url,
         conversation_id: "#{channel_id};messageid=#{message_id}",
         activity_id: message_id,
-        activity: message_activity(standup_update_text(display_name, answers))
+        activity: message_activity(standup_update_text(display_name, standup_name, answers))
       )
     end
 
@@ -67,6 +67,31 @@ module ChatPlatform
 
     def send_selection(target, text, options, action_id:)
       deliver(target, selection_activity(text, options, action_id: action_id))
+    end
+
+    def send_action(target, text, button:, action_id:)
+      deliver(target, action_activity(text, button: button, action_id: action_id))
+    end
+
+    def action_activity(text, button:, action_id:)
+      {
+        type: "message",
+        text: text,
+        attachments: [
+          {
+            contentType: CARD_CONTENT_TYPE,
+            content: {
+              type: "AdaptiveCard",
+              "$schema" => "http://adaptivecards.io/schemas/adaptive-card.json",
+              version: "1.4",
+              body: [ { type: "TextBlock", text: text, wrap: true } ],
+              actions: [
+                { type: "Action.Submit", title: button[:text].to_s, data: { action_id: action_id, standup_id: button[:value].to_s } }
+              ]
+            }
+          }
+        ]
+      }
     end
 
     def selection_activity(text, options, action_id:)

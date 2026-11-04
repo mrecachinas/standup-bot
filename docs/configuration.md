@@ -86,7 +86,7 @@ schedule:
   days: [monday, tuesday, wednesday, thursday, friday]
   time: "09:30"
 
-intro: "Good morning! Please answer these questions for today's standup:"
+intro: "Please share what you've been working on."
 questions:
   - "What did you accomplish since the last standup?"
   - "What are you working on today?"
