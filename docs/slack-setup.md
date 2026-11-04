@@ -72,6 +72,8 @@ Then go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New
 
 **Socket Mode** (under **Settings → Socket Mode**): on for Socket Mode, off for HTTP mode.
 
+**App Home** (under **Features → App Home**): turn on the **Messages Tab** and tick **Allow users to send Slash commands and messages from the messages tab**, so participants can reply to the bot in its DM.
+
 </details>
 
 ## 3. Install the app and set credentials
