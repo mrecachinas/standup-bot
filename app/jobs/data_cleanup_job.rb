@@ -16,7 +16,9 @@ class DataCleanupJob < ApplicationJob
       vacuumed: vacuumed
     }
 
-    StandupMetrics.track("data_cleanup.completed", result)
+    # Event payloads are filtered by filter_parameters, which would mask a key
+    # containing "message".
+    StandupMetrics.track("data_cleanup.completed", result.except(:processed_messages_deleted).merge(processed_chat_records_deleted: processed_messages_deleted))
     result
   end
 

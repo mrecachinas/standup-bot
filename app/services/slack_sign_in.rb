@@ -43,7 +43,7 @@ class SlackSignIn
     verify_full_member!(identity)
     identity
   rescue Slack::Web::Api::Errors::SlackError, Faraday::Error => error
-    Rails.logger.warn("Slack sign-in failed: #{error.class}: #{error.message}")
+    Rails.error.report(error, source: "slack_sign_in")
     raise Error, "Slack sign-in failed. Please try again."
   end
 

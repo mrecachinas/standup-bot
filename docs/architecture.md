@@ -178,6 +178,48 @@ Chat platforms deliver events at least once, people type faster than the bot rep
 
 See [Kubernetes](deployment.md#kubernetes) for how this plays out across rolling deploys.
 
+## Observability
+
+Errors and events go through Rails' own reporters, `Rails.error` and `Rails.event`. Backends subscribe to them, so adding an error tracker or a metrics library means subscribing it, not changing app code. The built-in backends live in [`lib/instrumentation/`](../lib/instrumentation/) and are subscribed by `config/initializers/instrumentation.rb`.
+
+```mermaid
+flowchart LR
+    subgraph App
+        REQ[Requests and jobs<br/>unhandled errors]
+        RESC[Rescued errors<br/>Rails.error.report]
+        TRK[StandupMetrics.track / .measure]
+        FW[Rails request and job events]
+    end
+
+    ERR{{Rails.error}}
+    EVT{{Rails.event}}
+
+    REQ --> ERR
+    RESC --> ERR
+    TRK --> EVT
+    FW --> EVT
+
+    ERR --> ELOG[ErrorLogSubscriber<br/>JSON log line]
+    EVT --> LOG[LogSubscriber<br/>JSON log line]
+    ERR --> STATSD[StatsdSubscriber<br/>if STATSD_ADDR is set]
+    EVT --> STATSD
+    ERR -.-> MORE[Your error tracker<br/>Rails.error.subscribe]
+    EVT -.-> MORE2[Your metrics backend<br/>Rails.event.subscribe]
+```
+
+- **Errors.** Rails reports errors that escape a request by itself. `ApplicationJob` reports a job's failure (once `retry_on` gives up, or when nothing handles it) while the job's context is still set, so the report carries its `job_class` and `job_id`. Code that rescues an error and carries on reports it with `Rails.error.report(error, context: {...}, source: "...")`. Reporting the same exception twice is a no-op, so it's safe to report at the rescue and let it bubble up. By default each report becomes a structured log line with the class, message, a cleaned backtrace, and the context (filtered by `filter_parameters`).
+- **Events.** `StandupMetrics.track("standup.sent", standup_id: 1)` reports an app event, and `StandupMetrics.measure("slack.api_request", operation: "send_message") { ... }` reports one with its `duration_ms` and `outcome`. Every Slack and Microsoft API call is measured this way. Keep payloads to IDs, counts, and error classes, never message text or error messages. Rails masks any payload key containing a `filter_parameters` word, so a count named `messages_scheduled` would log as `[FILTERED]`; call it `dms_scheduled`. `track` also records when each event was last seen, which `/health/detailed` and the admin dashboard show.
+- **Metrics.** With `STATSD_ADDR` set, `StatsdSubscriber` sends DogStatsD counters and timings: one counter per app event, timings for measured events, `http.request` and `job.perform` timings from Rails' own events, job retries, and an `error` counter. Only low-cardinality payload keys (such as `operation`, `job_class`, `error_class`, `status`) become tags.
+- **Logs.** Production logs one JSON object per line (`LOG_FORMAT=text` turns this off). Every line in a request carries its `request_id`, plus `user_id` or `member` for console and API requests; every line in a job carries `job_class`, `job_id`, and `queue`, and a job run inside another with `perform_now` puts the outer job's context back when it finishes. `Instrumentation.set_context` adds more for the rest of the request or job. Lograge writes one line per request.
+
+To plug in another backend, subscribe it in an initializer. An error subscriber implements `report(error, handled:, severity:, context:, source:)`; an event subscriber implements `emit(event)`, where `event` is a Hash with `:name`, `:payload`, `:tags`, `:context`, and `:timestamp`:
+
+```ruby
+# config/initializers/error_tracker.rb
+Rails.error.subscribe(MyErrorTracker::RailsSubscriber.new)
+Rails.event.subscribe(MyMetrics::EventSubscriber.new) { |event| event[:name].start_with?("standup.") }
+```
+
 ## Web console, personas, and permissions
 
 The web console uses cookie-backed sessions and serves three kinds of people:

@@ -28,7 +28,7 @@ class SlackInteractionJob < ApplicationJob
   rescue Faraday::Error => error
     # The click was handled; only the reply didn't make it. Retrying would
     # handle the click again, so just note it.
-    Rails.logger.warn "Couldn't post Slack interaction reply: #{error.class}"
+    Rails.error.report(error, source: "slack_interaction_job.reply")
   end
 
   private

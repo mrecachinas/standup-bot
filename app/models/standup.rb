@@ -211,7 +211,7 @@ class Standup < ApplicationRecord
           []
         end
       rescue Psych::SyntaxError, Errno::ENOENT => error
-        Rails.logger.warn "Unable to load holidays config: #{error.class} - #{error.message}"
+        Rails.error.report(error, source: "standup.holidays_config")
         []
       end
     end

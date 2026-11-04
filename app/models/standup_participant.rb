@@ -44,7 +44,7 @@ class StandupParticipant < ApplicationRecord
     cache_avatar_url(profile&.avatar_url)
     resolved_timezone
   rescue StandardError => error
-    Rails.logger.warn "Unable to refresh timezone for participant #{id || platform_user_id}: #{error.class} - #{error.message}"
+    Rails.error.report(error, context: { standup_participant_id: id }, source: "standup_participant.refresh_timezone")
     nil
   end
 

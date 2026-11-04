@@ -19,6 +19,7 @@ module Api
     rescue_from ActionController::BadRequest, with: :render_bad_request
 
     before_action :resolve_principal
+    before_action :set_instrumentation_context
     before_action :authenticate!
 
     # Every action must call authorize_standup!, require_admin!, require_member!,
@@ -51,6 +52,23 @@ module Api
 
       @current_user = user
       Principal.from_bearer(user)
+    end
+
+    # Ties log lines and error reports to who made the request.
+    def set_instrumentation_context
+      Instrumentation.set_context(user_id: @current_user&.id, member: member_label)
+    end
+
+    # Adds the same to the request's log line (see config/initializers/lograge.rb).
+    def append_info_to_payload(payload)
+      super
+      payload[:user_id] = @current_user&.id
+      payload[:member] = member_label
+    end
+
+    def member_label
+      member = @current_member if defined?(@current_member)
+      "#{member.platform}:#{member.platform_user_id}" if member
     end
 
     def authenticate!

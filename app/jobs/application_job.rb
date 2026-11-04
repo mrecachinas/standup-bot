@@ -25,6 +25,20 @@ class ApplicationJob < ActiveJob::Base
 
   discard_on ActiveRecord::RecordNotFound
 
+  # Every log line and error report from the job carries its job_class, job_id,
+  # and queue. A job run inside another (perform_now) puts the outer job's
+  # context back when it finishes. A failure that retry_on or discard_on
+  # doesn't handle is reported here, while the job's context is still set;
+  # Rails' own report of the same error after the job is then a no-op.
+  def perform_now
+    Instrumentation.with_context(job_class: self.class.name, job_id: job_id, queue: queue_name) do
+      super
+    rescue StandardError => exception
+      Rails.error.report(exception, handled: false, source: "application.active_job")
+      raise
+    end
+  end
+
   private
 
   def chat_for(standup)
@@ -38,8 +52,7 @@ class ApplicationJob < ActiveJob::Base
       "job.failed",
       job_class: self.class.name,
       job_id: job_id,
-      error_class: exception.class.name,
-      error_message: exception.message
+      error_class: exception.class.name
     )
     notify_admin_channel(exception)
     raise
@@ -63,7 +76,7 @@ class ApplicationJob < ActiveJob::Base
       begin
         ChatPlatform.for(platform).send_message(channel, text)
       rescue StandardError => notification_error
-        Rails.logger.error "Failed to notify #{platform} admin channel: #{notification_error.class} - #{notification_error.message}"
+        Rails.error.report(notification_error, context: { platform: platform }, source: "application_job.notify_admin_channel")
       end
     end
   end
@@ -77,7 +90,7 @@ class ApplicationJob < ActiveJob::Base
     count = Rails.cache.increment(key, 1, expires_in: ADMIN_NOTICE_INTERVAL)
     count.present? && count > 1
   rescue StandardError => cache_error
-    Rails.logger.warn "Couldn't check admin notice throttling: #{cache_error.class} - #{cache_error.message}"
+    Rails.error.report(cache_error, source: "application_job.admin_notice_throttle")
     false
   end
 end

@@ -96,7 +96,7 @@ module Api
       render json: { errors: [ error.message ], summary: nil }, status: :unprocessable_entity
     rescue StandardError => error
       label = @standup.chat_platform.label
-      Rails.logger.warn "Unable to sync #{label} channel #{channel}: #{error.class} - #{error.message}"
+      Rails.error.report(error, context: { standup_id: @standup.id }, source: "standup_participants.sync")
       render json: {
         errors: [ "Unable to sync #{label} channel. Check the channel and #{label} app permissions, then try again." ],
         summary: nil

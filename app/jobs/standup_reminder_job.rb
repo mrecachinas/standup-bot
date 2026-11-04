@@ -40,7 +40,7 @@ class StandupReminderJob < ApplicationJob
   rescue StandardError => error
     raise if rate_limited?(error)
 
-    Rails.logger.warn "Couldn't check #{response.platform_user_id}'s DM for missed replies: #{error.class} - #{error.message}"
+    Rails.error.report(error, context: { standup_response_id: response.id }, source: "standup_reminder_job.dm_backfill")
     false
   end
 
@@ -66,7 +66,7 @@ class StandupReminderJob < ApplicationJob
       StandupResponse.where(id: response.id).update_all(last_reminder_at: previous)
       raise if rate_limited?(error)
 
-      Rails.logger.error "Couldn't remind #{response.platform_user_id} about standup #{response.standup_id}: #{error.class} - #{error.message}"
+      Rails.error.report(error, severity: :error, context: { standup_id: response.standup_id, standup_response_id: response.id }, source: "standup_reminder_job.remind")
       StandupMetrics.track("standup.reminder_failed", standup_id: response.standup_id, response_id: response.id, error_class: error.class.name)
       return
     end

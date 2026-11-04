@@ -107,6 +107,7 @@ bin/rails standups:validate # Validate config/standups/*.yml
 
 ### Error Handling
 - Use Rails conventions, log appropriately, return proper HTTP status codes
+- Report rescued errors with `Rails.error.report(error, context: {...}, source: "...")` rather than logging them, and app events with `StandupMetrics.track`/`.measure` (IDs, counts, and error classes only, never message text). Backends subscribe to `Rails.error`/`Rails.event`; see `lib/instrumentation.rb`
 - Handle Slack API errors gracefully
 
 ### Configuration

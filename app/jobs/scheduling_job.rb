@@ -40,7 +40,7 @@ class SchedulingJob < ApplicationJob
       end
     end
 
-    StandupMetrics.track("scheduling.completed", active_standups: standups.count, messages_scheduled: scheduled_count)
+    StandupMetrics.track("scheduling.completed", active_standups: standups.count, dms_scheduled: scheduled_count)
   end
 
   private

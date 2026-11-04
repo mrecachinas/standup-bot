@@ -26,8 +26,10 @@ module Microsoft
       reauthenticated = false
 
       begin
-        response = connection.run_request(method, url, body && JSON.generate(body), request_headers(headers)) do |request|
-          request.params.update(params) if params
+        response = timed(method, url) do
+          connection.run_request(method, url, body && JSON.generate(body), request_headers(headers)) do |request|
+            request.params.update(params) if params
+          end
         end
 
         if response.status == 401 && !reauthenticated
@@ -58,6 +60,19 @@ module Microsoft
     RetryRequest = Class.new(StandardError)
 
     attr_reader :scope, :token_provider
+
+    # Times each attempt as a microsoft.api_request event, tagged with the
+    # host (Graph or the Bot Connector) and the response status. Unsuccessful
+    # responses, including retried 401s and 429s, count as errors.
+    def timed(method, url)
+      tags = { method: method.to_s.upcase, host: (URI.parse(url.to_s).host rescue nil) }
+      StandupMetrics.measure("microsoft.api_request", tags) do
+        yield.tap do |response|
+          tags[:status] = response.status
+          tags[:outcome] = "error" unless response.success?
+        end
+      end
+    end
 
     def request_headers(extra)
       {
